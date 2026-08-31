@@ -242,11 +242,12 @@ export const useCombatStore = create<CombatStore>()(
       },
 
       setInitiative: (id, initiative) => {
-        set((state) => ({
-          participants: state.participants.map((p) =>
-            p.id === id ? { ...p, initiative: Number(initiative) } : p
-          ),
-        }));
+        const { participants } = get();
+        const updated = participants.map((p) =>
+          p.id === id ? { ...p, initiative: Number(initiative) } : p
+        );
+        // Reordenar por iniciativa tras el cambio (mantiene el orden canónico).
+        set({ participants: sortByInitiative(updated) });
       },
 
       reorderParticipants: (ordered) => {
