@@ -18,6 +18,12 @@ const makeId = (): string => {
   return `${Date.now()}-${Math.random().toString(36).substring(2, 10)}`;
 };
 
+// Nombre "base" de un combatiente (sin el sufijo de copia " a", " b"...).
+const baseName = (name: string): string => name.replace(/\s+[a-z]$/, '').trim();
+// Letra identificadora para copias del mismo monstruo: 0 -> a, 1 -> b, ...
+const copyLetter = (i: number): string =>
+  'abcdefghijklmnopqrstuvwxyz'[i % 26] ?? String(i + 1);
+
 interface CombatStore extends CombatState {
   // Acciones
   initializeCombat: () => void;
@@ -74,18 +80,41 @@ export const useCombatStore = create<CombatStore>()(
         if (combatant.playerId && get().participants.some((p) => p.playerId === combatant.playerId)) {
           return false;
         }
+        // Etiquetar copias del mismo monstruo (Zombie -> Zombie a, b, c...)
+        const isMonster = combatant.type === 'monster';
+        const base = isMonster ? baseName(combatant.name) : null;
+        const sameBefore = base
+          ? get().participants.filter((p) => baseName(p.name) === base).length
+          : 0;
+        const name =
+          isMonster && sameBefore >= 1 ? `${base} ${copyLetter(sameBefore)}` : combatant.name;
         const newCombatant: Combatant = {
           ...combatant,
+          name,
           id: makeId(),
           isActive: true,
           isDead: false,
         };
-        set((state) => ({
-          participants: sortByInitiative([...state.participants, newCombatant]),
-        }));
+        set((state) => {
+          const withNew = [...state.participants, newCombatant];
+          // Re-etiquetar retroactivamente copias previas sin sufijo (p. ej. un
+          // "Zombie" suelto pasa a "Zombie a" al añadir un segundo "Zombie b").
+          if (isMonster && base) {
+            const same = withNew.filter((p) => baseName(p.name) === base);
+            if (same.length > 1) {
+              const relabel = new Map(same.map((p, idx) => [p.id, `${base} ${copyLetter(idx)}`]));
+              return {
+                participants: sortByInitiative(
+                  withNew.map((p) => (relabel.has(p.id) ? { ...p, name: relabel.get(p.id)! } : p))
+                ),
+              };
+            }
+          }
+          return { participants: sortByInitiative(withNew) };
+        });
         get().addLogEntry({
           type: 'initiative',
-          message: `${combatant.name} se une al combate (Iniciativa: ${combatant.initiative})`,
+          message: `${name} se une al combate (Iniciativa: ${combatant.initiative})`,
           combatantId: newCombatant.id,
         });
         return true;

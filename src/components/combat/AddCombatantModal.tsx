@@ -17,13 +17,6 @@ interface AddCombatantModalProps {
   onClose: () => void;
 }
 
-// Nombre "base" de un combatiente (sin el sufijo de copia " a", " b"...).
-const baseName = (name: string): string => name.replace(/\s+[a-z]$/, '').trim();
-
-// Letra identificadora para copias del mismo monstruo: 0 -> a, 1 -> b, ...
-const copyLetter = (i: number): string =>
-  'abcdefghijklmnopqrstuvwxyz'[i % 26] ?? String(i + 1);
-
 /**
  * Modal de añadir: monstruos de la biblioteca, custom o jugadores del party.
  */
@@ -57,33 +50,10 @@ export const AddCombatantModal = ({ open, onClose }: AddCombatantModalProps) => 
     const monster = monsters.find((m) => m.id === monsterId);
     if (!monster) return;
     ensureCombat();
-    const base = monster.name;
-    // Copias del mismo monstruo (por nombre base) ya presentes en combate.
-    const sameBefore = participants.filter((p) => baseName(p.name) === base).length;
-    const totalAfter = sameBefore + count;
-
+    // El store etiqueta las copias del mismo monstruo (a, b, c...) al entrar.
     for (let i = 0; i < count; i++) {
-      // Si hay más de un ejemplar, se etiquetan a, b, c... para diferenciarlos.
-      const name =
-        totalAfter > 1
-          ? `${base} ${copyLetter(sameBefore + i)}`
-          : base;
       const rollResult = roll('d20');
-      addCombatant({ ...monsterToCombatant(monster, rollResult.result), name });
-    }
-
-    // Etiqueta retroactivamente copias previas sin sufijo (p. ej. un "Zombie"
-    // suelto pasa a "Zombie a" al añadir un segundo "Zombie b").
-    if (totalAfter > 1 && sameBefore >= 1) {
-      useCombatStore.setState((s) => {
-        const same = s.participants.filter((p) => baseName(p.name) === base);
-        const update = new Map(same.map((p, idx) => [p.id, `${base} ${copyLetter(idx)}`]));
-        return {
-          participants: s.participants.map((p) =>
-            update.has(p.id) ? { ...p, name: update.get(p.id)! } : p
-          ),
-        };
-      });
+      addCombatant(monsterToCombatant(monster, rollResult.result));
     }
   };
 
