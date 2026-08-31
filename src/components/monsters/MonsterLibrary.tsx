@@ -3,7 +3,8 @@
 // ============================================================
 
 import { useMemo, useState } from 'react';
-import { Eye, LayoutGrid, List, Plus, Search } from 'lucide-react';
+import type { MouseEvent } from 'react';
+import { Eye, LayoutGrid, List, Plus, Search, Trash2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Button } from '../common/Button';
 import type { Monster } from '../../types';
@@ -16,6 +17,7 @@ interface MonsterLibraryProps {
   monsters: Monster[];
   onSelect: (monster: Monster) => void;
   onNew: () => void;
+  onDelete?: (monster: Monster) => void;
 }
 
 const TYPE_OPTIONS = [
@@ -26,12 +28,13 @@ const TYPE_OPTIONS = [
 /**
  * Vista de lista o grid de la biblioteca con filtros por tipo, CR y tamaño.
  */
-export const MonsterLibrary = ({ monsters, onSelect, onNew }: MonsterLibraryProps) => {
+export const MonsterLibrary = ({ monsters, onSelect, onNew, onDelete }: MonsterLibraryProps) => {
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
   const [crFilter, setCrFilter] = useState('all');
   const [sizeFilter, setSizeFilter] = useState('all');
   const [view, setView] = useState<'grid' | 'list'>('grid');
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const addCombatant = useCombatStore((s) => s.addCombatant);
   const isActive = useCombatStore((s) => s.isActive);
@@ -61,6 +64,17 @@ export const MonsterLibrary = ({ monsters, onSelect, onNew }: MonsterLibraryProp
     if (!isActive) initializeCombat();
     const r = roll('d20');
     addCombatant(monsterToCombatant(monster, r.result));
+  };
+
+  const requestDelete = (monster: Monster, e: MouseEvent) => {
+    if (!onDelete) return;
+    e.stopPropagation();
+    if (confirmDeleteId === monster.id) {
+      onDelete(monster);
+      setConfirmDeleteId(null);
+    } else {
+      setConfirmDeleteId(monster.id);
+    }
   };
 
   const selectClass = 'select';
@@ -160,6 +174,17 @@ export const MonsterLibrary = ({ monsters, onSelect, onNew }: MonsterLibraryProp
                 <span className="badge border border-dnd-gold/40 text-dnd-gold">CR {m.challengeRating}</span>
                 <Button variant="secondary" size="sm" onClick={() => quickAdd(m)}>Añadir</Button>
                 <Button variant="ghost" size="sm" onClick={() => onSelect(m)} aria-label={`Ver detalle de ${m.name}`} icon={<Eye size={14} />} />
+                {onDelete && (
+                  <Button
+                    variant={confirmDeleteId === m.id ? 'danger' : 'ghost'}
+                    size="sm"
+                    onClick={(e) => requestDelete(m, e)}
+                    aria-label={confirmDeleteId === m.id ? `Confirmar eliminación de ${m.name}` : `Eliminar ${m.name}`}
+                    onBlur={() => setConfirmDeleteId(null)}
+                  >
+                    {confirmDeleteId === m.id ? '¿Seguro?' : <Trash2 size={14} />}
+                  </Button>
+                )}
               </div>
             </motion.div>
           ))}
@@ -196,6 +221,17 @@ export const MonsterLibrary = ({ monsters, onSelect, onNew }: MonsterLibraryProp
                   Añadir al combate
                 </Button>
                 <Button variant="ghost" size="sm" onClick={() => onSelect(m)} aria-label={`Ver detalle de ${m.name}`} icon={<Eye size={14} />} />
+                {onDelete && (
+                  <Button
+                    variant={confirmDeleteId === m.id ? 'danger' : 'ghost'}
+                    size="sm"
+                    onClick={(e) => requestDelete(m, e)}
+                    aria-label={confirmDeleteId === m.id ? `Confirmar eliminación de ${m.name}` : `Eliminar ${m.name}`}
+                    onBlur={() => setConfirmDeleteId(null)}
+                  >
+                    {confirmDeleteId === m.id ? '¿Seguro?' : <Trash2 size={14} />}
+                  </Button>
+                )}
               </div>
             </motion.article>
           ))}

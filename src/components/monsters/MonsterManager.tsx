@@ -14,16 +14,23 @@ import { MonsterDetailModal } from './MonsterDetailModal';
  */
 export const MonsterManager = () => {
   const monsters = useMonsterStore((s) => s.monsters);
+  const removeMonster = useMonsterStore((s) => s.removeMonster);
   const [detailTarget, setDetailTarget] = useState<Monster | null>(null);
   const [formTarget, setFormTarget] = useState<Monster | null>(null);
   const [formOpen, setFormOpen] = useState(false);
+
+  const handleDelete = (monster: Monster) => {
+    removeMonster(monster.id);
+    if (detailTarget?.id === monster.id) setDetailTarget(null);
+  };
 
   return (
     <div className="mx-auto max-w-5xl space-y-4">
       <div>
         <h2 className="page-title">Biblioteca de monstruos</h2>
         <p className="text-sm text-dnd-muted">
-          Gestiona criaturas del SRD y crea las tuyas propias. Cambios guardados localmente.
+          Gestiona tu propia colección: edita, crea o elimina monstruos a tu gusto. Los originales del SRD se conservan
+          intactos y puedes volver a traerlos desde la Biblioteca SRD 5.2.
         </p>
       </div>
 
@@ -34,6 +41,7 @@ export const MonsterManager = () => {
           setFormTarget(null);
           setFormOpen(true);
         }}
+        onDelete={handleDelete}
       />
 
       {/* Modales */}
@@ -45,6 +53,7 @@ export const MonsterManager = () => {
           setFormTarget(m);
           setFormOpen(true);
         }}
+        onDelete={handleDelete}
       />
       {formOpen && (
         <MonsterForm

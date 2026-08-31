@@ -77,6 +77,7 @@ export const MonsterForm = ({ monster, onClose }: MonsterFormProps) => {
     const cleaned: Monster = {
       ...form,
       name: form.name.trim(),
+      custom: true,
       actions: form.actions.filter((a) => a.name.trim() !== ''),
       traits: form.traits.filter((t) => t.name.trim() !== ''),
     };

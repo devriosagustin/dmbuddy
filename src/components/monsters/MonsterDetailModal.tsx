@@ -3,7 +3,7 @@
 // ============================================================
 
 import { useState } from 'react';
-import { BookOpen, Plus, Swords, Shield, Heart, Sparkles } from 'lucide-react';
+import { BookOpen, Plus, Swords, Shield, Heart, Sparkles, Trash2 } from 'lucide-react';
 import { Modal } from '../common/Modal';
 import { Button } from '../common/Button';
 import type { Monster } from '../../types';
@@ -20,6 +20,7 @@ interface MonsterDetailModalProps {
   monster: Monster | null;
   onClose: () => void;
   onEdit?: (monster: Monster) => void;
+  onDelete?: (monster: Monster) => void;
 }
 
 const Stat = ({ label, value }: { label: string; value: number }) => (
@@ -33,13 +34,14 @@ const Stat = ({ label, value }: { label: string; value: number }) => (
 /**
  * Detalle completo: stats, acciones, rasgos y botón de añadir al combate.
  */
-export const MonsterDetailModal = ({ monster, onClose, onEdit }: MonsterDetailModalProps) => {
+export const MonsterDetailModal = ({ monster, onClose, onEdit, onDelete }: MonsterDetailModalProps) => {
   const addCombatant = useCombatStore((s) => s.addCombatant);
   const isActive = useCombatStore((s) => s.isActive);
   const initializeCombat = useCombatStore((s) => s.initializeCombat);
   const { roll } = useDice();
   const [added, setAdded] = useState(false);
   const [openSpell, setOpenSpell] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   if (!monster) return null;
 
@@ -51,6 +53,11 @@ export const MonsterDetailModal = ({ monster, onClose, onEdit }: MonsterDetailMo
     addCombatant(monsterToCombatant(monster, inits.result));
     setAdded(true);
     setTimeout(() => setAdded(false), 1500);
+  };
+
+  const handleDelete = () => {
+    onDelete?.(monster);
+    setConfirmDelete(false);
   };
 
   return (
@@ -195,8 +202,24 @@ export const MonsterDetailModal = ({ monster, onClose, onEdit }: MonsterDetailMo
         )}
 
         {/* Acciones finales */}
-        <div className="flex justify-end gap-2 border-t border-dnd-leather/30 pt-3">
-          {monster.custom && onEdit && (
+        <div className="flex flex-wrap items-center justify-end gap-2 border-t border-dnd-leather/30 pt-3">
+          {monster.name && (
+            <p className="mr-auto text-[11px] text-dnd-muted">
+              {monster.custom ? 'Monstruo propio · editable' : 'SRD · si lo eliminas, recupéralo desde la Biblioteca SRD 5.2'}
+            </p>
+          )}
+          {onDelete && (confirmDelete ? (
+            <div className="flex items-center gap-2 rounded-lg border border-dnd-blood/50 bg-dnd-blood/10 px-3 py-1.5">
+              <span className="text-xs text-red-200">¿Eliminar este monstruo?</span>
+              <Button variant="danger" size="sm" onClick={handleDelete}>Sí</Button>
+              <Button variant="ghost" size="sm" onClick={() => setConfirmDelete(false)}>No</Button>
+            </div>
+          ) : (
+            <Button variant="danger" size="sm" onClick={() => setConfirmDelete(true)} icon={<Trash2 size={14} />}>
+              Eliminar
+            </Button>
+          ))}
+          {onEdit && (
             <Button variant="secondary" onClick={() => onEdit(monster)}>
               Editar
             </Button>
