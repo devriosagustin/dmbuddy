@@ -141,7 +141,7 @@
   /* ---------- Modal (mobile-first: hoja en movil, centro en escritorio) ---------- */
 
   .modal-scrim {
-    @apply fixed inset-0 z-50 flex items-end justify-center overflow-y-auto bg-black/70 backdrop-blur-sm;
+    @apply fixed inset-0 z-50 flex items-end justify-center bg-black/70 backdrop-blur-sm;
     padding: 8px;
   }
   @media (min-width: 640px) {
@@ -152,6 +152,8 @@
   }
 
   .modal-sheet {
+    display: flex;
+    flex-direction: column;
     position: relative;
     width: 100%;
     border: 1px solid rgb(218 165 32 / 0.4);
@@ -159,13 +161,34 @@
     border-radius: 18px 18px 0 0;
     padding: 1rem;
     box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.8);
+    /* Altura maxima ajustada al viewport real del movil (dvh) para que
+       el modal nunca quede cortado ni dependa de scrolls anidados */
+    max-height: calc(100vh - 16px);
+    max-height: calc(100dvh - 16px);
   }
   @media (min-width: 640px) {
     .modal-sheet {
       border-radius: var(--dnd-radius-card);
       margin: 2rem auto;
       padding: 1.5rem;
+      max-height: calc(100vh - 4rem);
+      max-height: calc(100dvh - 4rem);
     }
+  }
+
+  /* Cabecera del modal: no debe comprimirse al hacer scroll del cuerpo */
+  .modal-header {
+    flex-shrink: 0;
+  }
+
+  /* Cuerpo del modal con el unico scroll vertical (evita scrolls anidados
+     que rompen el gesto en iOS y ocultan el final del contenido) */
+  .modal-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
   }
 
   /* ---------- Efectos ---------- */

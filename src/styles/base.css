@@ -9,6 +9,7 @@
 @layer base {
   html {
     color-scheme: dark;
+    overflow-x: clip;
     scrollbar-gutter: stable;
   }
 
@@ -20,6 +21,7 @@
     font-family: var(--font-fantasy);
     min-height: 100vh;
     overflow-x: clip;
+    overflow-wrap: anywhere;
     -webkit-font-smoothing: antialiased;
   }
 

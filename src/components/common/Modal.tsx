@@ -79,7 +79,7 @@ export const Modal = ({
             transition={{ type: 'spring', damping: 26, stiffness: 320 }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="mb-4 flex items-start justify-between gap-4">
+            <div className="modal-header mb-4 flex items-start justify-between gap-4">
               <div>
                 {title && (
                   <h2 className="page-title">
@@ -98,7 +98,7 @@ export const Modal = ({
                 <X size={18} />
               </button>
             </div>
-            <div className="scrollbar-thin max-h-[70vh] overflow-y-auto pr-1">{children}</div>
+            <div className="modal-body scrollbar-thin pr-1">{children}</div>
           </motion.div>
         </motion.div>
       )}

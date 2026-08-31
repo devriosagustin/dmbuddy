@@ -44,7 +44,7 @@ export const Layout = () => {
   }, []);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-gradient-to-br from-dnd-dark via-dnd-deep to-dnd-dark text-dnd-text">
+    <div className="flex h-dvh overflow-hidden bg-gradient-to-br from-dnd-dark via-dnd-deep to-dnd-dark text-dnd-text">
       {/* Sidebar (oculto en móvil si está colapsado) */}
       <div className="hidden md:flex">
         <Sidebar />
@@ -99,7 +99,7 @@ export const Layout = () => {
         </header>
 
         {/* Contenido enrutado */}
-        <div className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-6">
+        <div className="flex-1 overflow-y-auto overflow-x-clip p-3 sm:p-4 md:p-6">
           <Outlet />
         </div>
 
