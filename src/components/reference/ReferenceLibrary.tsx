@@ -256,37 +256,37 @@ const runSearch = useCallback(
                   className="group flex cursor-pointer flex-col gap-2 rounded-dnd-lg border border-dnd-leather/40 bg-dnd-dark/80 p-3 transition-colors hover:border-dnd-gold/60"
                   onClick={() => openEntry(rec)}
                 >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-bold text-dnd-text">
-                        <span aria-hidden="true" className="mr-1">{icon}</span>
-                        {item.title}
-                      </p>
-                      <p className="truncate text-[11px] text-dnd-muted">{subtitleFor(item)}</p>
-                    </div>
-                    <SrdSourceBadge source={item.source} />
+<div className="min-w-0">
+                    <p className="truncate text-sm font-bold text-dnd-text">
+                      <span aria-hidden="true" className="mr-1">{icon}</span>
+                      {item.title}
+                    </p>
+                    <p className="truncate text-[11px] text-dnd-muted">{subtitleFor(item)}</p>
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-1">
-                    <TagChip label={SRD_CATEGORIES[item.category].label} />
-                    {item.category === 'monsters' && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          addMonster(srdMonsterToMonster(rec as never));
-                          setImported(item.id);
-                          setTimeout(() => setImported(null), 1400);
-                        }}
-                        className="badge border border-dnd-gold/50 bg-dnd-gold/10 text-dnd-gold transition-colors hover:bg-dnd-gold/25"
-                      >
-                        {imported === item.id ? '✓ Importado' : (
-                          <>
-                            <Plus size={11} aria-hidden="true" /> Importar
-                          </>
-                        )}
-                      </button>
-                    )}
-                    {rec.tags.length > 0 && <TagChip label={rec.tags[0]} />}
+                  <div className="mt-auto flex items-start justify-between gap-2">
+                    <div className="flex min-w-0 flex-wrap items-center gap-1">
+                      <TagChip label={SRD_CATEGORIES[item.category].label} />
+                      {item.category === 'monsters' && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            addMonster(srdMonsterToMonster(rec as never));
+                            setImported(item.id);
+                            setTimeout(() => setImported(null), 1400);
+                          }}
+                          className="badge border border-dnd-gold/50 bg-dnd-gold/10 text-dnd-gold transition-colors hover:bg-dnd-gold/25"
+                        >
+                          {imported === item.id ? '✓ Importado' : (
+                            <>
+                              <Plus size={11} aria-hidden="true" /> Importar
+                            </>
+                          )}
+                        </button>
+                      )}
+                      {rec.tags.length > 0 && <TagChip label={rec.tags[0]} />}
+                    </div>
+                    <SrdSourceBadge source={item.source} />
                   </div>
                 </motion.li>
               );

@@ -6,9 +6,9 @@ import { SRD_SOURCES } from '../../types/srd2024';
 import type { SrdSource } from '../../types/srd2024';
 
 const sourceStyle: Record<SrdSource, string> = {
-  srd2024: 'border border-dnd-gold/70 bg-dnd-gold/15 text-dnd-gold',
-  srd51: 'border border-dnd-leather/60 bg-dnd-leather/15 text-dnd-text/80',
-  homebrew: 'border border-purple-400/60 bg-purple-400/15 text-purple-300',
+  srd2024: 'text-dnd-muted',
+  srd51: 'text-dnd-text',
+  homebrew: 'text-purple-300',
 };
 
 /**

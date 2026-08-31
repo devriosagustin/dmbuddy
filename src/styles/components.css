@@ -32,7 +32,7 @@
     @apply block text-xs font-bold uppercase tracking-wider text-dnd-gold mb-1;
   }
   .badge {
-    @apply inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold;
+    @apply inline-flex shrink-0 items-center whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-bold;
   }
 
   /* ---------- Layout de pagina ---------- */
@@ -146,17 +146,11 @@
     @apply flex items-center gap-2 rounded-dnd-lg border border-dashed border-dnd-leather/50 p-3;
   }
 
-  /* ---------- Modal (mobile-first: hoja en movil, centro en escritorio) ---------- */
+  /* ---------- Modal (mobile-first: centrado en movil y escritorio) ---------- */
 
   .modal-scrim {
-    @apply fixed inset-0 z-50 flex items-end justify-center bg-black/70 backdrop-blur-sm;
+    @apply fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm;
     padding: 8px;
-  }
-  @media (min-width: 640px) {
-    .modal-scrim {
-      @apply items-center;
-      padding: 16px;
-    }
   }
 
   .modal-sheet {
@@ -166,7 +160,7 @@
     width: 100%;
     border: 1px solid rgb(218 165 32 / 0.4);
     background: linear-gradient(to bottom, var(--dnd-dark), var(--dnd-surface-raised));
-    border-radius: 18px 18px 0 0;
+    border-radius: 18px;
     padding: 1rem;
     box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.8);
     /* Altura maxima ajustada al viewport real del movil (dvh) para que

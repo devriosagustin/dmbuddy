@@ -66,7 +66,7 @@ export const Layout = () => {
       )}
 
       {/* Área principal */}
-      <main className="relative flex min-w-0 flex-1 flex-col">
+      <main className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         {/* Header */}
         <header className="z-10 flex items-center justify-between gap-3 border-b border-dnd-leather/50 bg-dnd-dark/80 px-3 py-3 backdrop-blur sm:px-4">
           <div className="flex min-w-0 items-center gap-2 sm:gap-3">
@@ -98,12 +98,12 @@ export const Layout = () => {
         </header>
 
         {/* Contenido enrutado */}
-        <div className="flex-1 overflow-y-auto overflow-x-clip p-3 sm:p-4 md:p-6">
+        <div className="flex-1 overflow-y-auto overflow-x-clip overscroll-contain p-3 sm:p-4 md:p-6">
           <Outlet />
         </div>
 
-        {/* Footer */}
-        <footer className="border-t border-dnd-leather/50 bg-dnd-dark/70 px-4 py-2 text-center text-[11px] text-dnd-muted">
+        {/* Footer: margen derecho en móvil para no quedar detrás del botón flotante de dados */}
+        <footer className="border-t border-dnd-leather/50 bg-dnd-dark/70 px-4 py-2 text-center text-[11px] text-dnd-muted sm:pr-4 pr-20">
           <AttributionFooter />
         </footer>
       </main>
