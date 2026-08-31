@@ -385,10 +385,8 @@ export const useCombatStore = create<CombatStore>()(
 
           awarded.forEach((playerId, i) => {
             const share = base + (i === 0 ? remainder : 0);
-            const player = usePlayerStore.getState().players.find((p) => p.id === playerId);
-            usePlayerStore.getState().updatePlayer(playerId, {
-              xp: (player?.xp ?? 0) + share,
-            });
+            // addXp sincroniza automáticamente nivel y competencia al superar umbrales.
+            usePlayerStore.getState().addXp(playerId, share);
           });
 
           closeOut.push({

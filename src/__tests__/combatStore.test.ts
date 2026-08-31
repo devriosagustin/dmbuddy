@@ -32,7 +32,7 @@ describe('Combat Store', () => {
     const state = useCombatStore.getState();
     expect(state.isActive).toBe(true);
     expect(state.round).toBe(1);
-    expect(state.turn).toBe(0);
+    expect(state.turn).toBe(-1); // sin turno activo hasta pulsar «Siguiente»
     expect(state.combatLog.length).toBeGreaterThan(0);
   });
 
@@ -46,14 +46,16 @@ describe('Combat Store', () => {
   });
 
   it('debe pasar al siguiente turno y a la siguiente ronda', () => {
-    initializeWithTwo();
-    const s1 = useCombatStore.getState();
-    expect(s1.round).toBe(1);
-    useCombatStore.getState().nextTurn();
+    initializeWithTwo(); // turn -1, ronda 1
+    useCombatStore.getState().nextTurn(); // -1 -> 0
     let s = useCombatStore.getState();
+    expect(s.turn).toBe(0);
+    expect(s.round).toBe(1);
+    useCombatStore.getState().nextTurn(); // 0 -> 1
+    s = useCombatStore.getState();
     expect(s.turn).toBe(1);
     expect(s.round).toBe(1);
-    useCombatStore.getState().nextTurn(); // vuelve al 0 → ronda 2
+    useCombatStore.getState().nextTurn(); // 1 -> 0 → ronda 2
     s = useCombatStore.getState();
     expect(s.turn).toBe(0);
     expect(s.round).toBe(2);
@@ -84,7 +86,7 @@ describe('Combat Store', () => {
     const s = useCombatStore.getState();
     useCombatStore.getState().removeCombatant(s.participants[0].id);
     expect(useCombatStore.getState().participants).toHaveLength(1);
-    expect(useCombatStore.getState().turn).toBe(0);
+    expect(useCombatStore.getState().turn).toBe(-1);
   });
 
   it('no debe añadir dos veces al mismo personaje del party', () => {

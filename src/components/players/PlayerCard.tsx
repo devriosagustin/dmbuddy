@@ -17,6 +17,7 @@ import { SrdDetailPanel } from '../reference/SrdDetailPanel';
 import { STAT_LABELS } from '../../types';
 import type { Spell } from '../../types';
 import { SpellSlotsPanel } from './SpellSlotsPanel';
+import { XpBar } from './XpBar';
 
 interface PlayerCardProps {
   player: Player;
@@ -128,6 +129,9 @@ export const PlayerCard = ({ player, onEdit, onRemove }: PlayerCardProps) => {
 
       {/* HP */}
       <HealthBar hp={player.hp} maxHp={player.maxHp} ariaLabel={`Puntos de golpe de ${player.name}`} />
+
+      {/* XP */}
+      <XpBar player={player} />
 
       {/* Stats rápidas */}
       <div className="flex items-center justify-between text-xs">

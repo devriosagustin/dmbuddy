@@ -6,6 +6,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { Player } from '../types';
 import { proficiencyAtLevel } from '../utils/damageCalculator';
+import { applyXpToLevel, MAX_LEVEL, xpForLevel } from '../utils/xp';
 import { clampUsedToMax, longRestUsed, shortRestUsed, slotProgressionOf, spellSlotsMax } from '../utils/spellcastingRules';
 
 const makeId = (): string => {
@@ -22,6 +23,10 @@ interface PlayerStore {
   addPlayer: (player: Omit<Player, 'id' | 'proficiencyBonus'>) => Player;
   updatePlayer: (id: string, updates: Partial<Player>) => void;
   removePlayer: (id: string) => void;
+  /** Suma XP al personaje y sincroniza su nivel y competencia. */
+  addXp: (id: string, amount: number) => void;
+  /** Sube un nivel manualmente (recalcula competencia). */
+  levelUp: (id: string) => void;
   exportPlayer: (id: string) => string;
   importPlayer: (json: string) => boolean;
   adjustSpellSlot: (id: string, slotLevel: number, delta: number) => void;
@@ -61,6 +66,36 @@ export const usePlayerStore = create<PlayerStore>()(
       removePlayer: (id) => {
         set((state) => ({
           players: state.players.filter((p) => p.id !== id),
+        }));
+      },
+
+      addXp: (id, amount) => {
+        set((state) => ({
+          players: state.players.map((p) => {
+            if (p.id !== id) return p;
+            const nextXp = (p.xp ?? 0) + amount;
+            const { level, leveledUp } = applyXpToLevel(p.level, nextXp);
+            return {
+              ...p,
+              xp: nextXp,
+              level: leveledUp ? level : p.level,
+              proficiencyBonus: leveledUp ? proficiencyAtLevel(level) : p.proficiencyBonus,
+            };
+          }),
+        }));
+      },
+
+      levelUp: (id) => {
+        set((state) => ({
+          players: state.players.map((p) => {
+            if (p.id !== id) return p;
+            if (p.level >= MAX_LEVEL) return p;
+            const level = p.level + 1;
+            // Al subir manualmente, se arrastra la XP al umbral mínimo del nuevo nivel
+            // para que la barra nunca quede "hacia atrás".
+            const xp = Math.max(p.xp ?? 0, xpForLevel(level));
+            return { ...p, level, xp, proficiencyBonus: proficiencyAtLevel(level) };
+          }),
         }));
       },
 
