@@ -36,7 +36,18 @@ export const useMonsterStore = create<MonsterStore>()(
 
       addMonster: (monster) => {
         const withCustom = { ...monster, id: monster.id || makeId(), custom: true };
-        set((state) => ({ monsters: [...state.monsters, withCustom] }));
+        // Upsert por id: si ya existe (p. ej. un monstruo importado del SRD),
+        // se actualiza en lugar de duplicar. Así un re-import renueva la ficha
+        // con los datos corregidos de la fuente.
+        set((state) => {
+          const idx = state.monsters.findIndex((m) => m.id === withCustom.id);
+          if (idx === -1) {
+            return { monsters: [...state.monsters, withCustom] };
+          }
+          const next = [...state.monsters];
+          next[idx] = { ...withCustom };
+          return { monsters: next };
+        });
       },
 
       updateMonster: (id, updates) => {

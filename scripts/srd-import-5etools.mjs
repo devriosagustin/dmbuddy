@@ -296,13 +296,52 @@ const fmtCr = (cr) => {
   return Number.isFinite(n) ? n : 0;
 };
 
-const act = (a) => ({
-  name: stripTags(String(a.name ?? '—')),
-  attackBonus: typeof a.attackBonus === 'number' ? a.attackBonus : undefined,
-  damage: a.damage ? String(a.damage) : undefined,
-  damageType: a.damageType ? String(a.damageType) : undefined,
-  description: render(a.entries) || a.name || '',
-});
+// Tipos de daño en español (para coincidir con el bestiario curado).
+const DMG_TYPE_ES = {
+  bludgeoning: 'contundente', slashing: 'cortante', piercing: 'perforante',
+  fire: 'fuego', cold: 'frío', lightning: 'relámpago', thunder: 'trueno',
+  psychic: 'psíquico', acid: 'ácido', poison: 'veneno', necrotic: 'necrótico',
+  radiant: 'radiante', force: 'fuerza',
+};
+
+// En el formato 5.5e/2024 de 5e.tools, el ataque y el daño van embebidos en
+// las entradas como etiquetas: "{@hit 9}", "{@damage 2d6 + 5}", "{@dice 2d6|2|20}".
+// Aquí se extraen para rellenar los campos estructurados de la acción.
+const extractAttack = (entries) => {
+  const text = (entries ?? []).filter((e) => typeof e === 'string').join('|');
+  let attackBonus;
+  const hit = text.match(/\{@hit\s+(-?\d+)\}/);
+  if (hit) attackBonus = Number(hit[1]);
+
+  const damages = [];
+  for (const m of text.matchAll(/\{@damage\s+([^}]+)\}/g)) damages.push(m[1]);
+  for (const m of text.matchAll(/\{@dice\s+([^}|]+)/g)) damages.push(m[1]);
+  const damage = damages
+    .map((d) => d.replace(/\s+/g, '')) // 1d8 + 3 -> 1d8+3
+    .filter((d) => /^\d*d\d/.test(d))
+    .join(', ') || undefined;
+
+  // Tipo de daño: la palabra tras el primer {@damage ...}) (p. ej. "Bludgeoning").
+  let damageType;
+  const typeM = text.match(/\{@damage[^}]*\}\s*\)?\s*([A-Za-z]+(?:\s+[A-Za-z]+)?)\s+damage/i);
+  if (typeM) {
+    const words = typeM[1].trim().split(/\s+/);
+    damageType = DMG_TYPE_ES[words[words.length - 1].toLowerCase()] ?? words[words.length - 1].toLowerCase();
+  }
+
+  return { attackBonus, damage, damageType };
+};
+
+const act = (a) => {
+  const ex = extractAttack(a.entries);
+  return {
+    name: stripTags(String(a.name ?? '—')),
+    attackBonus: ex.attackBonus,
+    damage: ex.damage,
+    damageType: ex.damageType,
+    description: render(a.entries) || a.name || '',
+  };
+};
 
 const monsterToRecord = (m) => {
   const stats = { str: m.str ?? 10, dex: m.dex ?? 10, con: m.con ?? 10, int: m.int ?? 10, wis: m.wis ?? 10, cha: m.cha ?? 10 };
