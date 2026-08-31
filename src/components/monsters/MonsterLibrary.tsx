@@ -153,7 +153,7 @@ export const MonsterLibrary = ({ monsters, onSelect, onNew, onDelete }: MonsterL
           <p className="font-fantasy text-lg text-dnd-gold">Aún no hay monstruos cargados</p>
           <p>
             Importa los que quieras desde la <span className="text-dnd-text">Biblioteca SRD 5.2</span>{' '}
-            (Catálogo → Monstruos → «Importar») o crea los tuyos propios con «Nuevo monstruo».
+            (Biblioteca → Bestiario → «Importar») o crea los tuyos propios con «Nuevo monstruo».
           </p>
         </div>
       ) : (
