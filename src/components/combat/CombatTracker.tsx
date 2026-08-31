@@ -73,9 +73,13 @@ return (
             <p className="text-sm text-dnd-muted">
               Ronda <span className="text-lg font-bold text-dnd-text">{round}</span> · Turno{' '}
               {sorted.length > 0 ? (
-                <span className="text-dnd-text">
-                  {activeCombatant?.name ?? '—'}
-                </span>
+                activeIndex >= 0 ? (
+                  <span className="text-dnd-text">
+                    {activeCombatant?.name ?? '—'}
+                  </span>
+                ) : (
+                  <span className="text-dnd-muted">sin iniciar — pulsa «Siguiente»</span>
+                )
               ) : (
                 'sin combatientes'
               )}
@@ -140,7 +144,7 @@ return (
           <div className="mb-2 flex items-center justify-between text-[11px] uppercase text-dnd-muted">
             <span>Turnos</span>
             <span>
-              {activeIndex + 1} / {sorted.length}
+              {activeIndex >= 0 ? `${activeIndex + 1} / ${sorted.length}` : '—'}
             </span>
           </div>
           <div className="flex gap-1 overflow-x-auto pb-1">

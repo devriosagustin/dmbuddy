@@ -5,6 +5,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { CombatState, Combatant, CombatLogEntry, StatusEffect } from '../types';
+import { sortByInitiative } from '../utils/combatUtils';
 
 // Sincroniza los PG finales del combate con el party (sin recarga circular:
 // playerStore no importa combatStore).
@@ -54,7 +55,7 @@ export const useCombatStore = create<CombatStore>()(
         set({
           id: makeId(),
           round: 1,
-          turn: 0,
+          turn: -1, // Ningún combatiente seleccionado hasta pulsar "Siguiente"
           isActive: true,
           participants: [],
           combatLog: [{
@@ -80,7 +81,7 @@ export const useCombatStore = create<CombatStore>()(
           isDead: false,
         };
         set((state) => ({
-          participants: [...state.participants, newCombatant],
+          participants: sortByInitiative([...state.participants, newCombatant]),
         }));
         get().addLogEntry({
           type: 'initiative',
@@ -97,7 +98,9 @@ export const useCombatStore = create<CombatStore>()(
         const { turn, round } = get();
         let newTurn = turn;
         if (rest.length === 0) {
-          newTurn = 0;
+          newTurn = -1; // Sin combatientes: sin turno activo
+        } else if (turn < 0) {
+          newTurn = -1;
         } else if (turn >= rest.length) {
           newTurn = 0;
         } else if (id === get().participants[turn]?.id) {
@@ -105,7 +108,7 @@ export const useCombatStore = create<CombatStore>()(
         } else {
           newTurn = Math.min(turn, rest.length - 1);
         }
-        set({ participants: rest, turn: newTurn, round: newTurn === 0 && turn !== 0 ? round + 1 : round });
+        set({ participants: rest, turn: newTurn, round: newTurn === 0 && turn > 0 ? round + 1 : round });
         if (combatant) {
           get().addLogEntry({
             type: 'initiative',
@@ -118,7 +121,21 @@ export const useCombatStore = create<CombatStore>()(
       nextTurn: () => {
         const { participants, turn, round, isActive } = get();
         if (!isActive || participants.length === 0) return;
-        const nextIndex = (turn + 1) % participants.length;
+        // Orden canónico: por iniciativa descendente (igual que la vista).
+        const sorted = [...participants].sort((a, b) => b.initiative - a.initiative);
+
+        // Sin turno activo todavía: pasar al primer combatiente de la lista.
+        if (turn === -1) {
+          set({ turn: 0 });
+          get().addLogEntry({
+            type: 'initiative',
+            message: `Turno de ${sorted[0].name}`,
+            combatantId: sorted[0].id,
+          });
+          return;
+        }
+
+        const nextIndex = (turn + 1) % sorted.length;
         const newRound = nextIndex === 0 ? round + 1 : round;
 
         set({ turn: nextIndex, round: newRound });
@@ -133,16 +150,18 @@ export const useCombatStore = create<CombatStore>()(
         }
         get().addLogEntry({
           type: 'initiative',
-          message: `Turno de ${participants[nextIndex].name}`,
-          combatantId: participants[nextIndex].id,
+          message: `Turno de ${sorted[nextIndex].name}`,
+          combatantId: sorted[nextIndex].id,
         });
       },
 
       previousTurn: () => {
         const { participants, turn, round, isActive } = get();
         if (!isActive || participants.length === 0) return;
-        const prevIndex = (turn - 1 + participants.length) % participants.length;
-        const newRound = prevIndex === participants.length - 1 ? Math.max(1, round - 1) : round;
+        if (turn === -1) return; // Aún no hay turno activo
+        const sorted = [...participants].sort((a, b) => b.initiative - a.initiative);
+        const prevIndex = (turn - 1 + sorted.length) % sorted.length;
+        const newRound = prevIndex === sorted.length - 1 ? Math.max(1, round - 1) : round;
         set({ turn: prevIndex, round: newRound });
       },
 
@@ -231,7 +250,7 @@ export const useCombatStore = create<CombatStore>()(
       },
 
       reorderParticipants: (ordered) => {
-        set({ participants: ordered });
+        set({ participants: sortByInitiative(ordered) });
       },
 
       addStatusEffect: (id, effect) => {
@@ -372,7 +391,7 @@ export const useCombatStore = create<CombatStore>()(
       },
 
       resetCombat: () => {
-        set({ participants: [], combatLog: [], turn: 0, round: 0, isActive: false });
+        set({ participants: [], combatLog: [], turn: -1, round: 0, isActive: false });
       },
     }),
     {
