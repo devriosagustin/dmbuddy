@@ -13,7 +13,7 @@ import type { SpeciesStatBonusOption } from '../../types/srd2024';
 import { usePlayerStore } from '../../store/playerStore';
 import { rollStats } from '../../utils/diceUtils';
 import { proficiencyAtLevel } from '../../utils/damageCalculator';
-import { spellcastingLimits } from '../../utils/spellcastingRules';
+import { spellcastingLimits, featSpellBoosts } from '../../utils/spellcastingRules';
 import { BASE_SRD_BUNDLE, SRD_CLASSES, SRD_SPECIES, SRD_WEAPONS, srdWeaponById } from '../../data/srd2024';
 import { weaponAttackModifier, weaponAttackBonus, weaponDamageFormula, weaponAbility, weaponDamageBonus } from '../../utils/weaponUtils';
 import { SpellPicker } from './SpellPicker';
@@ -370,9 +370,12 @@ export const PlayerForm = ({ player, onClose }: PlayerFormProps) => {
           onRemoveCantrip={(id) => setCantrips((prev) => prev.filter((s) => s.id !== id))}
           onRemoveSpell={(id) => setSpells((prev) => prev.filter((s) => s.id !== id))}
           className={className}
-          maxCantrips={spellcastingLimits(className, level).cantrips}
-          maxSpells={spellcastingLimits(className, level).spells}
-          maxSpellLevel={spellcastingLimits(className, level).maxSlotLevel}
+          maxCantrips={spellcastingLimits(className, level).cantrips + featSpellBoosts(feats).cantrips}
+          maxSpells={spellcastingLimits(className, level).spells + featSpellBoosts(feats).spells}
+          maxSpellLevel={Math.max(
+            spellcastingLimits(className, level).maxSlotLevel,
+            featSpellBoosts(feats).minSpellLevel
+          )}
         />
 
         {/* Dotes del SRD 2024 */}

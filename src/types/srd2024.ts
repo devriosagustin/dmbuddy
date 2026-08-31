@@ -121,6 +121,19 @@ export interface SrdFeatEntry extends SrdBase {
   /** 'origin' = dote de origen; 'general' = dote general. */
   type: 'origin' | 'general';
   content: string;
+  /**
+   * Bonus automático a la cuota de trucos/conjuros que otorga la dote
+   * (p. ej. "Iniciado en magia" suma 2 trucos y 1 conjuro). Solo se usa
+   * para cosas que el usuario no puede editar a mano.
+   */
+  spellBoosts?: {
+    /** Trucos adicionales que el personaje puede conocer. */
+    cantrips?: number;
+    /** Conjuros (por cualquier nivel) adicionales que puede conocer/preparar. */
+    spells?: number;
+    /** Nivel de conjuro mínimo habilitado por la dote (1 si concede conjuro). */
+    minSpellLevel?: number;
+  };
 }
 
 /** Bloque de estadísticas de monstruo compatible con las reglas 2024. */

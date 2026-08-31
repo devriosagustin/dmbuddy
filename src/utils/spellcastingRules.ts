@@ -5,6 +5,8 @@
 // (Índice = nivel − 1)
 // ============================================================
 
+import { srdFeatByTitle } from '../data/srd2024';
+
 // Tabla unificada de espacios de conjuro 2024 (PHB, p. 63). Cada fila son
 // los espacios por nivel de conjuro 1..9 en el nivel de conjurador dado.
 // Los conjuradores completos (Bardo, Clérigo, Druida, Hechicero, Mago) la
@@ -107,6 +109,43 @@ export const spellcastingLimits = (className: string, level: number): Spellcasti
   const spells = SPELLS[className]?.[i] ?? 0;
   const maxSlotLevel = MAX_SLOT[className]?.[i] ?? 0;
   return { isCaster: spells > 0 || maxSlotLevel > 0, cantrips, spells, maxSlotLevel };
+};
+
+// ------------------------------------------------------------
+// Bonos por dotes/rasgos a la cuota de trucos y conjuros
+// ------------------------------------------------------------
+
+/** Bonus a la cuota de conjuros que otorga una dote o rasgo. */
+export interface FeatSpellBoosts {
+  /** Trucos adicionales que el personaje puede conocer. */
+  cantrips: number;
+  /** Conjuros adicionales que el personaje puede conocer/preparar. */
+  spells: number;
+  /** Nivel de conjuro mínimo que la dote habilita (1 si concede conjuro). */
+  minSpellLevel: number;
+}
+
+const ZERO_BOOST: FeatSpellBoosts = { cantrips: 0, spells: 0, minSpellLevel: 0 };
+
+/**
+ * Suma los bonos a la cuota de trucos/conjuros declarados en las dotes o
+ * rasgos indicados (leídos de los metadatos `spellBoosts` del SRD). Sirve
+ * para casos como "Iniciado en magia", que el usuario no puede ajustar a mano.
+ */
+export const featSpellBoosts = (titles: string[]): FeatSpellBoosts => {
+  let cantrips = 0;
+  let spells = 0;
+  let minSpellLevel = 0;
+  for (const title of titles) {
+    const entry = srdFeatByTitle(title);
+    const b = entry?.spellBoosts;
+    if (!b) continue;
+    cantrips += b.cantrips ?? 0;
+    spells += b.spells ?? 0;
+    minSpellLevel = Math.max(minSpellLevel, b.minSpellLevel ?? 0);
+  }
+  if (cantrips === 0 && spells === 0 && minSpellLevel === 0) return ZERO_BOOST;
+  return { cantrips, spells, minSpellLevel };
 };
 
 // ------------------------------------------------------------

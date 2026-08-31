@@ -237,6 +237,7 @@ interface Fe {
   prereq?: string;
   type: 'origin' | 'general';
   body: string;
+  spellBoosts?: { cantrips?: number; spells?: number; minSpellLevel?: number };
 }
 
 const fe = (f: Fe): SrdFeatEntry => ({
@@ -248,6 +249,7 @@ const fe = (f: Fe): SrdFeatEntry => ({
   prerequisite: f.prereq,
   type: f.type,
   content: f.body,
+  spellBoosts: f.spellBoosts,
 });
 
 export const SRD_FEATS: SrdFeatEntry[] = [
@@ -258,7 +260,7 @@ export const SRD_FEATS: SrdFeatEntry[] = [
   fe({ id: 'feat-gwm', name: 'Gran arma maestra', type: 'general', body: `**Gran arma maestra** (+1 FUE)\n\nCon armas con la propiedad **Dos manos**, cuando lanzas un **crítico** o reduces una criatura a 0 PG, haces un **ataque adicional como Acción de Bonificación**. También obtienes +1 a FUE.` }),
   fe({ id: 'feat-healer', name: 'Curandero', type: 'origin', body: `**Curandero**\n\nEres experto en primeros auxilios: como **Acción** puedes estabilizar a una criatura con 0 PG y curarle 1 PG. Con un **botiquín**, curas 1d4+4 PG una vez por descanso.` }),
   fe({ id: 'feat-inspiring-leader', name: 'Líder inspirador', type: 'origin', body: `**Líder inspirador**\n\nTras un descanso corto o largo, dedicas 10 minutos a arengar a tus aliados: cada uno gana **PG temporales iguales a tu nivel + tu bono de CAR**.` }),
-  fe({ id: 'feat-magic-initiate', name: 'Iniciado en magia', type: 'origin', body: `**Iniciado en magia**\n\nAprendes **2 trucos** de una lista de conjuro a tu elección y **1 conjuro de nivel 1** que puedes lanzar una vez por día largo.\n\nVuelve a lanzarlo con tus espacios si eres lanzador.` }),
+  fe({ id: 'feat-magic-initiate', name: 'Iniciado en magia', type: 'origin', spellBoosts: { cantrips: 2, spells: 1, minSpellLevel: 1 }, body: `**Iniciado en magia**\n\nAprendes **2 trucos** de una lista de conjuro a tu elección y **1 conjuro de nivel 1** que puedes lanzar una vez por día largo.\n\nVuelve a lanzarlo con tus espacios si eres lanzador.` }),
   fe({ id: 'feat-observant', name: 'Observador', type: 'general', body: `**Observador** (+1 SAB)\n\nTu **Percepción pasiva** aumenta en 5. Eres experto en detectar detalles: ventaja para encontrar un objeto específico entre otros.` }),
   fe({ id: 'feat-sentinel', name: 'Centinela', type: 'general', body: `**Centinela**\n\nCuando golpeas a una criatura dentro de tu alcance con un **Ataque de Oportunidad**, su velocidad se reduce a 0 ese turno.\n\nLas criaturas a 5 pies provocan tu oportunidad aunque se retiren con **Separarse**, y puedes golpear a quien ataca a un aliado adyacente.` }),
   fe({ id: 'feat-sharpshooter', name: 'Tirador de élite', type: 'general', body: `**Tirador de élite** (+1 DES)\n\nIgnoras la **desventaja** cuando atacas a larga distancia o contra criaturas con **cobertura media/tres cuartos**, y obtienes una dote extra de elegir objetivo.` }),

@@ -6,6 +6,7 @@ import {
   longRestUsed,
   clampUsedToMax,
   spellcastingLimits,
+  featSpellBoosts,
 } from '../utils/spellcastingRules';
 
 describe('spellSlotsMax (tabla de espacios 2024)', () => {
@@ -88,5 +89,36 @@ describe('recuperación de espacios (2024)', () => {
   it('clampUsedToMax nunca supera el máximo ni baja de cero', () => {
     const max = spellSlotsMax('Mago', 5);
     expect(clampUsedToMax([99, -3, 1, 0, 0, 0, 0, 0, 0], max)).toEqual([4, 0, 1, 0, 0, 0, 0, 0, 0]);
+  });
+});
+
+describe('featSpellBoosts (bonos de dotes a trucos/conjuros)', () => {
+  it('Iniciado en magia suma 2 trucos y 1 conjuro y habilita nivel 1', () => {
+    expect(featSpellBoosts(['Iniciado en magia'])).toEqual({
+      cantrips: 2,
+      spells: 1,
+      minSpellLevel: 1,
+    });
+  });
+
+  it('las dotes sin bono declarado no alteran la cuota', () => {
+    expect(featSpellBoosts(['Alerta', 'Robusto', 'Competente'])).toEqual({
+      cantrips: 0,
+      spells: 0,
+      minSpellLevel: 0,
+    });
+  });
+
+  it('dotes desconocidas o lista vacía no aportan nada', () => {
+    expect(featSpellBoosts([])).toEqual({ cantrips: 0, spells: 0, minSpellLevel: 0 });
+    expect(featSpellBoosts(['Dote inexistente'])).toEqual({ cantrips: 0, spells: 0, minSpellLevel: 0 });
+  });
+
+  it('la búsqueda de dotes ignora mayúsculas y acentos', () => {
+    expect(featSpellBoosts(['INICIADO EN MAGIA', 'iniciado en magia'])).toEqual({
+      cantrips: 4,
+      spells: 2,
+      minSpellLevel: 1,
+    });
   });
 });
