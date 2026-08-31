@@ -1,0 +1,189 @@
+/* ============================================================
+   components.css - Clases semanticas de UI (capa "components")
+   Bloques reutilizables para no repetir cadenas de utilidades
+   en los JSX. Primero los patrones historicos y luego los nuevos.
+   ============================================================ */
+
+@layer components {
+  /* ---------- Patrones historicos (sin cambios visuales) ---------- */
+
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-bold transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-dnd-gold focus-visible:ring-offset-2 focus-visible:ring-offset-dnd-dark active:scale-[0.97] disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .btn-primary {
+    @apply btn bg-dnd-gold text-dnd-ink hover:bg-yellow-400 active:scale-95 shadow-[0_2px_10px_rgba(218,165,32,0.35)];
+  }
+  .btn-secondary {
+    @apply btn bg-dnd-leather text-dnd-text hover:bg-[#a05a1a] active:scale-95;
+  }
+  .btn-danger {
+    @apply btn bg-dnd-blood text-dnd-text hover:bg-red-800 active:scale-95;
+  }
+  .btn-ghost {
+    @apply btn bg-transparent border border-dnd-leather text-dnd-text hover:bg-dnd-leather/30 active:scale-95;
+  }
+  .card {
+    @apply bg-dnd-dark/90 border border-dnd-leather/60 rounded-dnd-lg shadow-dnd-card p-4;
+  }
+  .input {
+    @apply w-full rounded-lg border border-dnd-leather/60 bg-dnd-ink/60 px-3 py-2 text-sm text-dnd-text placeholder-dnd-muted focus:outline-none focus:ring-2 focus:ring-dnd-gold;
+  }
+  .label {
+    @apply block text-xs font-bold uppercase tracking-wider text-dnd-gold mb-1;
+  }
+  .badge {
+    @apply inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold;
+  }
+
+  /* ---------- Layout de pagina ---------- */
+
+  .page {
+    @apply mx-auto max-w-5xl space-y-4;
+  }
+
+  /* Cabecera de pagina (tarjeta + titulo + acciones a la derecha) */
+  .page-header {
+    @apply card flex flex-wrap items-center justify-between gap-3;
+  }
+
+  /* Titulo tipografico de pagina con tamano fluido */
+  .page-title {
+    font-family: var(--font-fantasy);
+    font-weight: 700;
+    color: var(--dnd-gold);
+    font-size: var(--text-step-title);
+    line-height: 1.2;
+  }
+
+  /* Bloque de botones de accion de una cabecera */
+  .page-actions {
+    @apply flex flex-wrap items-center gap-2;
+  }
+
+  /* ---------- Tarjetas y listas ---------- */
+
+  /* Titulo de seccion dentro de una tarjeta */
+  .card-title {
+    @apply flex items-center gap-2 text-sm font-bold uppercase text-dnd-gold;
+  }
+
+  /* Caja de formulario / panel anidado */
+  .section-box {
+    @apply rounded-dnd-lg border border-dnd-leather/40 p-3;
+  }
+
+  /* Titulo de apartado dentro de un formulario */
+  .section-title {
+    @apply text-xs font-bold uppercase text-dnd-gold;
+  }
+
+  /* Fila de lista de biblioteca (monstruos, conjuros...) */
+  .list-row {
+    @apply flex flex-wrap items-center justify-between gap-2 rounded-dnd-lg border border-dnd-leather/40 bg-dnd-dark/80 px-4 py-2.5;
+  }
+
+  /* Boton cuadrado de icono (editar, borrar, cerrar...) */
+  .icon-btn {
+    @apply rounded-lg p-1.5 text-dnd-muted transition-colors hover:bg-dnd-leather/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-dnd-gold;
+  }
+
+  /* Celda de caracteristica (stat) compacta */
+  .stat-box {
+    @apply flex flex-col items-center rounded-lg bg-dnd-ink/40 py-1;
+  }
+
+  /* Estado vacio de una coleccion */
+  .empty-state {
+    @apply card py-12 text-center;
+  }
+
+  /* ---------- Formularios ---------- */
+
+  /* Rejilla de formulario: 1 columna en movil, 2 desde 520px */
+  .form-grid {
+    display: grid;
+    gap: 0.75rem;
+    grid-template-columns: 1fr;
+  }
+  @media (min-width: 520px) {
+    .form-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  /* Rejilla de caracteristicas: 3 columnas movil, 6 en tablet */
+  .stat-grid {
+    display: grid;
+    gap: 0.75rem;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  @media (min-width: 640px) {
+    .stat-grid {
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+    }
+  }
+
+  /* Select estilo compacto para barras de filtros */
+  .select {
+    @apply rounded-lg border border-dnd-leather/50 bg-dnd-ink/70 px-2 py-1.5 text-xs text-dnd-text focus:outline-none focus:ring-2 focus:ring-dnd-gold;
+  }
+
+  /* Fila de acciones inferior de un formulario */
+  .form-actions {
+    @apply flex flex-wrap justify-end gap-2 border-t border-dnd-leather/30 pt-3;
+  }
+
+  /* Zona de subida/importado */
+  .dropzone {
+    @apply flex items-center gap-2 rounded-dnd-lg border border-dashed border-dnd-leather/50 p-3;
+  }
+
+  /* ---------- Modal (mobile-first: hoja en movil, centro en escritorio) ---------- */
+
+  .modal-scrim {
+    @apply fixed inset-0 z-50 flex items-end justify-center overflow-y-auto bg-black/70 backdrop-blur-sm;
+    padding: 8px;
+  }
+  @media (min-width: 640px) {
+    .modal-scrim {
+      @apply items-center;
+      padding: 16px;
+    }
+  }
+
+  .modal-sheet {
+    position: relative;
+    width: 100%;
+    border: 1px solid rgb(218 165 32 / 0.4);
+    background: linear-gradient(to bottom, var(--dnd-dark), var(--dnd-surface-raised));
+    border-radius: 18px 18px 0 0;
+    padding: 1rem;
+    box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.8);
+  }
+  @media (min-width: 640px) {
+    .modal-sheet {
+      border-radius: var(--dnd-radius-card);
+      margin: 2rem auto;
+      padding: 1.5rem;
+    }
+  }
+
+  /* ---------- Efectos ---------- */
+
+  /* Combatiente activo: animacion de destello de iniciativa */
+  .combatant-active {
+    animation: initiative-flash 1.2s ease-in-out infinite;
+  }
+}
+
+/* Keyframes definidas como CSS propio (no dependen del purge de Tailwind) */
+@keyframes initiative-flash {
+  from {
+    border-color: var(--dnd-gold);
+    box-shadow: var(--dnd-shadow-glow);
+  }
+  to {
+    border-color: transparent;
+    box-shadow: none;
+  }
+}

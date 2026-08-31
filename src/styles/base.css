@@ -1,0 +1,78 @@
+/* ============================================================
+   base.css - Reset y estilos base del tema
+   Capa "base": por defecto todo lo que aplica a la etiqueta.
+   El bloque prefers-reduced-motion queda FUERA de capas a proposito
+   (las reglas sin capa ganan a las encapadas) para garantizar que
+   la accesibilidad nunca sea pisada por utilidades.
+   ============================================================ */
+
+@layer base {
+  html {
+    color-scheme: dark;
+    scrollbar-gutter: stable;
+  }
+
+  /* Fondo general con gradiente oscuro de mazmorra */
+  body {
+    background: linear-gradient(135deg, var(--dnd-dark) 0%, var(--dnd-deep) 100%);
+    background-attachment: fixed;
+    color: var(--dnd-text);
+    font-family: var(--font-fantasy);
+    min-height: 100vh;
+    overflow-x: clip;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  #root {
+    min-height: 100vh;
+  }
+
+  /* Tipografia fluida y equilibrada en titulares */
+  h1,
+  h2,
+  h3,
+  h4 {
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  /* Scrollbar personalizada con tonos cuero */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+    background: #2a1f1a;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: var(--dnd-leather);
+    border-radius: 4px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--dnd-gold);
+  }
+
+  ::selection {
+    background: rgb(218 165 32 / 0.4);
+  }
+
+  /* Anillo de foco visible consistente en toda la app */
+  :focus-visible {
+    outline: 2px solid var(--dnd-gold);
+    outline-offset: 2px;
+  }
+}
+
+/* Reducir movimiento para accesibilidad (sin capa, ver nota superior) */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

@@ -1,0 +1,17 @@
+/* ============================================================
+   utilities.css - Utilidades propias (capa "utilities")
+   Complementos a las utilidades de Tailwind que se usan
+   repetidamente y tienen sentido semantico propio.
+   Con Tailwind v3 solo se emiten las que se usan en el JSX.
+   ============================================================ */
+
+@layer utilities {
+  /* Controles que solo se muestran al hacer hover del grupo (o con foco) */
+  .hover-reveal {
+    @apply opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100;
+  }
+
+  .scrollbar-thin {
+    scrollbar-width: thin;
+  }
+}

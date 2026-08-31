@@ -1,0 +1,191 @@
+// ============================================================
+// Store de jugadores (party) persisitdo en localStorage
+// ============================================================
+
+import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
+import type { Player } from '../types';
+import { proficiencyAtLevel } from '../utils/damageCalculator';
+import { clampUsedToMax, longRestUsed, shortRestUsed, slotProgressionOf, spellSlotsMax } from '../utils/spellcastingRules';
+
+const makeId = (): string => {
+  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
+    return crypto.randomUUID();
+  }
+  return `p-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
+};
+
+const ZERO_SLOTS = [0, 0, 0, 0, 0, 0, 0, 0, 0];
+
+interface PlayerStore {
+  players: Player[];
+  addPlayer: (player: Omit<Player, 'id' | 'proficiencyBonus'>) => Player;
+  updatePlayer: (id: string, updates: Partial<Player>) => void;
+  removePlayer: (id: string) => void;
+  exportPlayer: (id: string) => string;
+  importPlayer: (json: string) => boolean;
+  adjustSpellSlot: (id: string, slotLevel: number, delta: number) => void;
+  shortRestParty: () => { recovered: string[]; spellcasters: number };
+  longRestParty: () => { healed: number; spellcasters: number };
+}
+
+export const usePlayerStore = create<PlayerStore>()(
+  persist(
+    (set, get) => ({
+      players: [],
+
+      addPlayer: (player) => {
+        const newPlayer: Player = {
+          ...player,
+          id: makeId(),
+          proficiencyBonus: player.level ? proficiencyAtLevel(player.level) : 2,
+        };
+        set((state) => ({ players: [...state.players, newPlayer] }));
+        return newPlayer;
+      },
+
+      updatePlayer: (id, updates) => {
+        set((state) => ({
+          players: state.players.map((p) => {
+            if (p.id !== id) return p;
+            const merged = { ...p, ...updates };
+            // Recalcular el bonus de competencia si cambió el nivel
+            if (updates.level && updates.level !== p.level) {
+              merged.proficiencyBonus = proficiencyAtLevel(updates.level);
+            }
+            return merged;
+          }),
+        }));
+      },
+
+      removePlayer: (id) => {
+        set((state) => ({
+          players: state.players.filter((p) => p.id !== id),
+        }));
+      },
+
+      exportPlayer: (id) => {
+        const player = get().players.find((p) => p.id === id);
+        if (!player) return '';
+        return JSON.stringify(player, null, 2);
+      },
+
+      importPlayer: (json) => {
+        try {
+          const parsed = JSON.parse(json) as Player & { weaponId?: string };
+          if (!parsed.name || !parsed.stats) return false;
+          const data: Omit<Player, 'id' | 'proficiencyBonus'> = {
+            name: parsed.name,
+            level: parsed.level ?? 1,
+            class: parsed.class ?? 'Aventurero',
+            race: parsed.race,
+            hp: parsed.hp ?? parsed.maxHp ?? 10,
+            maxHp: parsed.maxHp ?? parsed.hp ?? 10,
+            armorClass: parsed.armorClass ?? 10,
+            stats: {
+              str: parsed.stats?.str ?? 10,
+              dex: parsed.stats?.dex ?? 10,
+              con: parsed.stats?.con ?? 10,
+              int: parsed.stats?.int ?? 10,
+              wis: parsed.stats?.wis ?? 10,
+              cha: parsed.stats?.cha ?? 10,
+            },
+            spells: parsed.spells,
+            cantrips: parsed.cantrips,
+            feats: parsed.feats,
+            weaponIds: parsed.weaponIds ?? (parsed.weaponId ? [parsed.weaponId] : undefined),
+          };
+          const created = get().addPlayer(data);
+          return !!created;
+        } catch {
+          return false;
+        }
+      },
+
+      adjustSpellSlot: (id, slotLevel, delta) => {
+        set((state) => ({
+          players: state.players.map((p) => {
+            if (p.id !== id) return p;
+            const max = spellSlotsMax(p.class, p.level);
+            const used = clampUsedToMax(p.spellSlotsUsed ?? ZERO_SLOTS, max);
+            used[slotLevel - 1] += delta;
+            return { ...p, spellSlotsUsed: clampUsedToMax(used, max) };
+          }),
+        }));
+      },
+
+      shortRestParty: () => {
+        const recovered: string[] = [];
+        let spellcasters = 0;
+        set((state) => ({
+          players: state.players.map((p) => {
+            const progression = slotProgressionOf(p.class);
+            if (progression === 'none') return p;
+            const max = spellSlotsMax(p.class, p.level);
+            const before = clampUsedToMax(p.spellSlotsUsed ?? ZERO_SLOTS, max);
+            const after = clampUsedToMax(shortRestUsed(before, progression), max);
+            spellcasters += 1;
+            const changed = before.some((v, i) => v !== after[i]);
+            if (changed) recovered.push(p.name);
+            return after.every((v, i) => v === before[i]) ? p : { ...p, spellSlotsUsed: after };
+          }),
+        }));
+        return { recovered, spellcasters };
+      },
+
+      longRestParty: () => {
+        let healed = 0;
+        let spellcasters = 0;
+        set((state) => ({
+          players: state.players.map((p) => {
+            const progressed = slotProgressionOf(p.class) !== 'none';
+            let next: Partial<Player> = {};
+            if (p.hp !== p.maxHp) {
+              next.hp = p.maxHp;
+              healed += 1;
+            }
+            if (progressed) {
+              spellcasters += 1;
+              const used = clampUsedToMax(p.spellSlotsUsed ?? ZERO_SLOTS, spellSlotsMax(p.class, p.level));
+              const fully = longRestUsed();
+              const changed = used.some((v, i) => v !== fully[i]);
+              if (changed) next.spellSlotsUsed = fully;
+            }
+            return Object.keys(next).length === 0 ? p : { ...p, ...next };
+          }),
+        }));
+        return { healed, spellcasters };
+      },
+    }),
+    {
+      name: 'player-storage',
+      // v4 = control de espacios de conjuro usados (spellSlotsUsed).
+      // v3 = un personaje puede equipar varias armas (weaponIds).
+      // v2 = integración con el SRD (se descartan los personajes previos).
+      version: 4,
+      migrate: (persisted, version) => {
+        const state = (persisted ?? { players: [] }) as { players?: Array<Record<string, unknown>> };
+        if (version < 2) {
+          return { players: [] } as unknown as PlayerStore;
+        }
+        const players = state.players ?? [];
+        return {
+          ...state,
+          players: players.map((p) => {
+            let next: Record<string, unknown> = p;
+            if (p.weaponIds === undefined) {
+              const legacyId = p.weaponId;
+              if (typeof legacyId === 'string' && legacyId) {
+                next = { ...next, weaponIds: [legacyId] };
+              }
+            }
+            if (next.spellSlotsUsed === undefined) {
+              next = { ...next, spellSlotsUsed: [...ZERO_SLOTS] };
+            }
+            return next;
+          }),
+        } as unknown as PlayerStore;
+      },
+    }
+  )
+);

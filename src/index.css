@@ -1,0 +1,22 @@
+/* ============================================================
+   index.css - Punto de entrada del sistema de estilos
+   Arquitectura por capas (mobile-first):
+     1. tokens      -> design tokens (CSS custom properties)
+     2. base        -> reset, tipografia, scrollbar, focus
+     3. components  -> clases semanticas de UI (btn, card, modal...)
+     4. utilities   -> utilidades propias
+   El orden de capas (utilities > components > base) se fija antes
+   que los imports, tal y como exige la especificacion CSS.
+   Vite inline los @import antes del build de PostCSS/Tailwind.
+   ============================================================ */
+
+@layer base, components, utilities;
+
+@import './styles/tokens.css';
+@import './styles/base.css';
+@import './styles/components.css';
+@import './styles/utilities.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;

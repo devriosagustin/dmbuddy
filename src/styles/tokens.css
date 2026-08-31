@@ -1,0 +1,59 @@
+/* ============================================================
+   tokens.css - Design tokens del tema DND
+   Variables de diseno en :root. Espejan tailwind.config.js
+   (mantener los valores sincronizados con la paleta de ahi).
+   ============================================================ */
+
+:root {
+  /* Paleta DND (espejo de tailwind.config.js -> theme.extend.colors.dnd) */
+  --dnd-parchment: #f5e6ca;
+  --dnd-leather: #8b4513;
+  --dnd-gold: #daa520;
+  --dnd-blood: #8b0000;
+  --dnd-dark: #1a1a2e;
+  --dnd-deep: #16213e;
+  --dnd-text: #f0e6d3;
+  --dnd-scroll: #e8d5b5;
+  --dnd-ink: #2c1810;
+  --dnd-muted: #8a7f76;
+
+  /* Superficies y jerarquia de texto */
+  --dnd-surface: var(--dnd-dark);
+  --dnd-surface-raised: #12121f;
+  --dnd-surface-ink: rgb(44 24 16 / 0.6);
+  --dnd-text-primary: var(--dnd-text);
+  --dnd-text-muted: var(--dnd-muted);
+  --dnd-border: rgb(139 69 19 / 0.4);
+  --dnd-border-strong: rgb(139 69 19 / 0.6);
+
+  /* Radios y sombras */
+  --dnd-radius-card: 14px;
+  --dnd-radius-md: 10px;
+  --dnd-shadow-card: 0 4px 16px rgb(0 0 0 / 0.45);
+  --dnd-shadow-glow: 0 0 10px var(--dnd-gold);
+
+  /* Tipografia */
+  --font-fantasy: 'Cinzel', serif;
+  --font-body: system-ui, sans-serif;
+  --font-handwriting: 'Caveat', cursive;
+  --text-step-title: clamp(1.3rem, 1.1rem + 0.55vw, 1.55rem);
+
+  /* Estructura / layout */
+  --layout-max-width: 64rem;
+  --sidebar-width: 16rem;
+  --header-height: 3.5rem;
+
+  /* Z-index jerarquizado */
+  --z-header: 10;
+  --z-sidebar: 20;
+  --z-scrim: 30;
+  --z-modal: 50;
+  --z-palette: 60;
+  --z-drag: 70;
+
+  /* Breakpoints (mobile-first, espejo de Tailwind) */
+  --bp-sm: 640px;
+  --bp-md: 768px;
+  --bp-lg: 1024px;
+  --bp-xl: 1280px;
+}
