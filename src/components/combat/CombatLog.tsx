@@ -14,6 +14,7 @@ const typeIcons: Record<CombatLogEntry['type'], string> = {
   status: '🪄',
   death: '☠️',
   custom: '📝',
+  xp: '⭐',
 };
 
 const typeColor: Record<CombatLogEntry['type'], string> = {
@@ -23,6 +24,7 @@ const typeColor: Record<CombatLogEntry['type'], string> = {
   status: 'text-purple-300',
   death: 'text-red-400',
   custom: 'text-sky-300',
+  xp: 'text-yellow-300',
 };
 
 /**

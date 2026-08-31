@@ -25,6 +25,8 @@ export interface Combatant {
   statusEffects: StatusEffect[];
   monsterId?: string; // Si es un monstruo de la biblioteca
   playerId?: string; // Si es un jugador
+  /** XP que otorga este monstruo al ser derrotado (según su CR). */
+  xpReward?: number;
   isDead: boolean;
   /** Características del personaje (jugadores añadidos desde el party). */
   playerStats?: PlayerStats;
@@ -136,12 +138,14 @@ export interface Player {
   weaponIds?: string[];
   /** Espacios de conjuro gastados por nivel (índice 0 = nivel 1). */
   spellSlotsUsed?: number[];
+  /** Experiencia acumulada del personaje (PC). */
+  xp?: number;
 }
 
 export interface CombatLogEntry {
   id: string;
   timestamp: Date;
-  type: 'initiative' | 'damage' | 'heal' | 'status' | 'death' | 'custom';
+  type: 'initiative' | 'damage' | 'heal' | 'status' | 'death' | 'custom' | 'xp';
   message: string;
   combatantId?: string;
   details?: unknown;

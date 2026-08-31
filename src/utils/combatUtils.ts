@@ -4,6 +4,7 @@
 
 import type { Combatant, Monster, Player, StatAbbrev } from '../types';
 import { SRD_CLASSES } from '../data/srd2024';
+import { crToXp } from '../data/srdMonsters';
 
 // Salvaciones competentes de una clase (SRD) al abreviatura de estadística.
 const SAVE_LABEL_TO_STAT: Record<string, StatAbbrev> = {
@@ -68,6 +69,7 @@ export const monsterToCombatant = (
     isActive: true,
     statusEffects: [],
     monsterId: monster.id,
+    xpReward: crToXp(monster.challengeRating),
     isDead: false,
   };
 };

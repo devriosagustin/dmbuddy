@@ -305,6 +305,16 @@ export const useCombatStore = create<CombatStore>()(
             synced += 1;
           }
         }
+
+        // Reparto de XP: se suman los monstruos derrotados y se dividen entre
+        // los jugadores que participaron en el combate (vivos o caídos).
+        const defeatedMonsters = participants.filter((c) => c.type === 'monster' && c.isDead);
+        const playerCombatants = participants.filter((c) => c.type === 'player');
+        const totalXp = defeatedMonsters.reduce(
+          (sum, c) => sum + (c.xpReward ?? 0),
+          0
+        );
+
         const closeOut: CombatLogEntry[] = [
           { id: makeId(), timestamp: new Date(), type: 'initiative', message: 'Combate finalizado' },
         ];
@@ -316,6 +326,48 @@ export const useCombatStore = create<CombatStore>()(
             message: `${synced} jugador${synced !== 1 ? 'es' : ''} del party actualizado(s) a sus PG finales`,
           });
         }
+
+        if (playerCombatants.length > 0 && totalXp > 0) {
+          const awarded = playerCombatants
+            .map((c) => c.playerId)
+            .filter((id): id is string => Boolean(id));
+          const base = Math.floor(totalXp / playerCombatants.length);
+          const remainder = totalXp - base * playerCombatants.length;
+
+          awarded.forEach((playerId, i) => {
+            const share = base + (i === 0 ? remainder : 0);
+            const player = usePlayerStore.getState().players.find((p) => p.id === playerId);
+            usePlayerStore.getState().updatePlayer(playerId, {
+              xp: (player?.xp ?? 0) + share,
+            });
+          });
+
+          closeOut.push({
+            id: makeId(),
+            timestamp: new Date(),
+            type: 'xp',
+            message: `XP total del encuentro: ${totalXp} (${defeatedMonsters.length} monstruo${defeatedMonsters.length !== 1 ? 's' : ''} derrotado${defeatedMonsters.length !== 1 ? 's' : ''})`,
+            details: { totalXp, defeatedCount: defeatedMonsters.length },
+          });
+          closeOut.push({
+            id: makeId(),
+            timestamp: new Date(),
+            type: 'xp',
+            message: awarded.length === 1
+              ? `${usePlayerStore.getState().players.find((p) => p.id === awarded[0])?.name ?? 'Un jugador'} recibe ${totalXp} XP`
+              : `Reparto entre ${awarded.length} participantes (${base} XP c/u${remainder > 0 ? ` + ${remainder} extra al primero` : ''})`,
+            details: { base, remainder, totalXp },
+          });
+        } else if (defeatedMonsters.length > 0 && playerCombatants.length === 0) {
+          closeOut.push({
+            id: makeId(),
+            timestamp: new Date(),
+            type: 'xp',
+            message: `Monstruos derrotados: ${totalXp} XP en total (sin jugadores en combate, no se reparte)`,
+            details: { totalXp },
+          });
+        }
+
         set({ isActive: false, combatLog: [...combatLog, ...closeOut] });
       },
 
