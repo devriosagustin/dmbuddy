@@ -60,7 +60,8 @@ export const fetchSrdOverlays = async (): Promise<SrdBundle | null> => {
   let found = false;
 
   const loaders = OVERLAY_FILES.map(async ({ key, file }) => {
-    const url = `/data/srd2024/${file}`;
+    const base = import.meta.env.BASE_URL.replace(/\/+$/, '');
+    const url = `${base}/data/srd2024/${file}`;
     try {
       const res = await fetch(url, { headers: { Accept: 'application/json' } });
       if (!res.ok) return;

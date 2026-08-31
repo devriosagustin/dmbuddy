@@ -10,7 +10,7 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "fetch:srd": "node scripts/fetch-srd2024.mjs",
+    "fetch:srd": "node scripts/srd-import-5etools.mjs",
     "deploy": "npm run build && gh-pages -d dist"
   },
   "dependencies": {
