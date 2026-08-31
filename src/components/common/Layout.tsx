@@ -94,7 +94,6 @@ export const Layout = () => {
               <span className="hidden sm:inline">Buscar en el SRD</span>
               <kbd className="hidden rounded border border-dnd-leather/50 px-1 text-[10px] md:inline">Ctrl K</kbd>
             </button>
-            <QuickRoll />
           </div>
         </header>
 
@@ -111,6 +110,9 @@ export const Layout = () => {
 
       {/* Paleta de búsqueda global (Ctrl+K) */}
       <SearchPalette />
+
+      {/* Lanzador rápido de dados (botón flotante) */}
+      <QuickRoll />
     </div>
   );
 };
