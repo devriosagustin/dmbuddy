@@ -136,6 +136,8 @@ export interface Player {
   cantrips?: Spell[];
   /** Dotes escogidas del SRD 2024 (modificadores de reglas). */
   feats?: string[];
+  /** Habilidades con competencia del personaje (nombres del SRD). */
+  skills?: string[];
   /** Armas equipadas (ids del SRD 5.2). */
   weaponIds?: string[];
   /** Espacios de conjuro gastados por nivel (índice 0 = nivel 1). */

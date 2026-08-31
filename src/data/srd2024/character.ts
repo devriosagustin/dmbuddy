@@ -16,6 +16,8 @@ interface Cl {
   hitDice: string;
   armor: string;
   saves: string[];
+  /** Número de habilidades con competencia que la clase otorga al nivel 1. */
+  skills: number;
   body: string;
 }
 
@@ -29,68 +31,69 @@ const cl = (c: Cl): SrdClassEntry => ({
   hitDice: c.hitDice,
   armorProficiency: c.armor,
   saves: c.saves,
+  skills: c.skills,
   content: c.body,
 });
 
 export const SRD_CLASSES: SrdClassEntry[] = [
   cl({
     id: 'class-barbarian', name: 'Bárbaro', ability: 'Fuerza', hitDice: 'd12',
-    armor: 'Armaduras ligeras y medianas, escudos', saves: ['FUE', 'CON'],
+    armor: 'Armaduras ligeras y medianas, escudos', saves: ['FUE', 'CON'], skills: 2,
     body: `Furia combativa imparable: **Ira** (daño +2/+3/+4, resistencia a daño contundente/ perforante/ cortante al nivel 3+) y **Ataque Temerario** (ventaja a cambio de ventaja del enemigo).\n\n**Primarias (nivel 1):** Ira, Defensa sin armadura (CA = 10 + DES + CON).\n**Mejoras:** Ataque adicional (5º y 11º), Atlético, Instinto peligroso al 14º.`,
   }),
   cl({
     id: 'class-bard', name: 'Bardo', ability: 'Carisma', hitDice: 'd8',
-    armor: 'Armaduras ligeras', saves: ['DES', 'CAR'],
+    armor: 'Armaduras ligeras', saves: ['DES', 'CAR'], skills: 3,
     body: `Artista magistral de los **Secretos mágicos** y la **Inspiración bárdica** (d6→d12 añadida a una tirada de aliado).\n\n**Primarias:** Inspiración bárdica, Conjuros (lanza con CAR, comienza con 2 trucos y 2 espacios), Encanto.\n**Mejoras:** Pericia (2º), Bard College (3º), Experto en secretos (10º).`,
   }),
   cl({
     id: 'class-cleric', name: 'Clérigo', ability: 'Sabiduría', hitDice: 'd8',
-    armor: 'Armaduras, escudos', saves: ['SAB', 'CAR'],
+    armor: 'Armaduras, escudos', saves: ['SAB', 'CAR'], skills: 2,
     body: `Sirviente divino con acceso al **Dominio** (Luz, Vida, Guerra...) que otorga conjuros de dominio y rasgos a nivel 1, 2 y 6.\n\n**Primarias:** Lanzamiento de conjuros (con SAB), Orden divino: **Destruir no muertos** (2º+), Lanzamiento de canalizar divinidad.\n**Mejoras:** Curación mejorada, **Comunión divina** (guía de los dioses), Resurrección.`,
   }),
   cl({
     id: 'class-druid', name: 'Druida', ability: 'Sabiduría', hitDice: 'd8',
-    armor: 'Armaduras ligeras y medianas (no metálicas), escudos', saves: ['INT', 'SAB'],
+    armor: 'Armaduras ligeras y medianas (no metálicas), escudos', saves: ['INT', 'SAB'], skills: 2,
     body: `Guardiana de la naturaleza: **Forma salvaje** (transformarse en bestias) y lanzamiento de conjuros naturales.\n\n**Primarias:** Conjuros (SAB), Forma Salvaje (2º, con CR y velocidades crecientes), Círculo druídico (2º: Tierra, Luna...).\n**Mejoras:** Dormir en la naturaleza sin supervivencia, Inmunidad a veneno, Forma de bestia de alto CR (8º+).`,
   }),
   cl({
     id: 'class-fighter', name: 'Guerrero', ability: 'Fuerza o Destreza', hitDice: 'd10',
-    armor: 'Todas las armaduras y escudos', saves: ['FUE', 'CON'],
+    armor: 'Todas las armaduras y escudos', saves: ['FUE', 'CON'], skills: 2,
     body: `Experto en armas: **Estilo de Combate**, **Acción Extra** (2º), **Indomable** (relanza salvaciones), **Ataque adicional** (5º y 11º).\n\n**2024 nuevo:** **Dominio de armas** — cada arma ofrece una técnica especial (Abrir brecha, Lacerar, Derribar, Hacha arrojadiza...).\n**Subclase:** Campeón (crítico en 19), Caballero de magia (conjuros).`,
   }),
   cl({
     id: 'class-monk', name: 'Monje', ability: 'Destreza y Sabiduría', hitDice: 'd8',
-    armor: 'Sin armadura', saves: ['FUE', 'DES'],
+    armor: 'Sin armadura', saves: ['FUE', 'DES'], skills: 2,
     body: `Maestro del combate sin armas: **Artes Marciales**, **Defensa sin Armadura**, **Puntos de Ki** (realizan técnicas: Ráfaga de Golpes, Paso del Viento, Mano Abierta...).\n\n**2024:** el recurso se llama **Puntos de Enfoque**; al 2º obtienes **Deflectar Proyectiles**.\n**Subclase:** Camino de las 4 Elementos (lanzamiento con conjuros).`,
   }),
   cl({
     id: 'class-paladin', name: 'Paladín', ability: 'Fuerza y Carisma', hitDice: 'd10',
-    armor: 'Todas las armaduras y escudos', saves: ['SAB', 'CAR'],
+    armor: 'Todas las armaduras y escudos', saves: ['SAB', 'CAR'], skills: 2,
     body: `Cruzado sagrado: **Sentido Divino**, **Imposición de Manos** (curación), **Golpe Divino** (2024: gasta espacio de conjuro para añadir daño radiante).\n\n**Juramento (3º):** Devoción, Venganza, Ancianos... otorgan conjuros de juramento.\n**Mejoras:** Aura de protección (6º), Mejora de Aura (18º), Golpes extra.`,
   }),
   cl({
     id: 'class-ranger', name: 'Guardabosques', ability: 'Destreza y Sabiduría', hitDice: 'd10',
-    armor: 'Armaduras ligeras y medianas, escudos', saves: ['FUE', 'DES'],
+    armor: 'Armaduras ligeras y medianas, escudos', saves: ['FUE', 'DES'], skills: 3,
     body: `Cazador de la frontera: **Marca del cazador** (2024, rasgo de nivel 1), conjuros (nivel 2+), **Compañero bestia** (primaveral, nivel 3, opción).\n\n**Primarias:** Enemigo favorito→ **Explorador**, Sigilo y supervivencia.\n**Mejoras:** Ataque adicional (5º), Evasión al 15º, Paso fantasma (18º).`,
   }),
   cl({
     id: 'class-rogue', name: 'Pícaro', ability: 'Destreza', hitDice: 'd8',
-    armor: 'Armaduras ligeras', saves: ['DES', 'INT'],
+    armor: 'Armaduras ligeras', saves: ['DES', 'INT'], skills: 4,
     body: `Especialista en emboscadas: **Ataque Furtivo** (d6 extra por nivel cuando tiene ventaja o un aliado está en contacto), **Acción Astuta** (Esconderse/ Carrera / Separarse como bonus action).\n\n**Primarias:** Pericia, Ladrón...\n**Mejoras:** Esquiva increíble (5º), Talento para evitar (7º), Sigilo absoluto (11º).`,
   }),
   cl({
     id: 'class-sorcerer', name: 'Hechicero', ability: 'Carisma', hitDice: 'd6',
-    armor: 'Sin armaduras', saves: ['CON', 'CAR'],
+    armor: 'Sin armaduras', saves: ['CON', 'CAR'], skills: 2,
     body: `Magia innata: **Metamagia** (2024: puntos de hechicería que gastas en Metamagia y en **Hechicería Innata**), lanzamiento con CAR.\n\n**Metamágicas populares (3º):** Conjuro con dos objetivos, Conjuro doblado, Conjuro prolongado, Conjuro espejado.\n**Orígenes (1º):** Línea dracónica, Mago salvaje (erupción de magia caótica).`,
   }),
   cl({
     id: 'class-warlock', name: 'Brujo', ability: 'Carisma', hitDice: 'd8',
-    armor: 'Armaduras ligeras y medianas, escudos', saves: ['SAB', 'CAR'],
+    armor: 'Armaduras ligeras y medianas, escudos', saves: ['SAB', 'CAR'], skills: 2,
     body: `Pacto con un ser extraño. **Magia del Pacto:** espacios de conjuro de máximo nivel que se recuperan en un **descanso corto**. Las **Invocaciones Místicas** personalizan tu pacto.\n\n**1º:** Patrón (El Arquefey, El Infernal, El Gran Antiguo...), dado arcano y trucos.\n**Subclases:** Pactos (Cadena, Hoja, Tomo) que añaden rasgos.\n**9º+:** Arcano Mayor, un conjuro de alto nivel por día.`,
   }),
   cl({
     id: 'class-wizard', name: 'Mago', ability: 'Inteligencia', hitDice: 'd6',
-    armor: 'Sin armaduras', saves: ['INT', 'SAB'],
+    armor: 'Sin armaduras', saves: ['INT', 'SAB'], skills: 2,
     body: `Erudito arcano que prepara conjuros de su **libro de conjuros**. **Recuperación Arcana:** recuperación de espacios en un descanso corto.\n\n**Primarias:** Lanzamiento de conjuros (INT), Grimorio, Cantrip versátil.\n**Escuelas (2º):** Abjuración, Evocación, Ilusión, Nigromancia... con Magia estable (protecciones adicionales).`,
   }),
 ];
@@ -238,6 +241,7 @@ interface Fe {
   type: 'origin' | 'general';
   body: string;
   spellBoosts?: { cantrips?: number; spells?: number; minSpellLevel?: number };
+  skillBoosts?: number;
 }
 
 const fe = (f: Fe): SrdFeatEntry => ({
@@ -250,6 +254,7 @@ const fe = (f: Fe): SrdFeatEntry => ({
   type: f.type,
   content: f.body,
   spellBoosts: f.spellBoosts,
+  skillBoosts: f.skillBoosts,
 });
 
 export const SRD_FEATS: SrdFeatEntry[] = [
@@ -265,7 +270,7 @@ export const SRD_FEATS: SrdFeatEntry[] = [
   fe({ id: 'feat-sentinel', name: 'Centinela', type: 'general', body: `**Centinela**\n\nCuando golpeas a una criatura dentro de tu alcance con un **Ataque de Oportunidad**, su velocidad se reduce a 0 ese turno.\n\nLas criaturas a 5 pies provocan tu oportunidad aunque se retiren con **Separarse**, y puedes golpear a quien ataca a un aliado adyacente.` }),
   fe({ id: 'feat-sharpshooter', name: 'Tirador de élite', type: 'general', body: `**Tirador de élite** (+1 DES)\n\nIgnoras la **desventaja** cuando atacas a larga distancia o contra criaturas con **cobertura media/tres cuartos**, y obtienes una dote extra de elegir objetivo.` }),
   fe({ id: 'feat-shield-master', name: 'Maestro de escudo', type: 'general', body: `**Maestro de escudo** (+1 FUE)\n\nEn tu **Acción de Bonificación** puedes empujar (Artículo: FUE vs FUE/DES) a una criatura adyacente 5 pies.\n\nComo reacción a un conjuro que exija salvación de DES, obtienes +2 con tu escudo (si altura) y puedes evitar el daño de área.` }),
-  fe({ id: 'feat-skilled', name: 'Competente', type: 'origin', body: `**Competente** (+1 INT, SAB o CAR)\n\nObtienes **competencia en tres habilidades** a tu elección. Con Pericia de Pícaro/Bardo, duplica los usos.` }),
+  fe({ id: 'feat-skilled', name: 'Competente', type: 'origin', skillBoosts: 3, body: `**Competente** (+1 INT, SAB o CAR)\n\nObtienes **competencia en tres habilidades** a tu elección. Con Pericia de Pícaro/Bardo, duplica los usos.` }),
   fe({ id: 'feat-tough', name: 'Robusto', type: 'general', body: `**Robusto**\n\nTu máximo de **PG aumenta en 2 por nivel** (incluye los niveles ya obtenidos).` }),
   fe({ id: 'feat-war-caster', name: 'Lanzador de combate', type: 'general', body: `**Lanzador de combate**\n\nTienes **ventaja** en las pruebas de **Constitución para mantener la concentración**.\n\nPuedes realizar **conjuros con componente S** con las manos ocupadas y usar un conjuro en lugar de un **Ataque de Oportunidad** (con tiempo de 1 acción, solo contra ti como objetivo).` }),
   fe({ id: 'feat-savage-attacker', name: 'Atacante salvaje', type: 'general', body: `**Atacante salvaje**\n\nUna vez por turno, cuando haces daño con un ataque, puedes **relanzar el daño** y usar el resultado que prefieras.` }),

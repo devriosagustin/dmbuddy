@@ -17,6 +17,8 @@ import { spellcastingLimits, featSpellBoosts } from '../../utils/spellcastingRul
 import { BASE_SRD_BUNDLE, SRD_CLASSES, SRD_SPECIES, SRD_WEAPONS, srdWeaponById } from '../../data/srd2024';
 import { weaponAttackModifier, weaponAttackBonus, weaponDamageFormula, weaponAbility, weaponDamageBonus } from '../../utils/weaponUtils';
 import { SpellPicker } from './SpellPicker';
+import { SkillPicker } from './SkillPicker';
+import { featSkillBoosts } from '../../utils/skills';
 
 const normalize = (s: string): string =>
   s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
@@ -60,6 +62,7 @@ export const PlayerForm = ({ player, onClose }: PlayerFormProps) => {
   const [cantrips, setCantrips] = useState<Spell[]>(player?.cantrips ?? []);
   const [feats, setFeats] = useState<string[]>(player?.feats ?? []);
   const [featQuery, setFeatQuery] = useState('');
+  const [skills, setSkills] = useState<string[]>(player?.skills ?? []);
   const [weaponIds, setWeaponIds] = useState<string[]>(player?.weaponIds ?? []);
   const [raceBonusIndex, setRaceBonusIndex] = useState(0);
   const [appliedBonus, setAppliedBonus] = useState<Partial<Record<StatAbbrev, number>>>({});
@@ -79,6 +82,9 @@ export const PlayerForm = ({ player, onClose }: PlayerFormProps) => {
 
   const toggleFeat = (title: string) =>
     setFeats((prev) => (prev.includes(title) ? prev.filter((f) => f !== title) : [...prev, title]));
+
+  const toggleSkill = (name: string) =>
+    setSkills((prev) => (prev.includes(name) ? prev.filter((s) => s !== name) : [...prev, name]));
 
   const toggleWeapon = (id: string) =>
     setWeaponIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
@@ -144,6 +150,7 @@ export const PlayerForm = ({ player, onClose }: PlayerFormProps) => {
       spells: spells.length > 0 ? spells : undefined,
       cantrips: cantrips.length > 0 ? cantrips : undefined,
       feats: feats.length > 0 ? feats : undefined,
+      skills: skills.length > 0 ? skills : undefined,
       weaponIds: weaponIds.length > 0 ? weaponIds : undefined,
     };
     if (player) {
@@ -449,6 +456,18 @@ export const PlayerForm = ({ player, onClose }: PlayerFormProps) => {
             )}
           </div>
         </section>
+
+        {/* Habilidades (competencias) */}
+        <SkillPicker
+          skills={skills}
+          onToggleSkill={toggleSkill}
+          onRemoveSkill={(name) => setSkills((prev) => prev.filter((s) => s !== name))}
+          stats={stats}
+          proficiencyBonus={proficiencyAtLevel(Math.max(1, Number(level) || 1))}
+          maxSkills={
+            (SRD_CLASSES.find((c) => c.title === className)?.skills ?? 0) + featSkillBoosts(feats)
+          }
+        />
 
         {/* Importar */}
         {!player && (

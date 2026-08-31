@@ -16,6 +16,7 @@ import { weaponAttackBonus, weaponDamageFormula } from '../../utils/weaponUtils'
 import { SrdDetailPanel } from '../reference/SrdDetailPanel';
 import { STAT_LABELS } from '../../types';
 import type { Spell } from '../../types';
+import { skillBonus } from '../../utils/skills';
 import { SpellSlotsPanel } from './SpellSlotsPanel';
 import { XpBar } from './XpBar';
 
@@ -155,6 +156,31 @@ export const PlayerCard = ({ player, onEdit, onRemove }: PlayerCardProps) => {
           );
         })}
       </div>
+
+      {/* Habilidades con competencia */}
+      {player.skills && player.skills.length > 0 && (
+        <div className="flex flex-col gap-1">
+          <p className="text-[10px] uppercase text-dnd-muted">
+            Habilidades ({player.skills.length})
+          </p>
+          <div className="flex flex-wrap gap-1">
+            {[...player.skills]
+              .sort((a, b) => a.localeCompare(b))
+              .map((name) => {
+                const bonus = skillBonus(player.stats, name, true, player.proficiencyBonus);
+                return (
+                  <span
+                    key={name}
+                    className="inline-flex items-center gap-1 rounded-full border border-dnd-leather/40 bg-dnd-ink/50 px-2 py-0.5 text-[10px] text-dnd-text"
+                  >
+                    {name}
+                    <span className="font-bold text-dnd-gold">{bonus >= 0 ? `+${bonus}` : bonus}</span>
+                  </span>
+                );
+              })}
+          </div>
+        </div>
+      )}
 
       {/* Armas equipadas */}
       {weapons.length > 0 && (

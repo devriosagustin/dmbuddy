@@ -91,6 +91,8 @@ export interface SrdClassEntry extends SrdBase {
   hitDice: string;
   armorProficiency: string;
   saves: string[];
+  /** Número de habilidades en las que la clase otorga competencia al nivel 1. */
+  skills: number;
   content: string;
 }
 
@@ -134,6 +136,8 @@ export interface SrdFeatEntry extends SrdBase {
     /** Nivel de conjuro mínimo habilitado por la dote (1 si concede conjuro). */
     minSpellLevel?: number;
   };
+  /** Competencias de habilidad adicionales que otorga la dote (p. ej. "Competente" = 3). */
+  skillBoosts?: number;
 }
 
 /** Bloque de estadísticas de monstruo compatible con las reglas 2024. */

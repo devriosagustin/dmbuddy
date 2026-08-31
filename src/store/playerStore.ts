@@ -128,6 +128,7 @@ export const usePlayerStore = create<PlayerStore>()(
             spells: parsed.spells,
             cantrips: parsed.cantrips,
             feats: parsed.feats,
+            skills: parsed.skills,
             weaponIds: parsed.weaponIds ?? (parsed.weaponId ? [parsed.weaponId] : undefined),
           };
           const created = get().addPlayer(data);
