@@ -3,12 +3,13 @@
 // ============================================================
 
 import { useState } from 'react';
-import { Plus, FileJson, Moon, Sun } from 'lucide-react';
+import { Plus, FileJson, Moon, Sun, Layers } from 'lucide-react';
 import { Button } from '../common/Button';
 import { usePlayerStore } from '../../store/playerStore';
 import type { Player } from '../../types';
 import { PlayerCard } from './PlayerCard';
 import { PlayerForm } from './PlayerForm';
+import { CampaignsManager } from './CampaignsManager';
 
 /**
  * Pantalla principal de gestión de jugadores.
@@ -22,6 +23,7 @@ export const PartyManager = () => {
 
   const [importOpen, setImportOpen] = useState(false);
   const [importText, setImportText] = useState('');
+  const [campaignOpen, setCampaignOpen] = useState(false);
 
   const handleShortRest = () => {
     if (players.length === 0) return;
@@ -104,8 +106,17 @@ return (
           <Button variant="ghost" size="sm" onClick={exportAll} icon={<FileJson size={15} />} disabled={players.length === 0}>
             Exportar party
           </Button>
-          <Button variant="ghost" size="sm" onClick={() => setImportOpen((o) => !o)}>
+<Button variant="ghost" size="sm" onClick={() => setImportOpen((o) => !o)}>
             Importar
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            icon={<Layers size={15} />}
+            onClick={() => setCampaignOpen(true)}
+            title="Guardar y alternar entre campañas (party y combate)"
+          >
+            Campañas
           </Button>
           <Button
             variant="primary"
@@ -166,7 +177,7 @@ return (
         ))}
       </div>
 
-      {/* Formulario */}
+{/* Formulario */}
       {formOpen && (
         <PlayerForm
           player={editing}
@@ -176,6 +187,9 @@ return (
           }}
         />
       )}
+
+      {/* Campañas */}
+      <CampaignsManager open={campaignOpen} onClose={() => setCampaignOpen(false)} />
     </div>
   );
 };
