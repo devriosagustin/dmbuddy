@@ -28,17 +28,13 @@ interface CombatantCardProps {
  * Doble clic en el HP abre un input para modificar.
  */
 export const CombatantCard = ({ combatant, isActive, onOpenActions, rank }: CombatantCardProps) => {
-  const { updateHP, removeCombatant, setAC, setInitiative, removeStatusEffect } = useCombatStore();
-  const [editingPhase, setEditingPhase] = useState<'hp' | 'ac' | 'init' | null>(null);
+  const { updateHP, removeCombatant, setAC, removeStatusEffect } = useCombatStore();
+  const [editingPhase, setEditingPhase] = useState<'hp' | 'ac' | null>(null);
   const [editValue, setEditValue] = useState('');
 
-  const startEdit = (phase: 'hp' | 'ac' | 'init') => {
+  const startEdit = (phase: 'hp' | 'ac') => {
     setEditingPhase(phase);
-    setEditValue(
-      phase === 'hp' ? String(combatant.hp)
-      : phase === 'ac' ? String(combatant.armorClass)
-      : String(combatant.initiative)
-    );
+    setEditValue(phase === 'hp' ? String(combatant.hp) : String(combatant.armorClass));
   };
 
   const commitEdit = () => {
@@ -55,8 +51,6 @@ export const CombatantCard = ({ combatant, isActive, onOpenActions, rank }: Comb
         }));
       } else if (editingPhase === 'ac') {
         setAC(combatant.id, value);
-      } else if (editingPhase === 'init') {
-        setInitiative(combatant.id, value);
       }
     }
     setEditingPhase(null);
@@ -115,33 +109,13 @@ export const CombatantCard = ({ combatant, isActive, onOpenActions, rank }: Comb
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-1">
-          {/* Iniciativa editable (doble clic) */}
-          {editingPhase === 'init' ? (
-            <input
-              autoFocus
-              value={editValue}
-              onChange={(e) => setEditValue(e.target.value)}
-              onBlur={commitEdit}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') commitEdit();
-                if (e.key === 'Escape') setEditingPhase(null);
-              }}
-              onClick={(e) => e.stopPropagation()}
-              className="input w-16 text-sm"
-              aria-label="Nuevo valor de iniciativa"
-            />
-          ) : (
-            <span
-              onDoubleClick={(e) => {
-                e.stopPropagation();
-                startEdit('init');
-              }}
-              title={`Iniciativa: ${combatant.initiative}. Doble clic para editar y reordenar turnos.`}
-              className="badge cursor-text border border-dnd-gold/40 bg-dnd-ink/60 text-dnd-gold"
-            >
-              🎲 {combatant.initiative}
-            </span>
-          )}
+          {/* Iniciativa (editable desde el detalle) */}
+          <span
+            className="badge border border-dnd-gold/40 bg-dnd-ink/60 text-dnd-gold"
+            title={`Iniciativa: ${combatant.initiative}`}
+          >
+            🎲 {combatant.initiative}
+          </span>
           {/* Botón eliminar */}
           <button
             onClick={(e) => {
