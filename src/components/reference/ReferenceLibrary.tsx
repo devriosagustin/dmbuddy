@@ -238,7 +238,7 @@ const runSearch = useCallback(
           )}
         </div>
       ) : (
-        <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+        <ul className={`grid gap-2 ${tab === 'spells' ? 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4' : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'}`}>
           <AnimatePresence initial={false}>
             {listFor.map((item) => {
               const rec = recordById.get(item.id);
