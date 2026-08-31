@@ -82,6 +82,7 @@ export const ReferenceLibrary = () => {
   const [spellLevel, setSpellLevel] = useState<number | 'all'>('all');
   const [spellSchool, setSpellSchool] = useState<string>('all');
   const [spellClass, setSpellClass] = useState<string>('all');
+  const [monsterCr, setMonsterCr] = useState<number | 'all'>('all');
   const [imported, setImported] = useState<string | null>(null);
 
   // Índice plano + acceso a los registros completos
@@ -104,6 +105,10 @@ export const ReferenceLibrary = () => {
     () => Array.from(new Set(bundle.spells.flatMap((s) => s.classes))).sort(),
     [bundle.spells]
   );
+  const monsterCrOptions = useMemo(
+    () => [...new Set(bundle.monsters.map((m) => m.challengeRating))].sort((a, b) => a - b),
+    [bundle.monsters]
+  );
 
 const runSearch = useCallback(
     (list: SrdSearchItem[], query: string): SrdSearchItem[] =>
@@ -112,7 +117,7 @@ const runSearch = useCallback(
   );
 
   const listFor = useMemo(() => {
-    const base = tab === 'all' ? items : items.filter((i) => i.category === tab);
+    let base = tab === 'all' ? items : items.filter((i) => i.category === tab);
 
     if (tab === 'spells') {
       const levelOk = (item: SrdSearchItem) =>
@@ -125,16 +130,27 @@ const runSearch = useCallback(
       return runSearch(filtered, q);
     }
 
+    if (tab === 'monsters') {
+      const crOk = (item: SrdSearchItem) => {
+        if (monsterCr === 'all') return true;
+        const mon = recordById.get(item.id);
+        return mon && mon.category === 'monsters' && mon.challengeRating === monsterCr;
+      };
+      base = base.filter(crOk);
+    }
+
     return runSearch(base, q);
-  }, [items, tab, q, spellLevel, spellSchool, spellClass, spellById, runSearch]);
+  }, [items, tab, q, spellLevel, spellSchool, spellClass, monsterCr, spellById, recordById, runSearch]);
 
   const hasActiveFilters =
-    tab === 'spells' && (spellLevel !== 'all' || spellSchool !== 'all' || spellClass !== 'all');
+    (tab === 'spells' && (spellLevel !== 'all' || spellSchool !== 'all' || spellClass !== 'all')) ||
+    (tab === 'monsters' && monsterCr !== 'all');
 
   const resetFilters = () => {
     setSpellLevel('all');
     setSpellSchool('all');
     setSpellClass('all');
+    setMonsterCr('all');
   };
 
   return (
@@ -211,6 +227,32 @@ const runSearch = useCallback(
                   <option value="all">Todas</option>
                   {classes.map((c) => (
                     <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+              </div>
+              {hasActiveFilters && (
+                <Button variant="ghost" size="sm" icon={<FilterX size={14} />} onClick={resetFilters}>
+                  Limpiar
+                </Button>
+              )}
+            </div>
+          </motion.div>
+        )}
+
+        {tab === 'monsters' && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="overflow-hidden"
+          >
+            <div className="flex flex-wrap items-end gap-2 rounded-dnd-lg border border-dnd-leather/40 bg-dnd-ink/30 p-3">
+              <div>
+                <label className="label" htmlFor="f-cr">CR (Desafío)</label>
+                <select id="f-cr" value={monsterCr} onChange={(e) => setMonsterCr(e.target.value === 'all' ? 'all' : Number(e.target.value))} className="input text-sm">
+                  <option value="all">Todos</option>
+                  {monsterCrOptions.map((cr) => (
+                    <option key={cr} value={cr}>CR {cr}</option>
                   ))}
                 </select>
               </div>
