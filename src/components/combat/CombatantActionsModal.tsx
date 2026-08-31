@@ -14,11 +14,11 @@ import { useMonsterStore } from '../../store/monsterStore';
 import { rollAttackAgainst } from '../../utils/damageCalculator';
 import { abilityModifier } from '../../utils/diceUtils';
 import { useDice } from '../../hooks/useDice';
-import { srdSpellByTitle, srdWeaponById } from '../../data/srd2024';
+import { srdSpellByTitle, srdWeaponById, srdFeatByTitle } from '../../data/srd2024';
 import type { SrdWeaponEntry } from '../../data/srd2024';
 import { weaponAttackBonus, weaponDamageBonus } from '../../utils/weaponUtils';
 import { SrdDetailPanel } from '../reference/SrdDetailPanel';
-import type { SrdSpellEntry } from '../../types/srd2024';
+import type { SrdSpellEntry, SrdFeatEntry } from '../../types/srd2024';
 import { HealthBar } from '../common/HealthBar';
 
 // Conjuros de curación: en combate se resuelven como curación, no como daño.
@@ -60,6 +60,7 @@ export const CombatantActionsModal = ({ combatant, onClose }: CombatantActionsMo
   const [heal, setHeal] = useState('');
   const [temp, setTemp] = useState('');
   const [openSpellEntry, setOpenSpellEntry] = useState<SrdSpellEntry | null>(null);
+  const [openFeatEntry, setOpenFeatEntry] = useState<SrdFeatEntry | null>(null);
   const [targetId, setTargetId] = useState<string>('');
   const [initVal, setInitVal] = useState<string>(() =>
     combatant ? String(combatant.initiative) : ''
@@ -485,6 +486,52 @@ export const CombatantActionsModal = ({ combatant, onClose }: CombatantActionsMo
           </div>
         )}
 
+        {/* Dotes y rasgos (consulta del texto reglado) */}
+        {(combatant.type === 'player' && (combatant.playerFeats?.length ?? 0) > 0) ||
+        (monster && monster.traits.length > 0) ? (
+          <div className="rounded-dnd-lg border border-dnd-leather/40 p-3">
+            <p className="mb-2 flex items-center gap-1 text-xs font-bold uppercase text-dnd-gold">
+              <BookOpen size={14} aria-hidden="true" /> Dotes y rasgos
+            </p>
+            {combatant.type === 'player' && (combatant.playerFeats?.length ?? 0) > 0 && (
+              <>
+                <p className="mb-1 text-[10px] uppercase text-dnd-muted">Dotes ({combatant.playerFeats?.length})</p>
+                <div className="mb-3 flex flex-wrap gap-1.5">
+                  {(combatant.playerFeats ?? []).map((title) => {
+                    const entry = srdFeatByTitle(title);
+                    return (
+                      <button
+                        key={title}
+                        onClick={() => setOpenFeatEntry(entry ?? null)}
+                        disabled={!entry}
+                        title={entry ? `Ver detalle de ${title}` : `${title} (sin ficha SRD)`}
+                        aria-label={`Ver detalle de ${title}`}
+                        className="inline-flex max-w-full items-center gap-1 rounded-full border border-dnd-gold/30 bg-dnd-gold/10 px-2 py-0.5 text-[10px] text-dnd-text transition-colors hover:border-dnd-gold/60 hover:bg-dnd-gold/20"
+                      >
+                        <BookOpen size={10} className="shrink-0 text-dnd-gold" aria-hidden="true" />
+                        <span className="truncate">{title}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+            {monster && monster.traits.length > 0 && (
+              <>
+                <p className="mb-1 text-[10px] uppercase text-dnd-muted">Rasgos de {monster.name} ({monster.traits.length})</p>
+                <div className="space-y-1.5">
+                  {monster.traits.map((trait) => (
+                    <div key={trait.name} className="text-[11px]">
+                      <p className="font-bold italic text-dnd-text">{trait.name}.</p>
+                      <p className="text-dnd-text/85">{trait.description}</p>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        ) : null}
+
         {/* Salvaciones */}
         {saveStats && (
           <div className="rounded-dnd-lg border border-dnd-leather/40 p-3">
@@ -646,6 +693,7 @@ export const CombatantActionsModal = ({ combatant, onClose }: CombatantActionsMo
       </Modal>
 
       <SrdDetailPanel entry={openSpellEntry} onClose={() => setOpenSpellEntry(null)} />
+      <SrdDetailPanel entry={openFeatEntry} onClose={() => setOpenFeatEntry(null)} />
     </>
   );
 };

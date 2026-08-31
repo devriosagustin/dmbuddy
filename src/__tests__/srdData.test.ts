@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BASE_SRD_BUNDLE, srdMonsterToMonster, srdSpellToSpell, srdSpellByTitle, SRD_CLASSES } from '../data/srd2024';
+import { BASE_SRD_BUNDLE, srdMonsterToMonster, srdSpellToSpell, srdSpellByTitle, srdFeatByTitle, SRD_CLASSES } from '../data/srd2024';
 import { mergeBundle, emptyBundle } from '../services/srdService';
 import { CC_BY_4_0_NOTICE } from '../types/srd2024';
 import type { SrdRecord } from '../types/srd2024';
@@ -161,5 +161,24 @@ describe('mergeBundle / emptyBundle', () => {
   it('un overlay vacío devuelve el bundle sin cambios', () => {
     expect(mergeBundle(BASE_SRD_BUNDLE, {})).toEqual(BASE_SRD_BUNDLE);
     expect(emptyBundle().spells).toEqual([]);
+  });
+});
+
+describe('srdFeatByTitle', () => {
+  it('resuelve dotes por título ignorando acentos y mayúsculas', () => {
+    const anyFeat = BASE_SRD_BUNDLE.feats[0];
+    expect(anyFeat).toBeDefined();
+    const hit = srdFeatByTitle(anyFeat.title);
+    expect(hit).toBeDefined();
+    expect(hit!.id).toBe(anyFeat.id);
+
+    // Búsqueda insensible a mayúsculas
+    const upper = srdFeatByTitle(anyFeat.title.toUpperCase());
+    expect(upper?.id).toBe(anyFeat.id);
+  });
+
+  it('devuelve undefined para un título inexistente', () => {
+    expect(srdFeatByTitle('Dote que no existe porque nada la define')).toBeUndefined();
+    expect(srdFeatByTitle('')).toBeUndefined();
   });
 });

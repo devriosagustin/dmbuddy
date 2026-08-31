@@ -148,10 +148,20 @@ export const MonsterLibrary = ({ monsters, onSelect, onNew, onDelete }: MonsterL
       </p>
 
       {/* Lista / Grid */}
-      {filtered.length === 0 && (
-<div className="empty-state text-dnd-muted">
-  <p>No se encontraron monstruos con esos filtros.</p>
-</div>
+      {monsters.length === 0 ? (
+        <div className="empty-state flex-col items-center gap-2 text-center text-dnd-muted">
+          <p className="font-fantasy text-lg text-dnd-gold">Aún no hay monstruos cargados</p>
+          <p>
+            Importa los que quieras desde la <span className="text-dnd-text">Biblioteca SRD 5.2</span>{' '}
+            (Catálogo → Monstruos → «Importar») o crea los tuyos propios con «Nuevo monstruo».
+          </p>
+        </div>
+      ) : (
+        filtered.length === 0 && (
+          <div className="empty-state text-dnd-muted">
+            <p>No se encontraron monstruos con esos filtros.</p>
+          </div>
+        )
       )}
 
       {view === 'list' ? (

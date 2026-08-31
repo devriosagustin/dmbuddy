@@ -11,7 +11,7 @@ import { abilityModifier } from '../../utils/diceUtils';
 import { useCombatStore } from '../../store/combatStore';
 import { useDice } from '../../hooks/useDice';
 import { playerToCombatant } from '../../utils/combatUtils';
-import { srdSpellByTitle, srdWeaponById } from '../../data/srd2024';
+import { srdSpellByTitle, srdWeaponById, srdFeatByTitle } from '../../data/srd2024';
 import { weaponAttackBonus, weaponDamageFormula } from '../../utils/weaponUtils';
 import { SrdDetailPanel } from '../reference/SrdDetailPanel';
 import { STAT_LABELS } from '../../types';
@@ -34,6 +34,7 @@ export const PlayerCard = ({ player, onEdit, onRemove }: PlayerCardProps) => {
   const { roll } = useDice();
   const [copied, setCopied] = useState(false);
   const [openSpellId, setOpenSpellId] = useState<string | null>(null);
+  const [openFeatId, setOpenFeatId] = useState<string | null>(null);
   const downloadRef = useRef<HTMLAnchorElement>(null);
 
   const alreadyInCombat = participants.some((p) => p.playerId === player.id);
@@ -43,6 +44,7 @@ export const PlayerCard = ({ player, onEdit, onRemove }: PlayerCardProps) => {
     .filter((w): w is NonNullable<typeof w> => Boolean(w));
 
   const openSpellEntry = openSpellId ? (srdSpellByTitle(openSpellId) ?? null) : null;
+  const openFeatEntry = openFeatId ? (srdFeatByTitle(openFeatId) ?? null) : null;
 
   const addToCombat = () => {
     if (alreadyInCombat) return;
@@ -206,7 +208,14 @@ export const PlayerCard = ({ player, onEdit, onRemove }: PlayerCardProps) => {
             </div>
           )}
           {player.feats && player.feats.length > 0 && (
-            <p className="truncate">🛡️ Dotes: {player.feats.join(', ')}</p>
+            <div>
+              <p className="mb-1">🛡️ {player.feats.length} dote{player.feats.length !== 1 ? 's' : ''}</p>
+              <div className="flex flex-wrap gap-1">
+                {player.feats.map((title) => (
+                  <FeatChip key={title} title={title} onOpen={setOpenFeatId} />
+                ))}
+              </div>
+            </div>
           )}
         </div>
       ) : null}
@@ -222,6 +231,7 @@ export const PlayerCard = ({ player, onEdit, onRemove }: PlayerCardProps) => {
       </button>
 
       <SrdDetailPanel entry={openSpellEntry} onClose={() => setOpenSpellId(null)} />
+      <SrdDetailPanel entry={openFeatEntry} onClose={() => setOpenFeatId(null)} />
     </motion.article>
   );
 };
@@ -236,5 +246,18 @@ const SpellChip = ({ spell, onOpen }: { spell: Spell; onOpen: (name: string) => 
   >
     <BookOpen size={10} className="shrink-0 text-dnd-gold" aria-hidden="true" />
     <span className="truncate">{spell.name}</span>
+  </button>
+);
+
+/** Chip clicable de una dote: abre su texto completo del SRD 5.2 (o el título si no tiene ficha). */
+const FeatChip = ({ title, onOpen }: { title: string; onOpen: (title: string) => void }) => (
+  <button
+    onClick={() => onOpen(title)}
+    title={`Ver detalle de ${title}`}
+    aria-label={`Ver detalle de ${title}`}
+    className="inline-flex max-w-full items-center gap-1 rounded-full border border-dnd-gold/30 bg-dnd-gold/10 px-2 py-0.5 text-[10px] text-dnd-text transition-colors hover:border-dnd-gold/60 hover:bg-dnd-gold/20"
+  >
+    <BookOpen size={10} className="shrink-0 text-dnd-gold" aria-hidden="true" />
+    <span className="truncate">{title}</span>
   </button>
 );

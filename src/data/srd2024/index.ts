@@ -4,7 +4,7 @@
 // ============================================================
 
 import type { Monster, Spell } from '../../types';
-import type { SrdBundle, SrdMonsterEntry, SrdSpellEntry } from '../../types/srd2024';
+import type { SrdBundle, SrdFeatEntry, SrdMonsterEntry, SrdSpellEntry } from '../../types/srd2024';
 import { CORE_RULES, CONDITIONS } from './rules';
 import { SRD_SPELLS } from './spells';
 import { SRD_CLASSES, SRD_SPECIES, SRD_FEATS } from './character';
@@ -87,6 +87,18 @@ for (const s of SRD_SPELLS) {
 export const srdSpellByTitle = (title: string): SrdSpellEntry | undefined =>
   spellIndex.get(normalizeLookupKey(title)) ??
   spellIndexClean.get(normalizeLookupKey(stripEnglishName(title)));
+
+/** Índice de dotes por título normalizado (acentos y mayúsculas ignorados). */
+const featIndex = new Map<string, SrdFeatEntry>(
+  SRD_FEATS.map((f) => [normalizeLookupKey(f.title), f])
+);
+
+/**
+ * Resuelve una dote por su título (p. ej. `"Alerta"`, `"alerta"`).
+ * Se usa para consultar el texto completo desde el party y el detalle del combatiente.
+ */
+export const srdFeatByTitle = (title: string): SrdFeatEntry | undefined =>
+  featIndex.get(normalizeLookupKey(title));
 
 /**
  * Convierte un conjuro del SRD 5.2 al modelo `Spell` usado por

@@ -31,7 +31,9 @@ interface MonsterStore {
 export const useMonsterStore = create<MonsterStore>()(
   persist(
     (set, get) => ({
-      monsters: SRD_MONSTERS,
+      // La biblioteca arranca vacía: el usuario importa de la Biblioteca SRD 5.2
+      // o crea sus propios monstruos. `resetToSRD` permite recargar la semilla clásica.
+      monsters: [],
       encounters: [],
 
       addMonster: (monster) => {
@@ -93,10 +95,11 @@ export const useMonsterStore = create<MonsterStore>()(
       // v0 = datos anteriores (sin versión). v2 volvió a la semilla SRD tras el
       // lavado de contenido. v3 reintroduce la semilla con lanzadores de conjuros
       // (Acólito, Druida, Sacerdote, Mago, Arquimago, Liche).
-      version: 3,
+      // v4 (actual): la biblioteca arranca vacía; el usuario importa lo que quiera.
+      version: 4,
       migrate: (persisted, version) => {
-        if (version < 3) {
-          return { monsters: SRD_MONSTERS, encounters: [] } as unknown as MonsterStore;
+        if (version < 4) {
+          return { monsters: [], encounters: [] } as unknown as MonsterStore;
         }
         return persisted as MonsterStore;
       },

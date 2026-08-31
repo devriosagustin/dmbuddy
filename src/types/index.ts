@@ -40,6 +40,8 @@ export interface Combatant {
   playerSpells?: Spell[];
   /** Salvaciones en las que el personaje es competente (según su clase). */
   playerSaves?: StatAbbrev[];
+  /** Dotes del personaje (títulos del SRD) llevadas al combate para su consulta. */
+  playerFeats?: string[];
 }
 
 export interface MonsterTrait {

@@ -29,8 +29,8 @@ export const MonsterManager = () => {
       <div>
         <h2 className="page-title">Biblioteca de monstruos</h2>
         <p className="text-sm text-dnd-muted">
-          Gestiona tu propia colección: edita, crea o elimina monstruos a tu gusto. Los originales del SRD se conservan
-          intactos y puedes volver a traerlos desde la Biblioteca SRD 5.2.
+          Tu biblioteca arranca vacía: importa desde la Biblioteca SRD 5.2 los monstruos que vayas a usar o crea los tuyos
+          propios con «Nuevo monstruo».
         </p>
       </div>
 
