@@ -128,9 +128,17 @@
     @apply rounded-lg border border-dnd-leather/50 bg-dnd-ink/70 px-2 py-1.5 text-xs text-dnd-text focus:outline-none focus:ring-2 focus:ring-dnd-gold;
   }
 
-  /* Fila de acciones inferior de un formulario */
+  /* Fila de acciones inferior de un formulario (sticky para que el boton
+     principal nunca quede fuera de la vista al hacer scroll en el modal) */
   .form-actions {
     @apply flex flex-wrap justify-end gap-2 border-t border-dnd-leather/30 pt-3;
+    position: sticky;
+    bottom: 0;
+    z-index: 1;
+    margin-top: 0.75rem;
+    padding-bottom: 0.25rem;
+    background: var(--dnd-surface-raised);
+    box-shadow: 0 -10px 16px -12px rgb(0 0 0 / 0.5);
   }
 
   /* Zona de subida/importado */
@@ -189,6 +197,9 @@
     overflow-y: auto;
     overscroll-behavior: contain;
     -webkit-overflow-scrolling: touch;
+    /* Evita que el navegador "ancle" el scroll al input enfocado y mueva
+       la pantalla mientras rellenas formularios largos en movil */
+    overflow-anchor: none;
   }
 
   /* ---------- Efectos ---------- */
