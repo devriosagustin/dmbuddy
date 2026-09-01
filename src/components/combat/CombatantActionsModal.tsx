@@ -359,7 +359,7 @@ export const CombatantActionsModal = ({ combatant, onClose }: CombatantActionsMo
                 return (
                   <option key={p.id} value={p.id}>
                     {p.name} · {p.type === 'player' ? 'Jugador' : 'Monstruo'}
-                    {dist !== null ? ` · {dist} pies` : ''}
+                    {dist !== null ? ` · ${dist} pies` : ''}
                   </option>
                 );
               })}
