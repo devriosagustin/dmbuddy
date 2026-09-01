@@ -98,6 +98,23 @@ export const CombatTracker = () => {
     return sorted[(turn + 1) % sorted.length];
   }, [isActive, turn, sorted]);
 
+  // --- Gestión de layouts de mapa ------------------------------------------
+  const handleSaveLayout = (name: string) => {
+    if (!name.trim()) return;
+    saveLayout(name, barriers);
+  };
+  const handleLoadLayout = (id: string) => {
+    const layout = getSavedLayout(id);
+    if (layout) setBarriers(layout.barriers);
+  };
+  const handleDeleteLayout = (id: string) => {
+    deleteLayout(id);
+  };
+  const handleRandomLayout = () => {
+    const { barriers: b } = randomLayout();
+    setBarriers(b);
+  };
+
 return (
     <div
       ref={combatRef}
@@ -266,6 +283,11 @@ return (
               barrierMode={barrierMode}
               onToggleBarrierMode={() => setBarrierMode((v) => !v)}
               onToggleBarrier={toggleBarrier}
+              savedLayouts={savedLayouts}
+              onSaveLayout={handleSaveLayout}
+              onLoadLayout={handleLoadLayout}
+              onDeleteLayout={handleDeleteLayout}
+              onRandomLayout={handleRandomLayout}
               onSelect={setSelectedTokenId}
               onOpenActions={setSelected}
               onMove={moveCombatant}
