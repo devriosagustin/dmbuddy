@@ -98,6 +98,52 @@ describe('Combat Store', () => {
     expect(second).toBe(false);
     expect(useCombatStore.getState().participants).toHaveLength(1);
   });
+
+  it('debe asignar una posición inicial a cada combatiente', () => {
+    useCombatStore.getState().initializeCombat();
+    const x = useCombatStore.getState();
+    x.addCombatant(makeCombatant({ name: 'Goblin', initiative: 15 }));
+    x.addCombatant(makeCombatant({ name: 'Thorin', initiative: 12, type: 'player' }) as Omit<Combatant, 'id' | 'isActive' | 'isDead'>);
+    const ps = useCombatStore.getState().participants;
+    for (const p of ps) {
+      expect(p.x).toBeGreaterThanOrEqual(0);
+      expect(p.y).toBeGreaterThanOrEqual(0);
+    }
+    // PJ y monstruo no deben compartir la misma casilla.
+    expect(ps[0].x === ps[1].x && ps[0].y === ps[1].y).toBe(false);
+  });
+
+  it('debe respetar una posición explícita al añadir', () => {
+    useCombatStore.getState().initializeCombat();
+    const combatant = makeCombatant({ name: 'Especial', initiative: 15 });
+    useCombatStore.getState().addCombatant({ ...combatant, x: 5, y: 3 });
+    const p = useCombatStore.getState().participants[0];
+    expect(p.x).toBe(5);
+    expect(p.y).toBe(3);
+  });
+
+  it('debe mover un combatiente a otra casilla', () => {
+    useCombatStore.getState().initializeCombat();
+    useCombatStore.getState().addCombatant(makeCombatant({ name: 'Goblin', initiative: 15 }));
+    const id = useCombatStore.getState().participants[0].id;
+    useCombatStore.getState().moveCombatant(id, 8, 4);
+    const p = useCombatStore.getState().participants[0];
+    expect(p.x).toBe(8);
+    expect(p.y).toBe(4);
+  });
+
+  it('debe redondear y limitar las coordenadas al mover', () => {
+    useCombatStore.getState().initializeCombat();
+    useCombatStore.getState().addCombatant(makeCombatant({ name: 'Goblin', initiative: 15 }));
+    const id = useCombatStore.getState().participants[0].id;
+    useCombatStore.getState().moveCombatant(id, 3.6, -2);
+    const p = useCombatStore.getState().participants[0];
+    expect(p.x).toBe(3);
+    expect(p.y).toBe(0); // no negativas
+    useCombatStore.getState().moveCombatant(id, 99, 99);
+    const p2 = useCombatStore.getState().participants[0];
+    expect(p2.x).toBeLessThan(100);
+  });
 });
 
 function initializeWithTwo() {

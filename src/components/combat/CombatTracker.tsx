@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { Button } from '../common/Button';
 import { InitiativeOrder } from './InitiativeOrder';
+import { CombatMap } from './CombatMap';
 import { CombatLog } from './CombatLog';
 import { AddCombatantModal } from './AddCombatantModal';
 import { CombatantActionsModal } from './CombatantActionsModal';
@@ -35,6 +36,7 @@ export const CombatTracker = () => {
     previousTurn,
     setTurn,
     reorderParticipants,
+    moveCombatant,
     initializeCombat,
     resetCombat,
     endCombat,
@@ -43,6 +45,7 @@ export const CombatTracker = () => {
 
   const [showAdd, setShowAdd] = useState(false);
   const [selected, setSelected] = useState<Combatant | null>(null);
+  const [view, setView] = useState<'list' | 'map'>('list');
 
   // Ordenar por iniciativa (descendente)
   const sorted = useMemo(
@@ -167,15 +170,46 @@ return (
         </div>
       )}
 
+      {/* Selector de vista */}
+      <div className="flex items-center gap-1" role="group" aria-label="Vista de combate">
+        <button
+          onClick={() => setView('list')}
+          aria-pressed={view === 'list'}
+          className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-colors ${
+            view === 'list' ? 'bg-dnd-gold text-dnd-ink' : 'bg-dnd-leather/30 text-dnd-muted hover:text-dnd-text'
+          }`}
+        >
+          Lista
+        </button>
+        <button
+          onClick={() => setView('map')}
+          aria-pressed={view === 'map'}
+          className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-colors ${
+            view === 'map' ? 'bg-dnd-gold text-dnd-ink' : 'bg-dnd-leather/30 text-dnd-muted hover:text-dnd-text'
+          }`}
+        >
+          Mapa
+        </button>
+      </div>
+
       {/* Grid principal */}
       <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
         <div>
-          <InitiativeOrder
-            participants={sorted}
-            activeIndex={activeIndex}
-            onReorder={reorderParticipants}
-            onOpenActions={setSelected}
-          />
+          {view === 'list' ? (
+            <InitiativeOrder
+              participants={sorted}
+              activeIndex={activeIndex}
+              onReorder={reorderParticipants}
+              onOpenActions={setSelected}
+            />
+          ) : (
+            <CombatMap
+              participants={sorted}
+              activeId={activeCombatant?.id}
+              onOpenActions={setSelected}
+              onMove={moveCombatant}
+            />
+          )}
         </div>
         <CombatLog />
       </div>

@@ -6,6 +6,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { CombatState, Combatant, CombatLogEntry, StatusEffect } from '../types';
 import { sortByInitiative } from '../utils/combatUtils';
+import { findSpawnCell, inBounds, MAP_COLS, MAP_ROWS } from '../utils/mapUtils';
 
 // Sincroniza los PG finales del combate con el party (sin recarga circular:
 // playerStore no importa combatStore).
@@ -37,6 +38,8 @@ interface CombatStore extends CombatState {
   setAC: (id: string, ac: number) => void;
   setInitiative: (id: string, initiative: number) => void;
   reorderParticipants: (ordered: Combatant[]) => void;
+  /** Mueve una ficha a una casilla del mapa (coordenadas columna/fila). */
+  moveCombatant: (id: string, x: number, y: number) => void;
   addStatusEffect: (id: string, effect: Omit<StatusEffect, 'id'>) => void;
   removeStatusEffect: (id: string, effectId: string) => void;
   tickStatusEffects: () => void;
@@ -94,6 +97,8 @@ export const useCombatStore = create<CombatStore>()(
           id: makeId(),
           isActive: true,
           isDead: false,
+          x: combatant.x ?? findSpawnCell(get().participants, combatant.type === 'player').x,
+          y: combatant.y ?? findSpawnCell(get().participants, combatant.type === 'player').y,
         };
         set((state) => {
           const withNew = [...state.participants, newCombatant];
@@ -277,6 +282,24 @@ export const useCombatStore = create<CombatStore>()(
         );
         // Reordenar por iniciativa tras el cambio (mantiene el orden canónico).
         set({ participants: sortByInitiative(updated) });
+      },
+
+      moveCombatant: (id, x, y) => {
+        const { participants } = get();
+        const combatant = participants.find((p) => p.id === id);
+        if (!combatant) return;
+        // Redondear y mantener las coordenadas dentro de la cuadrícula.
+        const cx = Math.floor(x);
+        const cy = Math.floor(y);
+        const clamped = inBounds(cx, cy)
+          ? { x: cx, y: cy }
+          : { x: Math.max(0, Math.min(MAP_COLS - 1, cx)), y: Math.max(0, Math.min(MAP_ROWS - 1, cy)) };
+        if (combatant.x === clamped.x && combatant.y === clamped.y) return;
+        set((state) => ({
+          participants: state.participants.map((p) =>
+            p.id === id ? { ...p, x: clamped.x, y: clamped.y } : p
+          ),
+        }));
       },
 
       reorderParticipants: (ordered) => {

@@ -42,6 +42,10 @@ export interface Combatant {
   playerSaves?: StatAbbrev[];
   /** Dotes del personaje (títulos del SRD) llevadas al combate para su consulta. */
   playerFeats?: string[];
+  /** Posición en el mapa de combate (casilla columna/fila, opcional). */
+  x?: number;
+  /** Posición en el mapa de combate (casilla columna/fila, opcional). */
+  y?: number;
 }
 
 export interface MonsterTrait {
