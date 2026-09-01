@@ -295,7 +295,7 @@ export const CombatMap = ({ participants, activeId, nextId, selectedId, tiles, t
   return (
     <div className="flex h-full min-h-0 flex-col gap-2">
       {/* Barra de herramientas */}
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
         <div className="flex items-center gap-1" role="group" aria-label="Herramientas de mapa">
           {modeButton('move', 'Mover')}
           {modeButton('measure', 'Medir')}
@@ -318,10 +318,10 @@ export const CombatMap = ({ participants, activeId, nextId, selectedId, tiles, t
               <select
                 value={tileType}
                 onChange={(e) => onTileTypeChange(e.target.value as TileType)}
-                className="input h-7 w-24 text-xs"
+                className="input h-7 w-36 shrink-0 text-xs"
               >
-                <option value="wall">▦ Muro</option>
-                <option value="trap">✚ Trampa</option>
+                <option value="wall">Muro</option>
+                <option value="trap">X Trampa</option>
                 <option value="treasure">🟨 Tesoro</option>
                 <option value="investigation">🔍 Investigación</option>
               </select>
@@ -455,9 +455,9 @@ export const CombatMap = ({ participants, activeId, nextId, selectedId, tiles, t
 
         {mode === 'range' && (
           <div className="flex items-center gap-1">
-            <span className="text-[11px] text-dnd-muted">Radio</span>
+            <span className="whitespace-nowrap text-[11px] text-dnd-muted">Radio</span>
             <select
-              className="input h-7 w-20 text-xs"
+              className="input h-7 w-24 shrink-0 text-xs"
               value={rangeFeet}
               onChange={(e) => setRangeFeet(Number(e.target.value))}
             >
@@ -496,7 +496,7 @@ export const CombatMap = ({ participants, activeId, nextId, selectedId, tiles, t
               ))}
             </div>
             <select
-              className="input h-7 w-20 text-xs"
+              className="input h-7 w-24 shrink-0 text-xs"
               value={aoeFeet}
               onChange={(e) => setAoeFeet(Number(e.target.value))}
             >
