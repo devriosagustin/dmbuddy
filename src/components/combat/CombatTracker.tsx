@@ -47,6 +47,8 @@ export const CombatTracker = () => {
 
   const [showAdd, setShowAdd] = useState(false);
   const [selected, setSelected] = useState<Combatant | null>(null);
+  // Ficha seleccionada en el mapa (resalta sus movimientos posibles).
+  const [selectedTokenId, setSelectedTokenId] = useState<string | null>(null);
   const [view, setView] = useState<'list' | 'map'>('list');
 
   // Pantalla completa del módulo de combate.
@@ -250,6 +252,8 @@ return (
               participants={sorted}
               activeId={activeCombatant?.id}
               nextId={nextCombatant?.id}
+              selectedId={selectedTokenId}
+              onSelect={setSelectedTokenId}
               onOpenActions={setSelected}
               onMove={moveCombatant}
             />

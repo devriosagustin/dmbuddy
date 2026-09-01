@@ -50,7 +50,7 @@ interface CombatantActionsModalProps {
  * Modal de acciones: daño preciso, ataque de monstruo, estados y más.
  */
 export const CombatantActionsModal = ({ combatant, onClose }: CombatantActionsModalProps) => {
-  const { updateHP, removeCombatant, addStatusEffect, removeStatusEffect, setInitiative } = useCombatStore();
+  const { updateHP, removeCombatant, addStatusEffect, removeStatusEffect, setInitiative, setSpeed } = useCombatStore();
   const participants = useCombatStore((s) => s.participants);
   const turn = useCombatStore((s) => s.turn);
   const monsters = useMonsterStore((s) => s.monsters);
@@ -64,6 +64,9 @@ export const CombatantActionsModal = ({ combatant, onClose }: CombatantActionsMo
   const [targetId, setTargetId] = useState<string>('');
   const [initVal, setInitVal] = useState<string>(() =>
     combatant ? String(combatant.initiative) : ''
+  );
+  const [speedVal, setSpeedVal] = useState<string>(() =>
+    combatant ? String(combatant.speed ?? 30) : ''
   );
 
   if (!combatant) return null;
@@ -243,6 +246,11 @@ export const CombatantActionsModal = ({ combatant, onClose }: CombatantActionsMo
     setInitVal('');
   };
 
+  const commitSpeed = () => {
+    const value = Number(speedVal);
+    if (!isNaN(value) && value >= 0) setSpeed(combatant.id, value);
+  };
+
   const applyEffect = (name: string, description: string, icon: string) => {
     const already = combatant.statusEffects.some((e) => e.name === name);
     if (already) {
@@ -268,24 +276,48 @@ export const CombatantActionsModal = ({ combatant, onClose }: CombatantActionsMo
         maxWidth="lg"
       >
       <div className="space-y-4">
-        {/* Iniciativa editable (arriba a la derecha) */}
-        <div className="flex items-center justify-end gap-2">
-          <label htmlFor="combatant-init" className="text-xs font-bold uppercase text-dnd-gold">
-            🎲 Iniciativa
-          </label>
-          <input
-            id="combatant-init"
-            value={initVal}
-            onChange={(e) => setInitVal(e.target.value)}
-            onBlur={commitInit}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') { e.preventDefault(); commitInit(); }
-            }}
-            type="number"
-            aria-label="Iniciativa del combatiente (reordena los turnos al cambiar)"
-            title="Edita el valor y pulsa Enter o sal del campo para reordenar los turnos"
-            className="input w-20 text-right text-sm"
-          />
+        {/* Iniciativa y velocidad editables (arriba a la derecha) */}
+        <div className="flex items-center justify-end gap-4">
+          <div className="flex items-center gap-2">
+            <label htmlFor="combatant-init" className="text-xs font-bold uppercase text-dnd-gold">
+              🎲 Iniciativa
+            </label>
+            <input
+              id="combatant-init"
+              value={initVal}
+              onChange={(e) => setInitVal(e.target.value)}
+              onBlur={commitInit}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') { e.preventDefault(); commitInit(); }
+              }}
+              type="number"
+              aria-label="Iniciativa del combatiente (reordena los turnos al cambiar)"
+              title="Edita el valor y pulsa Enter o sal del campo para reordenar los turnos"
+              className="input w-20 text-right text-sm"
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <label htmlFor="combatant-speed" className="text-xs font-bold uppercase text-dnd-gold">
+              🏃 Velocidad
+            </label>
+            <div className="flex items-center gap-1">
+              <input
+                id="combatant-speed"
+                value={speedVal}
+                onChange={(e) => setSpeedVal(e.target.value)}
+                onBlur={commitSpeed}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') { e.preventDefault(); commitSpeed(); }
+                }}
+                type="number"
+                min={0}
+                aria-label="Velocidad del combatiente en pies por turno"
+                title="Pies que puede moverse por turno (usa Enter o sal del campo para guardar)"
+                className="input w-20 text-right text-sm"
+              />
+              <span className="text-xs text-dnd-muted">pies</span>
+            </div>
+          </div>
         </div>
 
         {/* Estado de vida */}

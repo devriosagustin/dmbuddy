@@ -37,6 +37,7 @@ interface CombatStore extends CombatState {
   setMaxHP: (id: string, maxHp: number) => void;
   setAC: (id: string, ac: number) => void;
   setInitiative: (id: string, initiative: number) => void;
+  setSpeed: (id: string, speed: number) => void;
   reorderParticipants: (ordered: Combatant[]) => void;
   /** Mueve una ficha a una casilla del mapa (coordenadas columna/fila). */
   moveCombatant: (id: string, x: number, y: number) => void;
@@ -282,6 +283,14 @@ export const useCombatStore = create<CombatStore>()(
         );
         // Reordenar por iniciativa tras el cambio (mantiene el orden canónico).
         set({ participants: sortByInitiative(updated) });
+      },
+
+      setSpeed: (id, speed) => {
+        set((state) => ({
+          participants: state.participants.map((p) =>
+            p.id === id ? { ...p, speed: Math.max(0, Math.round(speed)) } : p
+          ),
+        }));
       },
 
       moveCombatant: (id, x, y) => {

@@ -37,13 +37,12 @@ export const CombatLog = () => {
   const [showLog, setShowLog] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
 
-  // Auto-scroll solo dentro del propio log y únicamente si el usuario ya está
-  // cerca del final (no desplaza la página ni obliga a leer entradas antiguas).
+  // Auto-scroll dentro del propio log: bajamos al fondo siempre que llegue
+  // una entrada nueva para ver el resultado de la última acción.
   useEffect(() => {
     const el = listRef.current;
     if (!el) return;
-    const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
-    if (nearBottom) el.scrollTop = el.scrollHeight;
+    el.scrollTop = el.scrollHeight;
   }, [combatLog.length]);
 
   // Limpiar solo el log sin tocar el resto del combate

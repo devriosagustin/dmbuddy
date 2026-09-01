@@ -52,6 +52,16 @@ export const calculateDamage = (
 };
 
 /**
+ * Extrae la velocidad (en pies) de una cadena de velocidad de un monstruo,
+ * p. ej. "30 pies", "15 ft., 10 ft. volando", "30 pies, 15 pies nadando".
+ * Devuelve 30 (el valor por defecto) si no encuentra un número.
+ */
+const parseMonsterSpeed = (speed: string | undefined): number => {
+  const match = speed ? speed.match(/\d+/) : null;
+  return match ? Number(match[0]) : 30;
+};
+
+/**
  * Crea un combatiente nuevo a partir de un monstruo de la biblioteca.
  */
 export const monsterToCombatant = (
@@ -71,6 +81,7 @@ export const monsterToCombatant = (
     monsterId: monster.id,
     xpReward: crToXp(monster.challengeRating),
     isDead: false,
+    speed: parseMonsterSpeed(monster.speed),
   };
 };
 
@@ -101,6 +112,7 @@ export const playerToCombatant = (
     playerSaves: classSaves(player.class),
     playerFeats: player.feats,
     isDead: false,
+    speed: 30,
   };
 };
 

@@ -42,6 +42,8 @@ export interface Combatant {
   playerSaves?: StatAbbrev[];
   /** Dotes del personaje (títulos del SRD) llevadas al combate para su consulta. */
   playerFeats?: string[];
+  /** Velocidad del combatiente en pies por turno (usada para el resaltado de movimiento). */
+  speed?: number;
   /** Posición en el mapa de combate (casilla columna/fila, opcional). */
   x?: number;
   /** Posición en el mapa de combate (casilla columna/fila, opcional). */

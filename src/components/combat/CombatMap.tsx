@@ -12,6 +12,7 @@ import {
   MAP_COLS,
   MAP_ROWS,
   inBounds,
+  isOccupied,
   cellsInCone,
   cellsInLine,
   cellsInSphere,
@@ -27,9 +28,13 @@ interface CombatMapProps {
   activeId?: string | null;
   /** Id del combatiente que viene a continuación (para anticiparlo). */
   nextId?: string | null;
+  /** Id del combatiente seleccionado (resalta sus movimientos posibles según su velocidad). */
+  selectedId?: string | null;
   onOpenActions: (combatant: Combatant) => void;
   /** Mueve una ficha a una casilla (acción del store). */
   onMove: (id: string, x: number, y: number) => void;
+  /** Selecciona (o deselecciona con null) una ficha en el mapa. */
+  onSelect: (id: string | null) => void;
 }
 
 interface DragState {
@@ -53,7 +58,7 @@ const SAME = <T,>(a: T, b: T) => JSON.stringify(a) === JSON.stringify(b);
 const RANGE_PRESETS = [5, 10, 15, 30, 60, 90, 120];
 const AOE_PRESETS = [5, 10, 15, 20, 30, 60];
 
-export const CombatMap = ({ participants, activeId, nextId, onOpenActions, onMove }: CombatMapProps) => {
+export const CombatMap = ({ participants, activeId, nextId, selectedId, onOpenActions, onMove, onSelect }: CombatMapProps) => {
   const gridRef = useRef<HTMLDivElement>(null);
   const [mode, setMode] = useState<Mode>('move');
   const [drag, setDrag] = useState<DragState | null>(null);
@@ -106,6 +111,8 @@ export const CombatMap = ({ participants, activeId, nextId, onOpenActions, onMov
   // --- Fichas bajo el ratón -----------------------------------------------
   const handleTokenPointerDown = (e: React.PointerEvent, combatant: Combatant) => {
     if (e.button !== 0) return;
+    // Evita que el clic en una ficha llegue al manejador del grid (casilla "vacía").
+    e.stopPropagation();
     const cell = { x: combatant.x ?? 0, y: combatant.y ?? 0 };
     if (mode === 'move') {
       gridRef.current?.setPointerCapture(e.pointerId);
@@ -123,7 +130,15 @@ export const CombatMap = ({ participants, activeId, nextId, onOpenActions, onMov
   // --- Clic en una casilla vacía ------------------------------------------
   const handleEmptyDown = (e: React.PointerEvent, cell: MapCell) => {
     if (e.button !== 0) return;
-    if (mode === 'measure') {
+    if (mode === 'move') {
+      if (selectedId && moveCells.some((c) => c.x === cell.x && c.y === cell.y)) {
+        // Clic en un cuadro alcanzable: mueve la ficha seleccionada allí.
+        onMove(selectedId, cell.x, cell.y);
+      } else if (selectedId) {
+        // Clic fuera del alcance: deseleccionar.
+        onSelect(null);
+      }
+    } else if (mode === 'measure') {
       setMeasureFrom(cell);
     } else if (mode === 'aoe') {
       setAoeSource(cell);
@@ -144,7 +159,15 @@ export const CombatMap = ({ participants, activeId, nextId, onOpenActions, onMov
   const handleUp = () => {
     if (drag && !drag.moved) {
       const target = participants.find((p) => p.id === drag.id);
-      if (target) onOpenActions(target);
+      if (target) {
+        if (selectedId === target.id) {
+          // Segundo clic en la misma ficha: abrir el detalle.
+          onOpenActions(target);
+        } else {
+          // Primer clic: seleccionar la ficha y resaltar su movimiento.
+          onSelect(target.id);
+        }
+      }
     } else if (drag?.moved && hover) {
       onMove(drag.id, hover.x, hover.y);
     }
@@ -165,6 +188,18 @@ export const CombatMap = ({ participants, activeId, nextId, onOpenActions, onMov
     if (!rangeSource || rangeSource.x === undefined || rangeSource.y === undefined) return [];
     return cellsInSphere(rangeSource.x, rangeSource.y, rangeFeet);
   }, [rangeSource, rangeFeet]);
+
+  const selectedCombatant = participants.find((p) => p.id === selectedId);
+
+  // Casillas alcanzables por el combatiente seleccionado según su velocidad.
+  const selectedX = selectedCombatant?.x;
+  const selectedY = selectedCombatant?.y;
+  const moveCells: MapCell[] =
+    selectedX === undefined || selectedY === undefined
+      ? []
+      : cellsInSphere(selectedX, selectedY, selectedCombatant?.speed ?? 30).filter(
+          (c) => (c.x !== selectedX || c.y !== selectedY) && !isOccupied(participants, c.x, c.y)
+        );
 
   // --- Info mostrada -------------------------------------------------------
   const measureDistance = measureFrom && hover ? gridDistanceFeet(measureFrom, hover) : null;
@@ -300,7 +335,6 @@ export const CombatMap = ({ participants, activeId, nextId, onOpenActions, onMov
           onPointerUp={handleUp}
           onPointerDown={(e) => {
             if (e.button !== 0) return;
-            if (mode === 'move') return; // los tokens gestionan su propio arrastre
             const cell = gridRef.current && cellFromPointer(e, gridRef.current.getBoundingClientRect());
             if (cell) handleEmptyDown(e, cell);
           }}
@@ -325,6 +359,18 @@ export const CombatMap = ({ participants, activeId, nextId, onOpenActions, onMov
             return <div key={i} className={`${cellClass(x, y)} border-r border-b border-dnd-ink/70`} />;
           })}
         </div>
+
+        {/* Movimientos posibles del combatiente seleccionado (según su velocidad) */}
+        {moveCells.length > 0 && (
+          <div className="pointer-events-none absolute inset-0 grid" style={{ gridTemplateColumns: `repeat(${MAP_COLS}, 1fr)`, gridAutoRows: '1fr' }} aria-hidden="true">
+            {Array.from({ length: MAP_COLS * MAP_ROWS }, (_, i) => {
+              const x = i % MAP_COLS;
+              const y = Math.floor(i / MAP_COLS);
+              if (!moveCells.some((c) => c.x === x && c.y === y)) return <div key={i} />;
+              return <div key={i} className="bg-emerald-500/[0.22] ring-1 ring-inset ring-emerald-400/60" />;
+            })}
+          </div>
+        )}
 
         {/* Capa de áreas: alcance y áreas de efecto */}
         {mode === 'range' && rangeCells.length > 0 && (
@@ -391,6 +437,7 @@ export const CombatMap = ({ participants, activeId, nextId, onOpenActions, onMov
           const isActive = combatant.id === activeId;
           const isNext = combatant.id === nextId && !isActive;
           const isRangeSource = combatant.id === rangeSourceId;
+          const isSelected = combatant.id === selectedId;
           const isDragging = drag?.id === combatant.id;
           const inSame = participants.filter((p) => p.x === combatant.x && p.y === combatant.y);
           const dupIndex = inSame.findIndex((p) => p.id === combatant.id);
@@ -431,6 +478,8 @@ export const CombatMap = ({ participants, activeId, nextId, onOpenActions, onMov
                     ? 'animate-pulse border-dnd-gold ring-dnd-gold shadow-dnd-glow'
                     : ''
                 } ${isRangeSource ? 'ring-2 ring-sky-400 shadow-[0_0_12px_rgba(56,189,248,0.8)]' : ''} ${
+                  isSelected ? 'ring-4 ring-emerald-300 shadow-dnd-glow' : ''
+                } ${
                   combatant.isDead ? 'opacity-40 grayscale' : ''
                 } ${
                   isDragging ? 'z-20 cursor-grabbing ring-2 ring-dnd-gold' : 'cursor-grab hover:scale-110'
@@ -446,7 +495,7 @@ export const CombatMap = ({ participants, activeId, nextId, onOpenActions, onMov
       </div>
 
       <p className="text-[10px] text-dnd-muted">
-        {mode === 'move' && 'Arrastra una ficha para moverla · clic para abrir sus acciones.'}
+        {mode === 'move' && 'Clic en una ficha para seleccionarla · segundo clic para abrir sus acciones · clic en un cuadro resaltado para moverla.'}
         {mode === 'measure' && 'Clic en un punto y luego pasa el ratón (o haz clic) para medir la distancia en pies.'}
         {mode === 'range' && 'Haz clic en una ficha para ver su alcance (radio) y las fichas dentro.'}
         {mode === 'aoe' && 'Haz clic en una casilla de origen; mueve el ratón para orientar conos y líneas.'}
