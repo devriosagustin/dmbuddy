@@ -255,7 +255,7 @@ return (
             />
           )}
         </div>
-        <div className="hidden min-h-0 w-[19rem] shrink-0 flex-col md:flex">
+        <div className="relative z-[60] hidden min-h-0 w-[19rem] shrink-0 flex-col md:flex">
           <CombatLog />
         </div>
       </div>

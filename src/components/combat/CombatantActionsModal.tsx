@@ -265,7 +265,7 @@ export const CombatantActionsModal = ({ combatant, onClose }: CombatantActionsMo
         onClose={onClose}
         title={combatant.name}
         subtitle={`${combatant.type === 'player' ? 'Jugador' : 'Monstruo'} · Iniciativa ${combatant.initiative}`}
-        maxWidth="4xl"
+        maxWidth="lg"
       >
       <div className="space-y-4">
         {/* Iniciativa editable (arriba a la derecha) */}
@@ -583,10 +583,10 @@ export const CombatantActionsModal = ({ combatant, onClose }: CombatantActionsMo
                 onKeyDown={(e) => e.key === 'Enter' && applyDamage()}
                 type="number"
                 placeholder="0"
-                className="input text-sm"
+                className="input text-sm flex-1 min-w-0"
                 aria-label="Cantidad de daño a aplicar"
               />
-              <Button variant="danger" size="sm" onClick={applyDamage}>
+              <Button variant="danger" size="sm" className="w-20 flex-none" onClick={applyDamage}>
                 {atac ? 'Aplicar' : 'Dañar'}
               </Button>
             </div>
@@ -601,10 +601,10 @@ export const CombatantActionsModal = ({ combatant, onClose }: CombatantActionsMo
                 onKeyDown={(e) => e.key === 'Enter' && applyHeal()}
                 type="number"
                 placeholder="0"
-                className="input text-sm"
+                className="input text-sm flex-1 min-w-0"
                 aria-label="Cantidad de curación"
               />
-              <Button variant="secondary" size="sm" onClick={applyHeal}>
+              <Button variant="secondary" size="sm" className="w-20 flex-none" onClick={applyHeal}>
                 Curar
               </Button>
             </div>
@@ -619,10 +619,10 @@ export const CombatantActionsModal = ({ combatant, onClose }: CombatantActionsMo
                 onKeyDown={(e) => e.key === 'Enter' && applyTemp()}
                 type="number"
                 placeholder="0"
-                className="input text-sm"
+                className="input text-sm flex-1 min-w-0"
                 aria-label="Puntos de golpe temporales"
               />
-              <Button variant="secondary" size="sm" onClick={applyTemp}>
+              <Button variant="secondary" size="sm" className="w-20 flex-none" onClick={applyTemp}>
                 Fijar
               </Button>
             </div>
