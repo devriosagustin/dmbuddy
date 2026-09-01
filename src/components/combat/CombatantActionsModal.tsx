@@ -76,8 +76,12 @@ export const CombatantActionsModal = ({ combatant, onClose }: CombatantActionsMo
 
   if (!combatant) return null;
 
-  const monster = monsters.find((m) => m.id === combatant.monsterId);
-  const npc = combatant.type === 'npc' ? npcs.find((n) => n.id === combatant.npcId) : undefined;
+  // El prop `combatant` es un snapshot tomado al abrir el modal; leemos la
+  // versión viva del store para que los cambios (rol, PG, notas…) se reflejen.
+  const liveCombatant = participants.find((p) => p.id === combatant.id) ?? combatant;
+
+  const monster = monsters.find((m) => m.id === liveCombatant.monsterId);
+  const npc = liveCombatant.type === 'npc' ? npcs.find((n) => n.id === liveCombatant.npcId) : undefined;
   const atac = damage !== '';
 
   /**
@@ -85,14 +89,14 @@ export const CombatantActionsModal = ({ combatant, onClose }: CombatantActionsMo
    * ficha) como en la ficha persistida de la sección NPC.
    */
   const changeNpcRole = (role: NpcRole) => {
-    if (combatant.type !== 'npc') return;
-    updateCombatant(combatant.id, { npcRole: role });
-    if (combatant.npcId) updateNpc(combatant.npcId, { role });
+    if (liveCombatant.type !== 'npc') return;
+    updateCombatant(liveCombatant.id, { npcRole: role });
+    if (liveCombatant.npcId) updateNpc(liveCombatant.npcId, { role });
   };
 
   const changeNpcNotes = (notes: string) => {
-    if (combatant.type !== 'npc' || !combatant.npcId) return;
-    updateNpc(combatant.npcId, { notes });
+    if (liveCombatant.type !== 'npc' || !liveCombatant.npcId) return;
+    updateNpc(liveCombatant.npcId, { notes });
   };
 
   const NPC_ROLES: { value: NpcRole; label: string; icon: string }[] = [
@@ -365,14 +369,14 @@ export const CombatantActionsModal = ({ combatant, onClose }: CombatantActionsMo
         <HealthBar hp={combatant.hp} maxHp={combatant.maxHp} tempHp={combatant.tempHp} isDead={combatant.isDead} />
 
         {/* Rol y notas de NPC (rehén, aliado, neutral o enemigo) */}
-        {combatant.type === 'npc' && (
+        {liveCombatant.type === 'npc' && (
           <div className="rounded-dnd-lg border border-violet-400/40 p-3">
             <p className="mb-2 flex items-center gap-1 text-xs font-bold uppercase text-violet-300">
               <Hand size={14} aria-hidden="true" /> NPC
             </p>
             <div className="mb-3 grid grid-cols-2 gap-2">
               {NPC_ROLES.map((opt) => {
-                const active = (combatant.npcRole ?? npc?.role) === opt.value;
+                const active = (liveCombatant.npcRole ?? npc?.role) === opt.value;
                 return (
                   <button
                     key={opt.value}
