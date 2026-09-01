@@ -67,7 +67,7 @@ export const QuickRoll = () => {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 8, scale: 0.96 }}
             transition={{ type: 'spring', damping: 28, stiffness: 380 }}
-            className="fixed bottom-20 left-4 right-4 z-40 max-w-xs rounded-dnd-lg border border-dnd-gold/40 bg-dnd-dark p-3 shadow-dnd-card sm:right-auto sm:w-64"
+            className="fixed bottom-40 left-4 right-4 z-40 max-w-xs rounded-dnd-lg border border-dnd-gold/40 bg-dnd-dark p-3 shadow-dnd-card sm:right-auto sm:w-64"
           >
             <div className="mb-3 flex items-center justify-between">
               <p className="text-xs font-bold uppercase tracking-wider text-dnd-gold">
@@ -102,7 +102,7 @@ export const QuickRoll = () => {
         aria-label="Lanzamiento rápido de dados"
         aria-expanded={open}
         aria-haspopup="dialog"
-        className="fixed bottom-5 left-4 z-40 flex h-14 w-14 items-center justify-center rounded-full border-2 border-dnd-gold/70 bg-dnd-gold text-dnd-ink shadow-dnd-card transition-transform hover:scale-105 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-dnd-gold sm:left-5"
+        className="fixed bottom-24 left-4 z-40 flex h-14 w-14 items-center justify-center rounded-full border-2 border-dnd-gold/70 bg-dnd-gold text-dnd-ink shadow-dnd-card transition-transform hover:scale-105 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-dnd-gold sm:left-5"
       >
         {lastResult !== null ? (
           <span className="font-fantasy text-lg font-bold">{lastResult}</span>
