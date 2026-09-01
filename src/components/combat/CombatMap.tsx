@@ -275,18 +275,18 @@ export const CombatMap = ({ participants, activeId, nextId, onOpenActions, onMov
           </div>
         )}
 
-        {measureDistance !== null && (
-          <span className="text-[11px] font-bold text-dnd-gold">
-            Distancia: {measureDistance} pies
-          </span>
-        )}
+      </div>
+
+      {/* Barra de estado (a ancho completo, nunca se corta) */}
+      <div className="flex min-h-4 items-center gap-2 text-[11px] font-bold">
+        {measureDistance !== null && <span className="text-dnd-gold">Distancia: {measureDistance} pies</span>}
         {mode === 'range' && rangeSource && (
-          <span className="text-[11px] font-bold text-sky-300">
+          <span className="text-sky-300">
             Alcance: {rangeFeet} pies · {inRangeCount} fichas dentro
           </span>
         )}
         {mode === 'aoe' && aoeSource && (
-          <span className="text-[11px] font-bold text-violet-300">
+          <span className="text-violet-300">
             {aoeShape === 'sphere' ? 'Radio' : aoeShape === 'cone' ? 'Cono' : 'Línea'}: {aoeFeet} pies ·{' '}
             {inAoeCount} fichas afectadas
           </span>

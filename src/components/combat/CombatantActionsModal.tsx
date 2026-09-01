@@ -265,7 +265,7 @@ export const CombatantActionsModal = ({ combatant, onClose }: CombatantActionsMo
         onClose={onClose}
         title={combatant.name}
         subtitle={`${combatant.type === 'player' ? 'Jugador' : 'Monstruo'} · Iniciativa ${combatant.initiative}`}
-        maxWidth="lg"
+        maxWidth="4xl"
       >
       <div className="space-y-4">
         {/* Iniciativa editable (arriba a la derecha) */}
