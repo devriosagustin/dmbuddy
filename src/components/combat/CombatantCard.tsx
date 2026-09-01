@@ -93,18 +93,20 @@ export const CombatantCard = ({ combatant, isActive, onOpenActions, rank }: Comb
             className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
               combatant.type === 'player'
                 ? 'bg-emerald-900/70 text-emerald-300'
-                : fightBadgeClass(rank)
+                : combatant.type === 'npc'
+                  ? 'bg-violet-900/70 text-violet-300'
+                  : fightBadgeClass(rank)
             }`}
             aria-hidden="true"
           >
-            {combatant.type === 'player' ? 'PJ' : rank + 1}
+            {combatant.type === 'player' ? 'PJ' : combatant.type === 'npc' ? 'NPC' : rank + 1}
           </span>
           <div className="min-w-0">
             <h3 className="truncate font-fantasy text-sm font-bold text-dnd-text">
               {combatant.name}
             </h3>
             <span className="badge text-[10px] text-dnd-muted">
-              {combatant.type === 'player' ? 'Jugador' : 'Monstruo'}
+              {combatant.type === 'player' ? 'Jugador' : combatant.type === 'npc' ? 'NPC' : 'Monstruo'}
             </span>
           </div>
         </div>

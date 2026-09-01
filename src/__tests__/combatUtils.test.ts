@@ -3,8 +3,8 @@
 // ============================================================
 
 import { describe, expect, it } from 'vitest';
-import { playerToCombatant } from '../utils/combatUtils';
-import type { Player } from '../types';
+import { playerToCombatant, npcToCombatant } from '../utils/combatUtils';
+import type { Player, Npc } from '../types';
 
 const basePlayer: Pick<Player, 'id' | 'name' | 'hp' | 'maxHp' | 'armorClass'> & Partial<Player> = {
   id: 'p-1',
@@ -29,5 +29,34 @@ describe('playerToCombatant', () => {
   it('no incluye dotes cuando el personaje no las tiene', () => {
     const c = playerToCombatant({ ...basePlayer, feats: undefined }, 15);
     expect(c.playerFeats).toBeUndefined();
+  });
+});
+
+describe('npcToCombatant', () => {
+  const baseNpc: Npc = {
+    id: 'n-1',
+    name: 'Pelagia',
+    role: 'hostage',
+    hp: 8,
+    maxHp: 8,
+    armorClass: 10,
+    speed: 30,
+    notes: 'Posadera secuestrada.',
+  };
+
+  it('convierte un NPC rehén en combatiente tipo npc', () => {
+    const c = npcToCombatant(baseNpc, 14);
+    expect(c.type).toBe('npc');
+    expect(c.npcId).toBe('n-1');
+    expect(c.npcRole).toBe('hostage');
+    expect(c.name).toBe('Pelagia');
+    expect(c.hp).toBe(8);
+    expect(c.armorClass).toBe(10);
+    expect(c.speed).toBe(30);
+  });
+
+  it('preserva el rol de aliado', () => {
+    const c = npcToCombatant({ ...baseNpc, role: 'ally' }, 5);
+    expect(c.npcRole).toBe('ally');
   });
 });

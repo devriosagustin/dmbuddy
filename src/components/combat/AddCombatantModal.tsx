@@ -3,13 +3,14 @@
 // ============================================================
 
 import { useMemo, useState } from 'react';
-import { User, Plus, Search } from 'lucide-react';
+import { User, Plus, Search, Hand } from 'lucide-react';
 import { Modal } from '../common/Modal';
 import { Button } from '../common/Button';
 import { useCombatStore } from '../../store/combatStore';
 import { useMonsterStore } from '../../store/monsterStore';
 import { usePlayerStore } from '../../store/playerStore';
-import { monsterToCombatant, playerToCombatant } from '../../utils/combatUtils';
+import { useNpcStore } from '../../store/npcStore';
+import { monsterToCombatant, playerToCombatant, npcToCombatant } from '../../utils/combatUtils';
 import { useDice } from '../../hooks/useDice';
 
 interface AddCombatantModalProps {
@@ -18,11 +19,12 @@ interface AddCombatantModalProps {
 }
 
 /**
- * Modal de añadir: monstruos de la biblioteca, custom o jugadores del party.
+ * Modal de añadir: monstruos de la biblioteca, custom, jugadores del party o NPC.
  */
 export const AddCombatantModal = ({ open, onClose }: AddCombatantModalProps) => {
   const monsters = useMonsterStore((s) => s.monsters);
   const players = usePlayerStore((s) => s.players);
+  const npcs = useNpcStore((s) => s.npcs);
   const addCombatant = useCombatStore((s) => s.addCombatant);
   const participants = useCombatStore((s) => s.participants);
   const isActive = useCombatStore((s) => s.isActive);
@@ -30,7 +32,7 @@ export const AddCombatantModal = ({ open, onClose }: AddCombatantModalProps) => 
   const { roll } = useDice();
 
   const [search, setSearch] = useState('');
-  const [tab, setTab] = useState<'monsters' | 'players'>('monsters');
+  const [tab, setTab] = useState<'monsters' | 'players' | 'npcs'>('monsters');
   const [customName, setCustomName] = useState('');
   const [customHP, setCustomHP] = useState('');
   const [customAC, setCustomAC] = useState('');
@@ -64,6 +66,15 @@ export const AddCombatantModal = ({ open, onClose }: AddCombatantModalProps) => 
     ensureCombat();
     const rollResult = roll('d20');
     addCombatant(playerToCombatant(player, rollResult.result));
+  };
+
+  const addNpc = (npcId: string) => {
+    const npc = npcs.find((n) => n.id === npcId);
+    if (!npc) return;
+    if (participants.some((p) => p.npcId === npcId)) return;
+    ensureCombat();
+    const rollResult = roll('d20');
+    addCombatant(npcToCombatant(npc, rollResult.result));
   };
 
   const addCustom = () => {
@@ -122,6 +133,20 @@ export const AddCombatantModal = ({ open, onClose }: AddCombatantModalProps) => 
         >
           <span className="inline-flex items-center gap-1">
             <User size={14} aria-hidden="true" /> Jugadores
+          </span>
+        </button>
+        <button
+          role="tab"
+          aria-selected={tab === 'npcs'}
+          onClick={() => setTab('npcs')}
+          className={`rounded-lg px-4 py-2 text-sm font-bold transition-colors ${
+            tab === 'npcs'
+              ? 'bg-dnd-gold text-dnd-ink'
+              : 'bg-dnd-leather/30 text-dnd-muted hover:text-dnd-text'
+          }`}
+        >
+          <span className="inline-flex items-center gap-1">
+            <Hand size={14} aria-hidden="true" /> NPCs
           </span>
         </button>
       </div>
@@ -262,6 +287,51 @@ export const AddCombatantModal = ({ open, onClose }: AddCombatantModalProps) => 
               </Button>
             </div>
           ))}
+        </div>
+      )}
+
+      {tab === 'npcs' && (
+        <div className="space-y-2" role="list" aria-label="NPCs disponibles">
+          {npcs.length === 0 && (
+            <p className="py-6 text-center text-sm text-dnd-muted">
+              No hay NPCs. Créalos en la pestaña «NPC» del menú.
+            </p>
+          )}
+          {npcs.map((npc) => {
+            const inCombat = participants.some((p) => p.npcId === npc.id);
+            return (
+              <div
+                key={npc.id}
+                role="listitem"
+                className="flex items-center justify-between gap-2 rounded-lg border border-dnd-leather/30 px-3 py-2 hover:border-dnd-gold/50 hover:bg-dnd-leather/10"
+              >
+                <div className="flex min-w-0 items-center gap-2">
+                  <span
+                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full font-bold"
+                    aria-hidden="true"
+                  >
+                    {npc.role === 'hostage' ? '🪢' : '🤝'}
+                  </span>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-bold">{npc.name}</p>
+                    <p className="text-[11px] text-dnd-muted">
+                      {npc.role === 'hostage' ? 'Rehén' : 'Aliado'} · HP {npc.hp}/{npc.maxHp}
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  icon={inCombat ? undefined : <Plus size={14} />}
+                  disabled={inCombat}
+                  onClick={() => addNpc(npc.id)}
+                  aria-label={`Añadir a ${npc.name} al combate`}
+                >
+                  {inCombat ? 'En combate' : 'Añadir'}
+                </Button>
+              </div>
+            );
+          })}
         </div>
       )}
 

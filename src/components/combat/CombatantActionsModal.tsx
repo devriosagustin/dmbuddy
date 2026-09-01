@@ -16,6 +16,7 @@ import { abilityModifier } from '../../utils/diceUtils';
 import { useDice } from '../../hooks/useDice';
 import { srdSpellByTitle, srdWeaponById, srdFeatByTitle } from '../../data/srd2024';
 import { gridDistanceFeet } from '../../utils/mapUtils';
+import { combatantTypeLabel } from '../../utils/combatUtils';
 import type { SrdWeaponEntry } from '../../data/srd2024';
 import { weaponAttackBonus, weaponDamageBonus } from '../../utils/weaponUtils';
 import { SrdDetailPanel } from '../reference/SrdDetailPanel';
@@ -286,7 +287,7 @@ export const CombatantActionsModal = ({ combatant, onClose }: CombatantActionsMo
         open={!!combatant}
         onClose={onClose}
         title={combatant.name}
-        subtitle={`${combatant.type === 'player' ? 'Jugador' : 'Monstruo'} · Iniciativa ${combatant.initiative}`}
+        subtitle={`${combatantTypeLabel(combatant.type)} · Iniciativa ${combatant.initiative}`}
         maxWidth="lg"
       >
       <div className="space-y-4">
@@ -358,7 +359,7 @@ export const CombatantActionsModal = ({ combatant, onClose }: CombatantActionsMo
                   : null;
                 return (
                   <option key={p.id} value={p.id}>
-                    {p.name} · {p.type === 'player' ? 'Jugador' : 'Monstruo'}
+                    {p.name} · {combatantTypeLabel(p.type)}
                     {dist !== null ? ` · ${dist} pies` : ''}
                   </option>
                 );

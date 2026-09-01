@@ -99,7 +99,11 @@ export const useCombatStore = create<CombatStore>()(
           : 0;
         const name =
           isMonster && sameBefore >= 1 ? `${base} ${copyLetter(sameBefore)}` : combatant.name;
-        const spawn = findSpawnCell(get().participants, combatant.type === 'player', get().tiles);
+        const spawn = findSpawnCell(
+          get().participants,
+          combatant.type === 'player' || (combatant.type === 'npc' && combatant.npcRole === 'ally'),
+          get().tiles
+        );
         const newCombatant: Combatant = {
           ...combatant,
           name,

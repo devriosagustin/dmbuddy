@@ -12,6 +12,7 @@ const CombatTracker = lazy(() => import('./components/combat/CombatTracker'));
 const MonsterManager = lazy(() => import('./components/monsters/MonsterManager'));
 const ReferenceLibrary = lazy(() => import('./components/reference/ReferenceLibrary'));
 const PartyManager = lazy(() => import('./components/players/PartyManager'));
+const NpcManager = lazy(() => import('./components/npcs/NpcManager'));
 const DiceRoller = lazy(() => import('./components/dice/DiceRoller'));
 const NotesManager = lazy(() => import('./components/notes/NotesManager'));
 
@@ -59,18 +60,26 @@ export default function App() {
             }
           />
           <Route
-            path="/reference"
-            element={
-              <Suspense fallback={<PageLoader />}>
-                <ReferenceLibrary />
-              </Suspense>
-            }
-          />
-          <Route
             path="/party"
             element={
               <Suspense fallback={<PageLoader />}>
                 <PartyManager />
+              </Suspense>
+            }
+          />
+          <Route
+            path="/npcs"
+            element={
+              <Suspense fallback={<PageLoader />}>
+                <NpcManager />
+              </Suspense>
+            }
+          />
+          <Route
+            path="/reference"
+            element={
+              <Suspense fallback={<PageLoader />}>
+                <ReferenceLibrary />
               </Suspense>
             }
           />

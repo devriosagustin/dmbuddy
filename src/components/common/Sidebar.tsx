@@ -10,6 +10,7 @@ import {
   Skull,
   BookOpen,
   Users,
+  UserRound,
   Dices,
   NotebookPen,
   ChevronLeft,
@@ -22,8 +23,9 @@ const navItems = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true },
   { to: '/combat', label: 'Combate', icon: Swords },
   { to: '/monsters', label: 'Monstruos', icon: Skull },
-  { to: '/reference', label: 'Biblioteca', icon: BookOpen },
   { to: '/party', label: 'Party', icon: Users },
+  { to: '/npcs', label: 'NPC', icon: UserRound },
+  { to: '/reference', label: 'Biblioteca', icon: BookOpen },
   { to: '/dice', label: 'Dados', icon: Dices },
   { to: '/notes', label: 'Notas', icon: NotebookPen },
 ];

@@ -676,6 +676,7 @@ export const CombatMap = ({ participants, activeId, nextId, selectedId, tiles, t
         {participants.map((combatant) => {
           if (combatant.x === undefined || combatant.y === undefined) return null;
           const isPlayer = combatant.type === 'player';
+          const isNpc = combatant.type === 'npc';
           const isActive = combatant.id === activeId;
           const isNext = combatant.id === nextId && !isActive;
           const isRangeSource = combatant.id === rangeSourceId;
@@ -690,7 +691,7 @@ export const CombatMap = ({ participants, activeId, nextId, selectedId, tiles, t
             <div
               key={combatant.id}
               role="gridcell"
-              aria-label={`${combatant.name}, ${isPlayer ? 'Jugador' : 'Monstruo'}, casilla ${combatant.x},${combatant.y}${isNext ? ', siguiente en el turno' : ''}`}
+              aria-label={`${combatant.name}, ${isPlayer ? 'Jugador' : isNpc ? 'NPC' : 'Monstruo'}, casilla ${combatant.x},${combatant.y}${isNext ? ', siguiente en el turno' : ''}`}
               className="absolute z-10 flex items-center justify-center"
               style={{
                 width: `${cellColPct}%`,
@@ -714,7 +715,11 @@ export const CombatMap = ({ participants, activeId, nextId, selectedId, tiles, t
                 className={`relative flex h-[82%] w-[72%] items-center justify-center rounded-full border-2 text-xs font-bold shadow-lg outline-none ring-4 transition-all focus:ring-dnd-gold ${
                   isPlayer
                     ? 'border-emerald-400 bg-emerald-950/90 text-emerald-100'
-                    : 'border-red-500 bg-red-950/90 text-red-100'
+                    : isNpc && combatant.npcRole === 'ally'
+                      ? 'border-sky-400 bg-sky-950/90 text-sky-100'
+                      : isNpc
+                        ? 'border-violet-400 bg-violet-950/90 text-violet-100'
+                        : 'border-red-500 bg-red-950/90 text-red-100'
                 } ${
                   isActive ? 'animate-pulse border-dnd-gold ring-dnd-gold shadow-dnd-glow' : ''
                 } ${isRangeSource ? 'ring-2 ring-sky-400 shadow-[0_0_12px_rgba(56,189,248,0.8)]' : ''} ${

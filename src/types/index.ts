@@ -20,11 +20,14 @@ export interface Combatant {
   maxHp: number;
   tempHp: number;
   armorClass: number;
-  type: 'player' | 'monster';
+  type: 'player' | 'monster' | 'npc';
   isActive: boolean;
   statusEffects: StatusEffect[];
   monsterId?: string; // Si es un monstruo de la biblioteca
   playerId?: string; // Si es un jugador
+  npcId?: string; // Si es un NPC de la sección NPC
+  /** Rol del NPC (rehén secuestrado o ayudante del party), si es un NPC. */
+  npcRole?: NpcRole;
   /** XP que otorga este monstruo al ser derrotado (según su CR). */
   xpReward?: number;
   isDead: boolean;
@@ -150,6 +153,21 @@ export interface Player {
   spellSlotsUsed?: number[];
   /** Experiencia acumulada del personaje (PC). */
   xp?: number;
+}
+
+/** Rol de un NPC en la escena: rehén secuestrado o ayudante del party. */
+export type NpcRole = 'hostage' | 'ally';
+
+/** Personaje no jugador: puede entrar en combate como rehén o aliado. */
+export interface Npc {
+  id: string;
+  name: string;
+  role: NpcRole;
+  hp: number;
+  maxHp: number;
+  armorClass: number;
+  speed?: number;
+  notes?: string;
 }
 
 export interface CombatLogEntry {

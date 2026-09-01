@@ -2,13 +2,24 @@
 // Utilidades de combate de DM Copilot Web
 // ============================================================
 
-import type { Combatant, Monster, Player, StatAbbrev } from '../types';
+import type { Combatant, Monster, Npc, Player, StatAbbrev } from '../types';
 import { SRD_CLASSES } from '../data/srd2024';
 import { crToXp } from '../data/srdMonsters';
 
 // Salvaciones competentes de una clase (SRD) al abreviatura de estadística.
 const SAVE_LABEL_TO_STAT: Record<string, StatAbbrev> = {
   FUE: 'str', DES: 'dex', CON: 'con', INT: 'int', SAB: 'wis', CAR: 'cha',
+};
+
+/**
+ * Etiqueta corta del tipo de combatiente para UI.
+ */
+export const combatantTypeLabel = (type: Combatant['type']): string => {
+  switch (type) {
+    case 'player': return 'Jugador';
+    case 'npc': return 'NPC';
+    case 'monster': return 'Monstruo';
+  }
 };
 
 /**
@@ -82,6 +93,30 @@ export const monsterToCombatant = (
     xpReward: crToXp(monster.challengeRating),
     isDead: false,
     speed: parseMonsterSpeed(monster.speed),
+  };
+};
+
+/**
+ * Crea un combatiente nuevo a partir de un NPC (rehén o aliado).
+ */
+export const npcToCombatant = (
+  npc: Npc,
+  initiative: number
+): Omit<Combatant, 'id'> => {
+  return {
+    name: npc.name,
+    initiative,
+    hp: npc.hp,
+    maxHp: npc.maxHp,
+    tempHp: 0,
+    armorClass: npc.armorClass,
+    type: 'npc',
+    isActive: true,
+    statusEffects: [],
+    npcId: npc.id,
+    npcRole: npc.role,
+    isDead: false,
+    speed: npc.speed ?? 30,
   };
 };
 
