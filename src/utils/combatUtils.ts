@@ -135,6 +135,15 @@ export const hpColorClass = (ratio: number): string => {
 };
 
 /**
+ * Color de la barra de PG según el porcentaje de vida (verde >70%, amarillo 70%-25%, rojo <25%).
+ */
+export const hpBarColorClass = (ratio: number): string => {
+  if (ratio > 0.7) return 'bg-green-500';
+  if (ratio > 0.25) return 'bg-yellow-500';
+  return 'bg-red-600';
+};
+
+/**
  * Descripción de la condición de vida del combatiente.
  */
 export const hpStatus = (combatant: Combatant): string => {

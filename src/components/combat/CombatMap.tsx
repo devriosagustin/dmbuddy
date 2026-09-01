@@ -21,6 +21,7 @@ import {
   cellsInSphere,
   gridDistanceFeet,
 } from '../../utils/mapUtils';
+import { hpRatio, hpBarColorClass } from '../../utils/combatUtils';
 
 type Mode = 'move' | 'measure' | 'range' | 'aoe';
 type AoeShape = 'sphere' | 'cone' | 'line';
@@ -727,6 +728,18 @@ export const CombatMap = ({ participants, activeId, nextId, selectedId, tiles, t
               >
                 {combatant.name.charAt(0).toUpperCase()}
               </button>
+              {isSelected && (
+                <div
+                  className="absolute bottom-[-6%] left-1/2 h-[8%] w-[64%] -translate-x-1/2 overflow-hidden rounded-full border border-black/40 bg-dnd-ink/90"
+                  style={{ minWidth: '22px' }}
+                  aria-hidden="true"
+                >
+                  <div
+                    className={`h-full ${hpBarColorClass(hpRatio(combatant))}`}
+                    style={{ width: `${Math.max(2, Math.round(hpRatio(combatant) * 100))}%` }}
+                  />
+                </div>
+              )}
             </div>
           );
         })}
