@@ -86,7 +86,7 @@ export const CombatLog = () => {
         <div
           id="combat-log-list"
           ref={listRef}
-          className="max-h-64 min-h-0 flex-1 space-y-1 overflow-y-auto rounded-lg bg-dnd-ink/40 p-3 font-body text-xs"
+          className="min-h-0 flex-1 space-y-1 overflow-y-auto rounded-lg bg-dnd-ink/40 p-3 font-body text-xs"
         >
           {combatLog.length === 0 && (
             <p className="text-center text-dnd-muted">Sin eventos todavía.</p>

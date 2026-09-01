@@ -5,7 +5,7 @@
 // áreas de efecto (radio, cono, línea).
 // ============================================================
 
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Combatant } from '../../types';
 import type { MapCell } from '../../utils/mapUtils';
 import {
@@ -68,6 +68,24 @@ export const CombatMap = ({ participants, activeId, nextId, onOpenActions, onMov
   const [aoeSource, setAoeSource] = useState<MapCell | null>(null);
   const [aoeShape, setAoeShape] = useState<AoeShape>('sphere');
   const [aoeFeet, setAoeFeet] = useState(20);
+
+  // Dimensionado del mapa: calcula el mayor tamaño con celdas cuadradas que
+  // cabe en el área disponible (así no hay scroll y todo se ve completo).
+  const measureRef = useRef<HTMLDivElement>(null);
+  const [mapSize, setMapSize] = useState({ w: 0, h: 0 });
+
+  useEffect(() => {
+    const el = measureRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver((entries) => {
+      const { width, height } = entries[0].contentRect;
+      // Celda cuadrada que quepa tanto por ancho como por alto.
+      const cellSize = Math.max(1, Math.floor(Math.min(width / MAP_COLS, height / MAP_ROWS)));
+      setMapSize({ w: cellSize * MAP_COLS, h: cellSize * MAP_ROWS });
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   const rangeSource = useMemo(
     () => participants.find((p) => p.id === rangeSourceId) ?? null,
@@ -191,7 +209,7 @@ export const CombatMap = ({ participants, activeId, nextId, onOpenActions, onMov
   );
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex h-full min-h-0 flex-col gap-2">
       {/* Barra de herramientas */}
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
         <div className="flex items-center gap-1" role="group" aria-label="Herramientas de mapa">
@@ -275,21 +293,26 @@ export const CombatMap = ({ participants, activeId, nextId, onOpenActions, onMov
         )}
       </div>
 
-      <div
-        ref={gridRef}
-        onPointerMove={handleMove}
-        onPointerUp={handleUp}
-        onPointerDown={(e) => {
-          if (e.button !== 0) return;
-          if (mode === 'move') return; // los tokens gestionan su propio arrastre
-          const cell = gridRef.current && cellFromPointer(e, gridRef.current.getBoundingClientRect());
-          if (cell) handleEmptyDown(e, cell);
-        }}
-        className="relative w-full overflow-hidden rounded-dnd-lg border border-dnd-leather/40 bg-dnd-ink/40"
-        style={{ aspectRatio: `${MAP_COLS} / ${MAP_ROWS}`, touchAction: 'none' }}
-        aria-label="Mapa de combate"
-        role="grid"
-      >
+      <div ref={measureRef} className="flex min-h-0 flex-1 items-center justify-center">
+        <div
+          ref={gridRef}
+          onPointerMove={handleMove}
+          onPointerUp={handleUp}
+          onPointerDown={(e) => {
+            if (e.button !== 0) return;
+            if (mode === 'move') return; // los tokens gestionan su propio arrastre
+            const cell = gridRef.current && cellFromPointer(e, gridRef.current.getBoundingClientRect());
+            if (cell) handleEmptyDown(e, cell);
+          }}
+          className="relative overflow-hidden rounded-dnd-lg border border-dnd-leather/40 bg-dnd-ink/40"
+          style={{
+            width: mapSize.w || '100%',
+            height: mapSize.h || '100%',
+            touchAction: 'none',
+          }}
+          aria-label="Mapa de combate"
+          role="grid"
+        >
         {/* Casillas de fondo con mayor contraste */}
         <div
           className="absolute inset-0 grid"
@@ -419,6 +442,7 @@ export const CombatMap = ({ participants, activeId, nextId, onOpenActions, onMov
             </div>
           );
         })}
+      </div>
       </div>
 
       <p className="text-[10px] text-dnd-muted">
