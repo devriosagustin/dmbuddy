@@ -391,19 +391,22 @@ export const CombatMap = ({ participants, activeId, nextId, onOpenActions, onMov
             >
               {isNext && (
                 <span
-                  className="pointer-events-none absolute h-full w-[88%] animate-pulse rounded-full border-2 border-dashed border-dnd-gold"
+                  className="pointer-events-none absolute animate-ping rounded-full bg-dnd-gold/25"
+                  style={{ inset: '-12%' }}
                   aria-hidden="true"
                 />
               )}
               <button
                 type="button"
                 onPointerDown={(e) => handleTokenPointerDown(e, combatant)}
-                className={`flex h-[82%] w-[72%] items-center justify-center rounded-full border-2 text-xs font-bold shadow-lg outline-none ring-2 ring-transparent transition-all focus:ring-dnd-gold ${
+                className={`relative flex h-[82%] w-[72%] items-center justify-center rounded-full border-2 text-xs font-bold shadow-lg outline-none ring-4 transition-all focus:ring-dnd-gold ${
                   isPlayer
                     ? 'border-emerald-400 bg-emerald-950/90 text-emerald-100'
                     : 'border-red-500 bg-red-950/90 text-red-100'
-                } ${isActive ? 'ring-2 ring-dnd-gold shadow-dnd-glow' : ''} ${
-                  isNext && !isActive ? 'ring-2 ring-dnd-gold/80' : ''
+                } ${isActive ? 'ring-dnd-gold shadow-dnd-glow' : ''} ${
+                  isNext && !isActive
+                    ? 'animate-pulse border-dnd-gold ring-dnd-gold shadow-dnd-glow'
+                    : ''
                 } ${isRangeSource ? 'ring-2 ring-sky-400 shadow-[0_0_12px_rgba(56,189,248,0.8)]' : ''} ${
                   combatant.isDead ? 'opacity-40 grayscale' : ''
                 } ${
