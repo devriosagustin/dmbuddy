@@ -42,6 +42,10 @@ interface CombatMapProps {
   onToggleBarrier: (x: number, y: number) => void;
   /** Elimina todas las barreras del mapa. */
   onClearBarriers: () => void;
+  /** Exporta layouts guardados a JSON (descarga archivo). */
+  onExportLayouts: () => void;
+  /** Importa layouts desde archivo JSON (abre file picker). */
+  onImportLayouts: () => void;
   /** Layouts de mapa guardados por el usuario. */
   savedLayouts: MapLayout[];
   /** Guarda el layout actual de barreras con un nombre. */
@@ -80,7 +84,7 @@ const SAME = <T,>(a: T, b: T) => JSON.stringify(a) === JSON.stringify(b);
 const RANGE_PRESETS = [5, 10, 15, 30, 60, 90, 120];
 const AOE_PRESETS = [5, 10, 15, 20, 30, 60];
 
-export const CombatMap = ({ participants, activeId, nextId, selectedId, barriers, barrierMode, onToggleBarrierMode, onToggleBarrier, onClearBarriers, savedLayouts, onSaveLayout, onLoadLayout, onDeleteLayout, onRandomLayout, onOpenActions, onMove, onSelect }: CombatMapProps) => {
+export const CombatMap = ({ participants, activeId, nextId, selectedId, barriers, barrierMode, onToggleBarrierMode, onToggleBarrier, onClearBarriers, onExportLayouts, onImportLayouts, savedLayouts, onSaveLayout, onLoadLayout, onDeleteLayout, onRandomLayout, onOpenActions, onMove, onSelect }: CombatMapProps) => {
   const gridRef = useRef<HTMLDivElement>(null);
   const [mode, setMode] = useState<Mode>('move');
   const [drag, setDrag] = useState<DragState | null>(null);
@@ -356,6 +360,23 @@ export const CombatMap = ({ participants, activeId, nextId, selectedId, barriers
                     Guardar
                   </button>
                 </div>
+              </div>
+
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={onExportLayouts}
+                  className="rounded-md bg-sky-500 px-3 py-1.5 text-xs font-bold text-white hover:bg-sky-400 flex-1"
+                >
+                  📤 Exportar
+                </button>
+                <button
+                  type="button"
+                  onClick={onImportLayouts}
+                  className="rounded-md bg-amber-500 px-3 py-1.5 text-xs font-bold text-white hover:bg-amber-400 flex-1"
+                >
+                  📥 Importar
+                </button>
               </div>
 
               <div className="flex flex-col gap-1.5">

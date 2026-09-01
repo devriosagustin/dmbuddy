@@ -19,6 +19,10 @@ interface LayoutStore {
   saveLayout: (name: string, barriers: { x: number; y: number }[]) => MapLayout;
   savedLayout: (id: string) => MapLayout | undefined;
   deleteLayout: (id: string) => void;
+  /** Exporta todos los layouts a JSON string. */
+  exportLayouts: () => string;
+  /** Importa layouts desde JSON string; retorna {added, skipped}. */
+  importLayouts: (json: string) => { added: number; skipped: number };
 }
 
 export const useLayoutStore = create<LayoutStore>()(
@@ -43,6 +47,36 @@ export const useLayoutStore = create<LayoutStore>()(
       savedLayout: (id) => get().savedLayouts.find((l) => l.id === id),
       deleteLayout: (id) => {
         set((s) => ({ savedLayouts: s.savedLayouts.filter((l) => l.id !== id) }));
+      },
+      exportLayouts: () => {
+        return JSON.stringify(get().savedLayouts, null, 2);
+      },
+      importLayouts: (json) => {
+        try {
+          const parsed = JSON.parse(json) as MapLayout[];
+          if (!Array.isArray(parsed)) return { added: 0, skipped: 0 };
+          let added = 0;
+          let skipped = 0;
+          const current = get().savedLayouts;
+          const nameSet = new Set(current.map((l) => l.name));
+          for (const l of parsed) {
+            if (!l.id || !l.name || !Array.isArray(l.barriers)) {
+              skipped++;
+              continue;
+            }
+            if (nameSet.has(l.name)) {
+              skipped++;
+              continue;
+            }
+            const newLayout = { ...l, id: makeId() };
+            set((s) => ({ savedLayouts: [...s.savedLayouts, newLayout] }));
+            nameSet.add(l.name);
+            added++;
+          }
+          return { added, skipped };
+        } catch {
+          return { added: 0, skipped: 0 };
+        }
       },
     }),
     { name: 'dmbuddy-map-layouts' }

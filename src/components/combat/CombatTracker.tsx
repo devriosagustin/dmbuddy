@@ -50,7 +50,7 @@ export const CombatTracker = () => {
     barriers,
   } = useCombatStore();
 
-  const { savedLayouts, saveLayout, savedLayout: getSavedLayout, deleteLayout } = useLayoutStore();
+  const { savedLayouts, saveLayout, savedLayout: getSavedLayout, deleteLayout, exportLayouts, importLayouts } = useLayoutStore();
 
   const [showAdd, setShowAdd] = useState(false);
   const [selected, setSelected] = useState<Combatant | null>(null);
@@ -113,6 +113,40 @@ export const CombatTracker = () => {
   const handleRandomLayout = () => {
     const { barriers: b } = randomLayout();
     setBarriers(b);
+  };
+
+  const handleExportLayouts = () => {
+    const json = exportLayouts();
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `dmbuddy-map-layouts-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImportLayouts = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'application/json';
+    input.onchange = (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const text = ev.target?.result as string;
+        if (!text) return;
+        const { added, skipped } = importLayouts(text);
+        if (added > 0 || skipped > 0) {
+          console.log(`Importados: ${added}, Omitidos (duplicados/inválidos): ${skipped}`);
+        }
+      };
+      reader.readAsText(file);
+    };
+    input.click();
   };
 
 return (
@@ -289,6 +323,8 @@ return (
               onLoadLayout={handleLoadLayout}
               onDeleteLayout={handleDeleteLayout}
               onRandomLayout={handleRandomLayout}
+              onExportLayouts={handleExportLayouts}
+              onImportLayouts={handleImportLayouts}
               onSelect={setSelectedTokenId}
               onOpenActions={setSelected}
               onMove={moveCombatant}
