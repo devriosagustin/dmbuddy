@@ -318,7 +318,7 @@ export const CombatMap = ({ participants, activeId, nextId, selectedId, tiles, t
               <select
                 value={tileType}
                 onChange={(e) => onTileTypeChange(e.target.value as TileType)}
-                className="input h-7 min-w-0 shrink-0 px-2 text-xs"
+                className="input h-8 min-w-0 shrink-0 px-2 py-0 text-xs"
                 style={{ width: '11.5rem' }}
               >
                 <option value="wall">Muro</option>
@@ -458,7 +458,7 @@ export const CombatMap = ({ participants, activeId, nextId, selectedId, tiles, t
           <div className="flex items-center gap-1">
             <span className="whitespace-nowrap text-[11px] text-dnd-muted">Radio</span>
             <select
-              className="input h-7 w-28 shrink-0 px-2 text-xs"
+              className="input h-8 w-28 shrink-0 px-2 py-0 text-xs"
               value={rangeFeet}
               onChange={(e) => setRangeFeet(Number(e.target.value))}
             >
@@ -497,7 +497,7 @@ export const CombatMap = ({ participants, activeId, nextId, selectedId, tiles, t
               ))}
             </div>
             <select
-              className="input h-7 w-28 shrink-0 px-2 text-xs"
+              className="input h-8 w-28 shrink-0 px-2 py-0 text-xs"
               value={aoeFeet}
               onChange={(e) => setAoeFeet(Number(e.target.value))}
             >
