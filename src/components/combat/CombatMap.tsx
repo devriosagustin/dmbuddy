@@ -577,10 +577,10 @@ export const CombatMap = ({ participants, activeId, nextId, selectedId, tiles, t
                 const openLeft = !hasTile(tiles, x - 1, y, 'wall');
                 const openRight = !hasTile(tiles, x + 1, y, 'wall');
                 baseClass = `bg-dnd-ink/95 ${openTop ? 'border-t-2 border-red-400' : ''} ${openBottom ? 'border-b-2 border-red-400' : ''} ${openLeft ? 'border-l-2 border-red-400' : ''} ${openRight ? 'border-r-2 border-red-400' : ''}`;
-                icon = '▦';
+                icon = '';
               } else if (tile.type === 'trap') {
                 baseClass = 'bg-red-900/40 flex items-center justify-center';
-                icon = '✚';
+                icon = 'X';
               } else if (tile.type === 'treasure') {
                 baseClass = 'bg-yellow-600/50 flex items-center justify-center';
                 icon = '🟨';
