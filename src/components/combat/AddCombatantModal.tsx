@@ -310,12 +310,12 @@ export const AddCombatantModal = ({ open, onClose }: AddCombatantModalProps) => 
                     className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full font-bold"
                     aria-hidden="true"
                   >
-                    {npc.role === 'hostage' ? '🪢' : '🤝'}
+                    {npc.role === 'hostage' ? '🪢' : npc.role === 'ally' ? '🤝' : npc.role === 'neutral' ? '⚖️' : '🗡️'}
                   </span>
                   <div className="min-w-0">
                     <p className="truncate text-sm font-bold">{npc.name}</p>
                     <p className="text-[11px] text-dnd-muted">
-                      {npc.role === 'hostage' ? 'Rehén' : 'Aliado'} · HP {npc.hp}/{npc.maxHp}
+                      {npc.role === 'hostage' ? 'Rehén' : npc.role === 'ally' ? 'Aliado' : npc.role === 'neutral' ? 'Neutral' : 'Enemigo'} · HP {npc.hp}/{npc.maxHp}
                     </p>
                   </div>
                 </div>

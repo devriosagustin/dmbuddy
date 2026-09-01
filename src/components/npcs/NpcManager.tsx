@@ -12,6 +12,8 @@ import { Plus, Pencil, Trash2, UserRound } from 'lucide-react';
 const ROLE_META: Record<Npc['role'], { label: string; icon: string; badge: string }> = {
   hostage: { label: 'Rehén', icon: '🪢', badge: 'bg-amber-900/50 text-amber-300' },
   ally: { label: 'Aliado', icon: '🤝', badge: 'bg-sky-900/50 text-sky-300' },
+  neutral: { label: 'Neutral', icon: '⚖️', badge: 'bg-stone-800/60 text-stone-300' },
+  enemy: { label: 'Enemigo', icon: '🗡️', badge: 'bg-red-900/50 text-red-300' },
 };
 
 /**

@@ -45,6 +45,8 @@ interface CombatStore extends CombatState {
   /** Elimina todos los tiles. */
   clearTiles: () => void;
   reorderParticipants: (ordered: Combatant[]) => void;
+  /** Actualiza campos arbitrarios de un combatiente del combate activo. */
+  updateCombatant: (id: string, updates: Partial<Combatant>) => void;
   /** Mueve una ficha a una casilla del mapa (coordenadas columna/fila). */
   moveCombatant: (id: string, x: number, y: number) => void;
   addStatusEffect: (id: string, effect: Omit<StatusEffect, 'id'>) => void;
@@ -301,6 +303,14 @@ export const useCombatStore = create<CombatStore>()(
         set((state) => ({
           participants: state.participants.map((p) =>
             p.id === id ? { ...p, speed: Math.max(0, Math.round(speed)) } : p
+          ),
+        }));
+      },
+
+      updateCombatant: (id, updates) => {
+        set((state) => ({
+          participants: state.participants.map((p) =>
+            p.id === id ? { ...p, ...updates } : p
           ),
         }));
       },

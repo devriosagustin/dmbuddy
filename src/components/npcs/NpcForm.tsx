@@ -17,6 +17,8 @@ interface NpcFormProps {
 const ROLE_OPTIONS: { value: NpcRole; label: string; hint: string; icon: string }[] = [
   { value: 'hostage', label: 'Rehén', hint: 'Persona secuestrada que el party debe liberar', icon: '🪢' },
   { value: 'ally', label: 'Aliado', hint: 'Ayudante del party durante el combate', icon: '🤝' },
+  { value: 'neutral', label: 'Neutral', hint: 'No toma partido: no ayuda ni ataca', icon: '⚖️' },
+  { value: 'enemy', label: 'Enemigo', hint: 'Actúa contra el party en el combate', icon: '🗡️' },
 ];
 
 /**

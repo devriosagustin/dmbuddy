@@ -155,8 +155,8 @@ export interface Player {
   xp?: number;
 }
 
-/** Rol de un NPC en la escena: rehén secuestrado o ayudante del party. */
-export type NpcRole = 'hostage' | 'ally';
+/** Rol de un NPC: rehén secuestrado, aliado del party, neutral o enemigo. */
+export type NpcRole = 'hostage' | 'ally' | 'neutral' | 'enemy';
 
 /** Personaje no jugador: puede entrar en combate como rehén o aliado. */
 export interface Npc {

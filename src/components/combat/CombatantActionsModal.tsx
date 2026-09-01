@@ -3,14 +3,15 @@
 // ============================================================
 
 import { useState } from 'react';
-import { BookOpen, Crosshair, Eye, Handshake, Dices, Trash2, Sparkles, Shield } from 'lucide-react';
+import { BookOpen, Crosshair, Eye, Handshake, Hand, Dices, Trash2, Sparkles, Shield } from 'lucide-react';
 import { Modal } from '../common/Modal';
 import { Button } from '../common/Button';
-import type { Combatant, Spell } from '../../types';
+import type { Combatant, NpcRole, Spell } from '../../types';
 import { STAT_LABELS } from '../../types';
 import type { StatAbbrev } from '../../types';
 import { useCombatStore } from '../../store/combatStore';
 import { useMonsterStore } from '../../store/monsterStore';
+import { useNpcStore } from '../../store/npcStore';
 import { rollAttackAgainst } from '../../utils/damageCalculator';
 import { abilityModifier } from '../../utils/diceUtils';
 import { useDice } from '../../hooks/useDice';
@@ -52,10 +53,12 @@ interface CombatantActionsModalProps {
  * Modal de acciones: daño preciso, ataque de monstruo, estados y más.
  */
 export const CombatantActionsModal = ({ combatant, onClose }: CombatantActionsModalProps) => {
-  const { updateHP, removeCombatant, addStatusEffect, removeStatusEffect, setInitiative, setSpeed } = useCombatStore();
+  const { updateHP, removeCombatant, addStatusEffect, removeStatusEffect, setInitiative, setSpeed, updateCombatant } = useCombatStore();
   const participants = useCombatStore((s) => s.participants);
   const turn = useCombatStore((s) => s.turn);
   const monsters = useMonsterStore((s) => s.monsters);
+  const npcs = useNpcStore((s) => s.npcs);
+  const updateNpc = useNpcStore((s) => s.updateNpc);
   const { roll } = useDice();
 
   const [damage, setDamage] = useState('');
@@ -74,7 +77,30 @@ export const CombatantActionsModal = ({ combatant, onClose }: CombatantActionsMo
   if (!combatant) return null;
 
   const monster = monsters.find((m) => m.id === combatant.monsterId);
+  const npc = combatant.type === 'npc' ? npcs.find((n) => n.id === combatant.npcId) : undefined;
   const atac = damage !== '';
+
+  /**
+   * Cambia el rol de un NPC tanto en el combatiente del combate (color de la
+   * ficha) como en la ficha persistida de la sección NPC.
+   */
+  const changeNpcRole = (role: NpcRole) => {
+    if (combatant.type !== 'npc') return;
+    updateCombatant(combatant.id, { npcRole: role });
+    if (combatant.npcId) updateNpc(combatant.npcId, { role });
+  };
+
+  const changeNpcNotes = (notes: string) => {
+    if (combatant.type !== 'npc' || !combatant.npcId) return;
+    updateNpc(combatant.npcId, { notes });
+  };
+
+  const NPC_ROLES: { value: NpcRole; label: string; icon: string }[] = [
+    { value: 'hostage', label: 'Rehén', icon: '🪢' },
+    { value: 'ally', label: 'Aliado', icon: '🤝' },
+    { value: 'neutral', label: 'Neutral', icon: '⚖️' },
+    { value: 'enemy', label: 'Enemigo', icon: '🗡️' },
+  ];
 
   // Objetivo por defecto: el del turno actual si no es el propio combatiente;
   // si no, el primero distinto; como último recurso, el propio combatiente.
@@ -337,6 +363,46 @@ export const CombatantActionsModal = ({ combatant, onClose }: CombatantActionsMo
 
         {/* Estado de vida */}
         <HealthBar hp={combatant.hp} maxHp={combatant.maxHp} tempHp={combatant.tempHp} isDead={combatant.isDead} />
+
+        {/* Rol y notas de NPC (rehén, aliado, neutral o enemigo) */}
+        {combatant.type === 'npc' && (
+          <div className="rounded-dnd-lg border border-violet-400/40 p-3">
+            <p className="mb-2 flex items-center gap-1 text-xs font-bold uppercase text-violet-300">
+              <Hand size={14} aria-hidden="true" /> NPC
+            </p>
+            <div className="mb-3 grid grid-cols-2 gap-2">
+              {NPC_ROLES.map((opt) => {
+                const active = (combatant.npcRole ?? npc?.role) === opt.value;
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => changeNpcRole(opt.value)}
+                    aria-pressed={active}
+                    className={`flex items-center gap-1.5 rounded-lg border px-2 py-1.5 text-xs font-bold transition-colors ${
+                      active
+                        ? 'border-violet-400 bg-violet-400/20 text-violet-100'
+                        : 'border-dnd-leather/40 text-dnd-muted hover:border-violet-400/60 hover:text-dnd-text'
+                    }`}
+                  >
+                    <span aria-hidden="true">{opt.icon}</span> {opt.label}
+                  </button>
+                );
+              })}
+            </div>
+            <label htmlFor="npc-notes" className="mb-1 flex items-center gap-1 text-xs font-bold uppercase text-dnd-gold">
+              📝 Notas
+            </label>
+            <textarea
+              id="npc-notes"
+              rows={3}
+              placeholder="Notas del máster para este NPC…"
+              value={npc?.notes ?? ''}
+              onChange={(e) => changeNpcNotes(e.target.value)}
+              className="input text-sm"
+            />
+          </div>
+        )}
 
         {/* Objetivo de ataques y conjuros */}
         {((monster && (monster.actions.length > 0 || (monster.spellcasting && spellRows.length > 0))) ||

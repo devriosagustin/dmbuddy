@@ -717,9 +717,13 @@ export const CombatMap = ({ participants, activeId, nextId, selectedId, tiles, t
                     ? 'border-emerald-400 bg-emerald-950/90 text-emerald-100'
                     : isNpc && combatant.npcRole === 'ally'
                       ? 'border-sky-400 bg-sky-950/90 text-sky-100'
-                      : isNpc
-                        ? 'border-violet-400 bg-violet-950/90 text-violet-100'
-                        : 'border-red-500 bg-red-950/90 text-red-100'
+                      : isNpc && combatant.npcRole === 'neutral'
+                        ? 'border-stone-400 bg-stone-900/90 text-stone-200'
+                        : isNpc && combatant.npcRole === 'enemy'
+                          ? 'border-orange-400 bg-orange-950/90 text-orange-100'
+                          : isNpc
+                            ? 'border-violet-400 bg-violet-950/90 text-violet-100'
+                            : 'border-red-500 bg-red-950/90 text-red-100'
                 } ${
                   isActive ? 'animate-pulse border-dnd-gold ring-dnd-gold shadow-dnd-glow' : ''
                 } ${isRangeSource ? 'ring-2 ring-sky-400 shadow-[0_0_12px_rgba(56,189,248,0.8)]' : ''} ${
