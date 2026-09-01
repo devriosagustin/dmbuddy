@@ -459,7 +459,7 @@ export const CombatMap = ({ participants, activeId, nextId, selectedId, onOpenAc
                 transition: 'left 120ms ease, top 120ms ease',
               }}
             >
-              {isNext && (
+              {isActive && (
                 <span
                   className="pointer-events-none absolute animate-ping rounded-full bg-dnd-gold/25"
                   style={{ inset: '-12%' }}
@@ -473,10 +473,8 @@ export const CombatMap = ({ participants, activeId, nextId, selectedId, onOpenAc
                   isPlayer
                     ? 'border-emerald-400 bg-emerald-950/90 text-emerald-100'
                     : 'border-red-500 bg-red-950/90 text-red-100'
-                } ${isActive ? 'ring-dnd-gold shadow-dnd-glow' : ''} ${
-                  isNext && !isActive
-                    ? 'animate-pulse border-dnd-gold ring-dnd-gold shadow-dnd-glow'
-                    : ''
+                } ${
+                  isActive ? 'animate-pulse border-dnd-gold ring-dnd-gold shadow-dnd-glow' : ''
                 } ${isRangeSource ? 'ring-2 ring-sky-400 shadow-[0_0_12px_rgba(56,189,248,0.8)]' : ''} ${
                   isSelected ? 'ring-4 ring-emerald-300 shadow-dnd-glow' : ''
                 } ${
