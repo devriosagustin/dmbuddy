@@ -318,10 +318,11 @@ export const CombatMap = ({ participants, activeId, nextId, selectedId, tiles, t
               <select
                 value={tileType}
                 onChange={(e) => onTileTypeChange(e.target.value as TileType)}
-                className="input h-7 w-36 shrink-0 text-xs"
+                className="input h-7 min-w-0 shrink-0 text-xs"
+                style={{ width: '11rem' }}
               >
                 <option value="wall">Muro</option>
-                <option value="trap">X Trampa</option>
+                <option value="trap">✚ Trampa</option>
                 <option value="treasure">🟨 Tesoro</option>
                 <option value="investigation">🔍 Investigación</option>
               </select>
