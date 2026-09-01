@@ -35,11 +35,15 @@ const typeColor: Record<CombatLogEntry['type'], string> = {
 export const CombatLog = () => {
   const combatLog = useCombatStore((s) => s.combatLog);
   const [showLog, setShowLog] = useState(false);
-  const endRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
 
-  // Auto-scroll al último evento
+  // Auto-scroll solo dentro del propio log y únicamente si el usuario ya está
+  // cerca del final (no desplaza la página ni obliga a leer entradas antiguas).
   useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    const el = listRef.current;
+    if (!el) return;
+    const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
+    if (nearBottom) el.scrollTop = el.scrollHeight;
   }, [combatLog.length]);
 
   // Limpiar solo el log sin tocar el resto del combate
@@ -81,6 +85,7 @@ export const CombatLog = () => {
       {showLog && (
         <div
           id="combat-log-list"
+          ref={listRef}
           className="max-h-64 min-h-0 flex-1 space-y-1 overflow-y-auto rounded-lg bg-dnd-ink/40 p-3 font-body text-xs"
         >
           {combatLog.length === 0 && (
@@ -104,7 +109,6 @@ export const CombatLog = () => {
               </div>
             </div>
           ))}
-          <div ref={endRef} />
         </div>
       )}
     </section>
