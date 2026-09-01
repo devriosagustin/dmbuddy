@@ -15,6 +15,7 @@ import { rollAttackAgainst } from '../../utils/damageCalculator';
 import { abilityModifier } from '../../utils/diceUtils';
 import { useDice } from '../../hooks/useDice';
 import { srdSpellByTitle, srdWeaponById, srdFeatByTitle } from '../../data/srd2024';
+import { gridDistanceFeet } from '../../utils/mapUtils';
 import type { SrdWeaponEntry } from '../../data/srd2024';
 import { weaponAttackBonus, weaponDamageBonus } from '../../utils/weaponUtils';
 import { SrdDetailPanel } from '../reference/SrdDetailPanel';
@@ -76,7 +77,20 @@ export const CombatantActionsModal = ({ combatant, onClose }: CombatantActionsMo
 
   // Objetivo por defecto: el del turno actual si no es el propio combatiente;
   // si no, el primero distinto; como último recurso, el propio combatiente.
-  const live = participants.filter((p) => !p.isDead);
+  const combatantPos = combatant.x !== undefined && combatant.y !== undefined
+    ? { x: combatant.x, y: combatant.y }
+    : null;
+  const live = participants
+    .filter((p) => !p.isDead)
+    .sort((a, b) => {
+      if (!combatantPos) return 0;
+      const posA = a.x !== undefined && a.y !== undefined ? { x: a.x, y: a.y } : null;
+      const posB = b.x !== undefined && b.y !== undefined ? { x: b.x, y: b.y } : null;
+      if (!posA && !posB) return 0;
+      if (!posA) return 1;
+      if (!posB) return -1;
+      return gridDistanceFeet(combatantPos, posA) - gridDistanceFeet(combatantPos, posB);
+    });
   const turnTarget = participants[turn];
   const defaultTarget =
     live.length === 0
@@ -338,11 +352,17 @@ export const CombatantActionsModal = ({ combatant, onClose }: CombatantActionsMo
               className="input text-sm"
             >
               {live.length === 0 && <option value={combatant.id}>{combatant.name} (único)</option>}
-              {live.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name} · {p.type === 'player' ? 'Jugador' : 'Monstruo'}
-                </option>
-              ))}
+              {live.map((p) => {
+                const dist = combatantPos && p.x !== undefined && p.y !== undefined
+                  ? gridDistanceFeet(combatantPos, { x: p.x, y: p.y })
+                  : null;
+                return (
+                  <option key={p.id} value={p.id}>
+                    {p.name} · {p.type === 'player' ? 'Jugador' : 'Monstruo'}
+                    {dist !== null ? ` · {dist} pies` : ''}
+                  </option>
+                );
+              })}
             </select>
           </div>
         )}
