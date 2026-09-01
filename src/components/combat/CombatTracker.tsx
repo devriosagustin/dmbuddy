@@ -60,6 +60,13 @@ export const CombatTracker = () => {
 
   const activeCombatant = activeIndex >= 0 ? sorted[activeIndex] : null;
 
+  // Siguiente combatiente en el orden de turnos (para resaltarlo antes de pulsar «Siguiente»).
+  const nextCombatant = useMemo(() => {
+    if (!isActive || sorted.length === 0) return null;
+    if (turn < 0) return sorted[0];
+    return sorted[(turn + 1) % sorted.length];
+  }, [isActive, turn, sorted]);
+
 return (
     <div className="page">
       <motion.div
@@ -206,6 +213,7 @@ return (
             <CombatMap
               participants={sorted}
               activeId={activeCombatant?.id}
+              nextId={nextCombatant?.id}
               onOpenActions={setSelected}
               onMove={moveCombatant}
             />

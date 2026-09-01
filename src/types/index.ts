@@ -153,7 +153,7 @@ export interface Player {
 export interface CombatLogEntry {
   id: string;
   timestamp: Date;
-  type: 'initiative' | 'damage' | 'heal' | 'status' | 'death' | 'custom' | 'xp';
+  type: 'initiative' | 'damage' | 'heal' | 'status' | 'death' | 'custom' | 'xp' | 'move';
   message: string;
   combatantId?: string;
   details?: unknown;

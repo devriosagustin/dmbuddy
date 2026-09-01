@@ -132,6 +132,20 @@ describe('Combat Store', () => {
     expect(p.y).toBe(4);
   });
 
+  it('debe registrar el desplazamiento de una ficha en el log', () => {
+    useCombatStore.getState().initializeCombat();
+    useCombatStore.getState().addCombatant(makeCombatant({ name: 'Goblin', initiative: 15 }));
+    const id = useCombatStore.getState().participants[0].id;
+    const before = useCombatStore.getState().combatLog.length;
+    useCombatStore.getState().moveCombatant(id, 8, 4);
+    const after = useCombatStore.getState().combatLog;
+    const moveEntry = after.find((e) => e.type === 'move');
+    expect(moveEntry).toBeTruthy();
+    expect(moveEntry?.message).toContain('Goblin');
+    expect(moveEntry?.message).toContain('pies');
+    expect(after.length).toBe(before + 1);
+  });
+
   it('debe redondear y limitar las coordenadas al mover', () => {
     useCombatStore.getState().initializeCombat();
     useCombatStore.getState().addCombatant(makeCombatant({ name: 'Goblin', initiative: 15 }));

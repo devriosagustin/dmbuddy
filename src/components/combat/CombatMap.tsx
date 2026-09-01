@@ -25,6 +25,8 @@ interface CombatMapProps {
   participants: Combatant[];
   /** Id del combatiente cuyo turno es ahora (para resaltarlo). */
   activeId?: string | null;
+  /** Id del combatiente que viene a continuación (para anticiparlo). */
+  nextId?: string | null;
   onOpenActions: (combatant: Combatant) => void;
   /** Mueve una ficha a una casilla (acción del store). */
   onMove: (id: string, x: number, y: number) => void;
@@ -51,7 +53,7 @@ const SAME = <T,>(a: T, b: T) => JSON.stringify(a) === JSON.stringify(b);
 const RANGE_PRESETS = [5, 10, 15, 30, 60, 90, 120];
 const AOE_PRESETS = [5, 10, 15, 20, 30, 60];
 
-export const CombatMap = ({ participants, activeId, onOpenActions, onMove }: CombatMapProps) => {
+export const CombatMap = ({ participants, activeId, nextId, onOpenActions, onMove }: CombatMapProps) => {
   const gridRef = useRef<HTMLDivElement>(null);
   const [mode, setMode] = useState<Mode>('move');
   const [drag, setDrag] = useState<DragState | null>(null);
@@ -364,6 +366,7 @@ export const CombatMap = ({ participants, activeId, onOpenActions, onMove }: Com
           if (combatant.x === undefined || combatant.y === undefined) return null;
           const isPlayer = combatant.type === 'player';
           const isActive = combatant.id === activeId;
+          const isNext = combatant.id === nextId && !isActive;
           const isRangeSource = combatant.id === rangeSourceId;
           const isDragging = drag?.id === combatant.id;
           const inSame = participants.filter((p) => p.x === combatant.x && p.y === combatant.y);
@@ -375,7 +378,7 @@ export const CombatMap = ({ participants, activeId, onOpenActions, onMove }: Com
             <div
               key={combatant.id}
               role="gridcell"
-              aria-label={`${combatant.name}, ${isPlayer ? 'Jugador' : 'Monstruo'}, casilla ${combatant.x},${combatant.y}`}
+              aria-label={`${combatant.name}, ${isPlayer ? 'Jugador' : 'Monstruo'}, casilla ${combatant.x},${combatant.y}${isNext ? ', siguiente en el turno' : ''}`}
               className="absolute z-10 flex items-center justify-center"
               style={{
                 width: `${cellColPct}%`,
@@ -386,6 +389,12 @@ export const CombatMap = ({ participants, activeId, onOpenActions, onMove }: Com
                 transition: 'left 120ms ease, top 120ms ease',
               }}
             >
+              {isNext && (
+                <span
+                  className="pointer-events-none absolute h-full w-[88%] animate-pulse rounded-full border-2 border-dashed border-dnd-gold"
+                  aria-hidden="true"
+                />
+              )}
               <button
                 type="button"
                 onPointerDown={(e) => handleTokenPointerDown(e, combatant)}
@@ -394,11 +403,13 @@ export const CombatMap = ({ participants, activeId, onOpenActions, onMove }: Com
                     ? 'border-emerald-400 bg-emerald-950/90 text-emerald-100'
                     : 'border-red-500 bg-red-950/90 text-red-100'
                 } ${isActive ? 'ring-2 ring-dnd-gold shadow-dnd-glow' : ''} ${
-                  isRangeSource ? 'ring-2 ring-sky-400 shadow-[0_0_12px_rgba(56,189,248,0.8)]' : ''
-                } ${combatant.isDead ? 'opacity-40 grayscale' : ''} ${
+                  isNext && !isActive ? 'ring-2 ring-dnd-gold/80' : ''
+                } ${isRangeSource ? 'ring-2 ring-sky-400 shadow-[0_0_12px_rgba(56,189,248,0.8)]' : ''} ${
+                  combatant.isDead ? 'opacity-40 grayscale' : ''
+                } ${
                   isDragging ? 'z-20 cursor-grabbing ring-2 ring-dnd-gold' : 'cursor-grab hover:scale-110'
                 }`}
-                title={`${combatant.name} · ${combatant.hp}/${combatant.maxHp} PG · (${combatant.x},${combatant.y})`}
+                title={`${combatant.name} · ${combatant.hp}/${combatant.maxHp} PG · (${combatant.x},${combatant.y})${isNext ? ' · Siguiente en el turno' : ''}`}
               >
                 {combatant.name.charAt(0).toUpperCase()}
               </button>

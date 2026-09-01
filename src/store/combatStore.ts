@@ -6,7 +6,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { CombatState, Combatant, CombatLogEntry, StatusEffect } from '../types';
 import { sortByInitiative } from '../utils/combatUtils';
-import { findSpawnCell, inBounds, MAP_COLS, MAP_ROWS } from '../utils/mapUtils';
+import { findSpawnCell, inBounds, MAP_COLS, MAP_ROWS, gridDistanceFeet } from '../utils/mapUtils';
 
 // Sincroniza los PG finales del combate con el party (sin recarga circular:
 // playerStore no importa combatStore).
@@ -295,11 +295,19 @@ export const useCombatStore = create<CombatStore>()(
           ? { x: cx, y: cy }
           : { x: Math.max(0, Math.min(MAP_COLS - 1, cx)), y: Math.max(0, Math.min(MAP_ROWS - 1, cy)) };
         if (combatant.x === clamped.x && combatant.y === clamped.y) return;
+        const from = { x: combatant.x ?? 0, y: combatant.y ?? 0 };
         set((state) => ({
           participants: state.participants.map((p) =>
             p.id === id ? { ...p, x: clamped.x, y: clamped.y } : p
           ),
         }));
+        // Registrar el desplazamiento en pies en el registro de combate.
+        const distance = gridDistanceFeet(from, clamped);
+        get().addLogEntry({
+          type: 'move',
+          message: `${combatant.name} se mueve a (${clamped.x},${clamped.y}) — ${distance} pies`,
+          combatantId: id,
+        });
       },
 
       reorderParticipants: (ordered) => {
