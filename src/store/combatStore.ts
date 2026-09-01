@@ -4,9 +4,9 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { CombatState, Combatant, CombatLogEntry, StatusEffect } from '../types';
+import type { CombatState, Combatant, CombatLogEntry, StatusEffect, MapTile, TileType } from '../types';
 import { sortByInitiative } from '../utils/combatUtils';
-import { findSpawnCell, inBounds, isBarrier, MAP_COLS, MAP_ROWS, gridDistanceFeet } from '../utils/mapUtils';
+import { findSpawnCell, inBounds, MAP_COLS, MAP_ROWS, gridDistanceFeet } from '../utils/mapUtils';
 
 // Sincroniza los PG finales del combate con el party (sin recarga circular:
 // playerStore no importa combatStore).
@@ -38,10 +38,12 @@ interface CombatStore extends CombatState {
   setAC: (id: string, ac: number) => void;
   setInitiative: (id: string, initiative: number) => void;
   setSpeed: (id: string, speed: number) => void;
-  /** Alterna una casilla del mapa entre barrera y transitable. */
-  toggleBarrier: (x: number, y: number) => void;
-  /** Reemplaza todas las barreras (para cargar un layout de mapa). */
-  setBarriers: (barriers: { x: number; y: number }[]) => void;
+  /** Alterna un tile en el mapa (wall/trap/treasure/investigation). */
+  toggleTile: (x: number, y: number, type: TileType) => void;
+  /** Reemplaza todos los tiles (para cargar un layout de mapa). */
+  setTiles: (tiles: MapTile[]) => void;
+  /** Elimina todos los tiles. */
+  clearTiles: () => void;
   reorderParticipants: (ordered: Combatant[]) => void;
   /** Mueve una ficha a una casilla del mapa (coordenadas columna/fila). */
   moveCombatant: (id: string, x: number, y: number) => void;
@@ -64,7 +66,7 @@ export const useCombatStore = create<CombatStore>()(
       combatLog: [],
       startTime: new Date(),
       encounterCount: 0,
-      barriers: [],
+      tiles: [],
 
       initializeCombat: () => {
         set({
@@ -97,7 +99,7 @@ export const useCombatStore = create<CombatStore>()(
           : 0;
         const name =
           isMonster && sameBefore >= 1 ? `${base} ${copyLetter(sameBefore)}` : combatant.name;
-        const spawn = findSpawnCell(get().participants, combatant.type === 'player', get().barriers);
+        const spawn = findSpawnCell(get().participants, combatant.type === 'player', get().tiles);
         const newCombatant: Combatant = {
           ...combatant,
           name,
@@ -299,48 +301,99 @@ export const useCombatStore = create<CombatStore>()(
         }));
       },
 
-      toggleBarrier: (x, y) => {
-        const { barriers } = get();
-        if (isBarrier(barriers, x, y)) {
-          // Quitar la barrera existente.
-          set({ barriers: barriers.filter((b) => !(b.x === x && b.y === y)) });
+      toggleTile: (x, y, type) => {
+        const { tiles } = get();
+        const idx = tiles.findIndex((t) => t.x === x && t.y === y);
+        if (idx >= 0) {
+          // Si ya existe un tile del mismo tipo, lo quita (toggle off).
+          // Si es de otro tipo, lo reemplaza.
+          if (tiles[idx].type === type) {
+            set({ tiles: tiles.filter((t) => !(t.x === x && t.y === y)) });
+          } else {
+            const updated = [...tiles];
+            updated[idx] = { x, y, type };
+            set({ tiles: updated });
+          }
         } else if (inBounds(x, y)) {
-          // Añadir nueva barrera.
-          set({ barriers: [...barriers, { x, y }] });
+          // Añadir nuevo tile.
+          set({ tiles: [...tiles, { x, y, type }] });
         }
       },
 
-      setBarriers: (barriers) => {
-        // Solo conserva casillas dentro del mapa.
-        set({ barriers: barriers.filter((b) => inBounds(b.x, b.y)) });
+      setTiles: (tiles) => {
+        set({ tiles: tiles.filter((t) => inBounds(t.x, t.y)) });
+      },
+
+      clearTiles: () => {
+        set({ tiles: [] });
       },
 
       moveCombatant: (id, x, y) => {
-        const { participants } = get();
+        const { participants, tiles } = get();
         const combatant = participants.find((p) => p.id === id);
         if (!combatant) return;
-        // Redondear y mantener las coordenadas dentro de la cuadrícula.
         const cx = Math.floor(x);
         const cy = Math.floor(y);
         const clamped = inBounds(cx, cy)
           ? { x: cx, y: cy }
           : { x: Math.max(0, Math.min(MAP_COLS - 1, cx)), y: Math.max(0, Math.min(MAP_ROWS - 1, cy)) };
         if (combatant.x === clamped.x && combatant.y === clamped.y) return;
-        // No se puede terminar el movimiento sobre una barrera.
-        if (isBarrier(get().barriers, clamped.x, clamped.y)) return;
+        // Bloquear movimiento si hay un muro en el destino.
+        const destWall = tiles.find((t) => t.x === clamped.x && t.y === clamped.y && t.type === 'wall');
+        if (destWall) return;
         const from = { x: combatant.x ?? 0, y: combatant.y ?? 0 };
         set((state) => ({
           participants: state.participants.map((p) =>
             p.id === id ? { ...p, x: clamped.x, y: clamped.y } : p
           ),
         }));
-        // Registrar el desplazamiento en pies en el registro de combate.
+        // Registrar movimiento.
         const distance = gridDistanceFeet(from, clamped);
         get().addLogEntry({
           type: 'move',
           message: `${combatant.name} se mueve a (${clamped.x},${clamped.y}) — ${distance} pies`,
           combatantId: id,
         });
+        // Triggers de tiles en el destino.
+        const destTile = tiles.find((t) => t.x === clamped.x && t.y === clamped.y);
+        if (destTile) {
+          if (destTile.type === 'trap') {
+            get().addLogEntry({
+              type: 'move',
+              message: `💥 ${combatant.name} activa una TRAMPA en (${clamped.x},${clamped.y})`,
+              combatantId: id,
+            });
+          } else if (destTile.type === 'investigation') {
+            get().addLogEntry({
+              type: 'move',
+              message: `🔍 ${combatant.name} investiga en (${clamped.x},${clamped.y}) — ¡Descubre algo!`,
+              combatantId: id,
+            });
+          } else if (destTile.type === 'treasure') {
+            get().addLogEntry({
+              type: 'move',
+              message: `💰 ${combatant.name} encuentra un TESORO en (${clamped.x},${clamped.y})`,
+              combatantId: id,
+            });
+          }
+        }
+        // Trigger de tesoro adyacente (si hay tesoro en casillas vecinas).
+        const adjacent = [
+          { x: clamped.x - 1, y: clamped.y },
+          { x: clamped.x + 1, y: clamped.y },
+          { x: clamped.x, y: clamped.y - 1 },
+          { x: clamped.x, y: clamped.y + 1 },
+        ];
+        for (const adj of adjacent) {
+          const treasure = tiles.find((t) => t.x === adj.x && t.y === adj.y && t.type === 'treasure');
+          if (treasure) {
+            get().addLogEntry({
+              type: 'move',
+              message: `💰 ${combatant.name} detecta un TESORO cercano en (${treasure.x},${treasure.y})`,
+              combatantId: id,
+            });
+          }
+        }
       },
 
       reorderParticipants: (ordered) => {

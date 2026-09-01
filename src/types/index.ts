@@ -170,8 +170,16 @@ export interface CombatState {
   combatLog: CombatLogEntry[];
   startTime: Date;
   encounterCount: number;
-  /** Casillas del mapa que no se pueden atravesar y bloquean áreas/movimiento. */
-  barriers: { x: number; y: number }[];
+  /** Tiles en el mapa: muros, trampas, tesoros, investigación. */
+  tiles: MapTile[];
+}
+
+export type TileType = 'wall' | 'trap' | 'treasure' | 'investigation';
+
+export interface MapTile {
+  x: number;
+  y: number;
+  type: TileType;
 }
 
 // --------- Lanzador de dados ---------

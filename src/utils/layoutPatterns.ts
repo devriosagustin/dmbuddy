@@ -2,7 +2,7 @@
 // Patrones y generador de layouts de mapa (barreras)
 // ============================================================
 
-import { MAP_COLS, MAP_ROWS, isBarrier } from './mapUtils';
+import { MAP_COLS, MAP_ROWS } from './mapUtils';
 
 export interface MapLayout {
   id: string;
@@ -157,7 +157,7 @@ function pillars(): { x: number; y: number }[] {
     guard++;
     const x = 3 + Math.floor(Math.random() * (MAP_COLS - 6));
     const y = 3 + Math.floor(Math.random() * (MAP_ROWS - 6));
-    if (isBarrier(out, x, y)) continue;
+    if (out.some((b) => b.x === x && b.y === y)) continue;
     // Evita pilares demasiado juntos.
     const tooClose = out.some((b) => Math.abs(b.x - x) <= 2 && Math.abs(b.y - y) <= 2);
     if (tooClose) continue;

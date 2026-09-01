@@ -54,7 +54,7 @@ const captureLive = (): CampaignSnapshot => {
       combatLog: c.combatLog,
       startTime: c.startTime,
       encounterCount: c.encounterCount,
-      barriers: c.barriers,
+      tiles: c.tiles,
     },
   };
 };
@@ -72,7 +72,7 @@ const applySnapshot = (snapshot: CampaignSnapshot): void => {
     combatLog: snapshot.combat.combatLog.map((entry) => ({ ...entry, timestamp: toDate(entry.timestamp) })),
     startTime: toDate(snapshot.combat.startTime),
     encounterCount: snapshot.combat.encounterCount,
-    barriers: snapshot.combat.barriers,
+    tiles: snapshot.combat.tiles ?? [],
   });
 };
 

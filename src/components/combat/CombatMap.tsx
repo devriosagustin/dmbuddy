@@ -6,7 +6,7 @@
 // ============================================================
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { Combatant } from '../../types';
+import type { Combatant, MapTile, TileType } from '../../types';
 import type { MapCell } from '../../utils/mapUtils';
 import type { MapLayout } from '../../utils/layoutPatterns';
 import {
@@ -14,7 +14,8 @@ import {
   MAP_ROWS,
   inBounds,
   isOccupied,
-  isBarrier,
+  isWall,
+  hasTile,
   cellsInCone,
   cellsInLine,
   cellsInSphere,
@@ -32,25 +33,29 @@ interface CombatMapProps {
   nextId?: string | null;
   /** Id del combatiente seleccionado (resalta sus movimientos posibles según su velocidad). */
   selectedId?: string | null;
-  /** Casillas del mapa que son barrera (no atravesables). */
-  barriers: MapCell[];
-  /** Si el modo de colocar barreras está activo. */
-  barrierMode: boolean;
-  /** Alterna el modo de colocar barreras. */
-  onToggleBarrierMode: () => void;
-  /** Alterna una casilla como barrera. */
-  onToggleBarrier: (x: number, y: number) => void;
-  /** Elimina todas las barreras del mapa. */
-  onClearBarriers: () => void;
+  /** Tiles del mapa (muros, trampas, tesoros, investigación). */
+  tiles: MapTile[];
+  /** Tipo de tile seleccionado para colocar. */
+  tileType: TileType;
+  /** Cambia el tipo de tile seleccionado. */
+  onTileTypeChange: (type: TileType) => void;
+  /** Si el modo de colocar tiles está activo. */
+  tileMode: boolean;
+  /** Alterna el modo de colocar tiles. */
+  onToggleTileMode: () => void;
+  /** Alterna/coloca un tile del tipo seleccionado. */
+  onToggleTile: (x: number, y: number, type: TileType) => void;
+  /** Elimina todos los tiles del mapa. */
+  onClearTiles: () => void;
   /** Exporta layouts guardados a JSON (descarga archivo). */
   onExportLayouts: () => void;
   /** Importa layouts desde archivo JSON (abre file picker). */
   onImportLayouts: () => void;
   /** Layouts de mapa guardados por el usuario. */
   savedLayouts: MapLayout[];
-  /** Guarda el layout actual de barreras con un nombre. */
+  /** Guarda el layout actual de tiles con un nombre. */
   onSaveLayout: (name: string) => void;
-  /** Aplica (reemplaza) las barreras de un layout cargado. */
+  /** Aplica (reemplaza) los tiles de un layout cargado. */
   onLoadLayout: (id: string) => void;
   /** Elimina un layout guardado. */
   onDeleteLayout: (id: string) => void;
@@ -84,7 +89,7 @@ const SAME = <T,>(a: T, b: T) => JSON.stringify(a) === JSON.stringify(b);
 const RANGE_PRESETS = [5, 10, 15, 30, 60, 90, 120];
 const AOE_PRESETS = [5, 10, 15, 20, 30, 60];
 
-export const CombatMap = ({ participants, activeId, nextId, selectedId, barriers, barrierMode, onToggleBarrierMode, onToggleBarrier, onClearBarriers, onExportLayouts, onImportLayouts, savedLayouts, onSaveLayout, onLoadLayout, onDeleteLayout, onRandomLayout, onOpenActions, onMove, onSelect }: CombatMapProps) => {
+export const CombatMap = ({ participants, activeId, nextId, selectedId, tiles, tileType, onTileTypeChange, tileMode, onToggleTileMode, onToggleTile, onClearTiles, onExportLayouts, onImportLayouts, savedLayouts, onSaveLayout, onLoadLayout, onDeleteLayout, onRandomLayout, onOpenActions, onMove, onSelect }: CombatMapProps) => {
   const gridRef = useRef<HTMLDivElement>(null);
   const [mode, setMode] = useState<Mode>('move');
   const [drag, setDrag] = useState<DragState | null>(null);
@@ -145,9 +150,9 @@ export const CombatMap = ({ participants, activeId, nextId, selectedId, barriers
     // Evita que el clic en una ficha llegue al manejador del grid (casilla "vacía").
     e.stopPropagation();
     const cell = { x: combatant.x ?? 0, y: combatant.y ?? 0 };
-    if (barrierMode) {
-      // En modo barrera, clic en una ficha alterna la casilla como barrera.
-      onToggleBarrier(cell.x, cell.y);
+    if (tileMode) {
+      // En modo tile, clic en una ficha coloca/quita el tile seleccionado.
+      onToggleTile(cell.x, cell.y, tileType);
       return;
     }
     if (mode === 'move') {
@@ -166,9 +171,9 @@ export const CombatMap = ({ participants, activeId, nextId, selectedId, barriers
   // --- Clic en una casilla vacía ------------------------------------------
   const handleEmptyDown = (e: React.PointerEvent, cell: MapCell) => {
     if (e.button !== 0) return;
-    if (barrierMode) {
-      // En modo barrera, clic en una casilla la alterna como barrera.
-      onToggleBarrier(cell.x, cell.y);
+    if (tileMode) {
+      // En modo tile, clic en una casilla coloca/quita el tile seleccionado.
+      onToggleTile(cell.x, cell.y, tileType);
       return;
     }
     if (mode === 'move') {
@@ -220,15 +225,15 @@ export const CombatMap = ({ participants, activeId, nextId, selectedId, barriers
   const aoeCells = useMemo<MapCell[]>(() => {
     if (!aoeSource) return [];
     const aim = hover ?? aoeSource;
-    if (aoeShape === 'sphere') return cellsInSphere(aoeSource.x, aoeSource.y, aoeFeet, barriers);
-    if (aoeShape === 'cone') return cellsInCone(aoeSource.x, aoeSource.y, aim.x, aim.y, aoeFeet, barriers);
-    return cellsInLine(aoeSource.x, aoeSource.y, aim.x, aim.y, aoeFeet, barriers);
-  }, [aoeSource, aoeShape, aoeFeet, hover, barriers]);
+    if (aoeShape === 'sphere') return cellsInSphere(aoeSource.x, aoeSource.y, aoeFeet, tiles);
+    if (aoeShape === 'cone') return cellsInCone(aoeSource.x, aoeSource.y, aim.x, aim.y, aoeFeet, tiles);
+    return cellsInLine(aoeSource.x, aoeSource.y, aim.x, aim.y, aoeFeet, tiles);
+  }, [aoeSource, aoeShape, aoeFeet, hover, tiles]);
 
   const rangeCells = useMemo<MapCell[]>(() => {
     if (!rangeSource || rangeSource.x === undefined || rangeSource.y === undefined) return [];
-    return cellsInSphere(rangeSource.x, rangeSource.y, rangeFeet, barriers);
-  }, [rangeSource, rangeFeet, barriers]);
+    return cellsInSphere(rangeSource.x, rangeSource.y, rangeFeet, tiles);
+  }, [rangeSource, rangeFeet, tiles]);
 
   const selectedCombatant = participants.find((p) => p.id === selectedId);
 
@@ -238,11 +243,11 @@ export const CombatMap = ({ participants, activeId, nextId, selectedId, barriers
   const moveCells: MapCell[] =
     selectedX === undefined || selectedY === undefined
       ? []
-      : cellsInSphere(selectedX, selectedY, selectedCombatant?.speed ?? 30, barriers).filter(
+      : cellsInSphere(selectedX, selectedY, selectedCombatant?.speed ?? 30, tiles).filter(
           (c) =>
             (c.x !== selectedX || c.y !== selectedY) &&
             !isOccupied(participants, c.x, c.y) &&
-            !isBarrier(barriers, c.x, c.y)
+            !isWall(tiles, c.x, c.y)
         );
 
   // --- Info mostrada -------------------------------------------------------
@@ -298,24 +303,36 @@ export const CombatMap = ({ participants, activeId, nextId, selectedId, barriers
           {modeButton('aoe', 'Área')}
           <button
             type="button"
-            onClick={onToggleBarrierMode}
-            aria-pressed={barrierMode}
+            onClick={onToggleTileMode}
+            aria-pressed={tileMode}
             className={`rounded-full px-2.5 py-1 text-[11px] font-bold transition-colors ${
-              barrierMode
-                ? 'bg-red-500 text-white'
+              tileMode
+                ? 'bg-amber-500 text-white'
                 : 'bg-dnd-leather/30 text-dnd-muted hover:text-dnd-text'
             }`}
           >
-            ▦ Muros
+            🧱 Tiles
           </button>
-          {barrierMode && (
-            <button
-              type="button"
-              onClick={onClearBarriers}
-              className="rounded-full bg-red-900/60 px-2.5 py-1 text-[11px] font-bold text-red-200 transition-colors hover:bg-red-700 hover:text-white"
-            >
-              🗑 Borrar todos
-            </button>
+          {tileMode && (
+            <div className="flex items-center gap-1.5 ml-1">
+              <select
+                value={tileType}
+                onChange={(e) => onTileTypeChange(e.target.value as TileType)}
+                className="input h-7 w-24 text-xs"
+              >
+                <option value="wall">▦ Muro</option>
+                <option value="trap">✚ Trampa</option>
+                <option value="treasure">🟨 Tesoro</option>
+                <option value="investigation">🔍 Investigación</option>
+              </select>
+              <button
+                type="button"
+                onClick={onClearTiles}
+                className="rounded-full bg-red-900/60 px-2.5 py-1 text-[11px] font-bold text-red-200 transition-colors hover:bg-red-700 hover:text-white"
+              >
+                🗑 Borrar todos
+              </button>
+            </div>
           )}
         </div>
 
@@ -542,26 +559,42 @@ export const CombatMap = ({ participants, activeId, nextId, selectedId, barriers
           })}
         </div>
 
-        {/* Barreras (obstáculos que bloquean movimiento y áreas) */}
-        {barriers.length > 0 && (
+        {/* Tiles (muros, trampas, tesoros, investigación) */}
+        {tiles.length > 0 && (
           <div className="pointer-events-none absolute inset-0 grid" style={{ gridTemplateColumns: `repeat(${MAP_COLS}, 1fr)`, gridAutoRows: '1fr' }} aria-hidden="true">
             {Array.from({ length: MAP_COLS * MAP_ROWS }, (_, i) => {
               const x = i % MAP_COLS;
               const y = Math.floor(i / MAP_COLS);
-              if (!isBarrier(barriers, x, y)) return <div key={i} />;
-              // Bordes del muro que dan a una casilla no-barrera (contorno visible).
-              const openTop = !isBarrier(barriers, x, y - 1);
-              const openBottom = !isBarrier(barriers, x, y + 1);
-              const openLeft = !isBarrier(barriers, x - 1, y);
-              const openRight = !isBarrier(barriers, x + 1, y);
-              const wall = 'border-red-400';
+              const tile = tiles.find((t) => t.x === x && t.y === y);
+              if (!tile) return <div key={i} />;
+              // Estilos por tipo de tile.
+              let baseClass = '';
+              let icon = '';
+              if (tile.type === 'wall') {
+                // Muro: fondo oscuro + bordes rojos donde no hay muro adyacente.
+                const openTop = !hasTile(tiles, x, y - 1, 'wall');
+                const openBottom = !hasTile(tiles, x, y + 1, 'wall');
+                const openLeft = !hasTile(tiles, x - 1, y, 'wall');
+                const openRight = !hasTile(tiles, x + 1, y, 'wall');
+                baseClass = `bg-dnd-ink/95 ${openTop ? 'border-t-2 border-red-400' : ''} ${openBottom ? 'border-b-2 border-red-400' : ''} ${openLeft ? 'border-l-2 border-red-400' : ''} ${openRight ? 'border-r-2 border-red-400' : ''}`;
+                icon = '▦';
+              } else if (tile.type === 'trap') {
+                baseClass = 'bg-red-900/40 flex items-center justify-center';
+                icon = '✚';
+              } else if (tile.type === 'treasure') {
+                baseClass = 'bg-yellow-600/50 flex items-center justify-center';
+                icon = '🟨';
+              } else if (tile.type === 'investigation') {
+                baseClass = 'bg-blue-600/50 flex items-center justify-center';
+                icon = '🔍';
+              }
               return (
                 <div
                   key={i}
-                  className={`bg-dnd-ink/95 ${
-                    barrierMode ? 'ring-2 ring-inset ring-red-300' : ''
-                  } ${openTop ? `border-t-2 ${wall}` : ''} ${openBottom ? `border-b-2 ${wall}` : ''} ${openLeft ? `border-l-2 ${wall}` : ''} ${openRight ? `border-r-2 ${wall}` : ''}`}
-                />
+                  className={`${baseClass} ${tileMode ? 'ring-2 ring-inset ring-amber-300' : ''}`}
+                >
+                  {icon && <span className="text-[10px] leading-none text-white/90">{icon}</span>}
+                </div>
               );
             })}
           </div>
@@ -700,11 +733,11 @@ export const CombatMap = ({ participants, activeId, nextId, selectedId, barriers
       </div>
 
       <p className="text-[10px] text-dnd-muted">
-        {barrierMode && 'Modo muros: haz clic en una casilla para añadirla o quitarla como barrera (bloquea movimiento y áreas).'}
-        {!barrierMode && mode === 'move' && 'Clic en una ficha para seleccionarla · segundo clic para abrir sus acciones · clic en un cuadro resaltado para moverla.'}
-        {!barrierMode && mode === 'measure' && 'Clic en un punto y luego pasa el ratón (o haz clic) para medir la distancia en pies.'}
-        {!barrierMode && mode === 'range' && 'Haz clic en una ficha para ver su alcance (radio) y las fichas dentro.'}
-        {!barrierMode && mode === 'aoe' && 'Haz clic en una casilla de origen; mueve el ratón para orientar conos y líneas.'}
+        {tileMode && 'Modo tiles: elige tipo (Muro/Trampa/Tesoro/Investigación) y haz clic en una casilla para colocarlo/quitarlo.'}
+        {!tileMode && mode === 'move' && 'Clic en una ficha para seleccionarla · segundo clic para abrir sus acciones · clic en un cuadro resaltado para moverla.'}
+        {!tileMode && mode === 'measure' && 'Clic en un punto y luego pasa el ratón (o haz clic) para medir la distancia en pies.'}
+        {!tileMode && mode === 'range' && 'Haz clic en una ficha para ver su alcance (radio) y las fichas dentro.'}
+        {!tileMode && mode === 'aoe' && 'Haz clic en una casilla de origen; mueve el ratón para orientar conos y líneas.'}
       </p>
     </div>
   );

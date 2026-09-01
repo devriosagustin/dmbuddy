@@ -3,7 +3,7 @@
 // comprobación de límites y colocación inicial de fichas.
 // ============================================================
 
-import type { Combatant } from '../types';
+import type { Combatant, MapTile, TileType } from '../types';
 
 /** Número de columnas (casillas horizontales) del mapa. */
 export const MAP_COLS = 28;
@@ -32,23 +32,27 @@ export const gridDistanceFeet = (from: MapCell, to: MapCell): number =>
 export const trueDistanceFeet = (from: MapCell, to: MapCell): number =>
   Math.hypot(to.x - from.x, to.y - from.y) * FEET_PER_CELL;
 
-/** Indica si una casilla es una barrera (obstáculo no atravesable). */
-export const isBarrier = (barriers: MapCell[] | undefined, x: number, y: number): boolean =>
-  !!barriers && barriers.some((b) => b.x === x && b.y === y);
+/** Indica si una casilla tiene un muro (bloquea movimiento y visión). */
+export const isWall = (tiles: MapTile[] | undefined, x: number, y: number): boolean =>
+  !!tiles && tiles.some((t) => t.x === x && t.y === y && t.type === 'wall');
+
+/** Indica si una casilla tiene un tile del tipo dado. */
+export const hasTile = (tiles: MapTile[] | undefined, x: number, y: number, type: TileType): boolean =>
+  !!tiles && tiles.some((t) => t.x === x && t.y === y && t.type === type);
 
 /**
  * Comprueba si hay línea de visión sin obstáculos entre dos casillas (origen y
- * destino), considerando que las barreras bloquean el paso. El destino si es
- * barrera no es alcanzable.
+ * destino), considerando que los muros bloquean el paso. El destino si es muro
+ * no es alcanzable.
  */
 export const hasLineOfSight = (
   cx: number,
   cy: number,
   tx: number,
   ty: number,
-  barriers: MapCell[] | undefined
+  tiles: MapTile[] | undefined
 ): boolean => {
-  if (isBarrier(barriers, tx, ty)) return false;
+  if (isWall(tiles, tx, ty)) return false;
   let x = cx;
   let y = cy;
   const dx = Math.abs(tx - cx);
@@ -58,7 +62,7 @@ export const hasLineOfSight = (
   let err = dx - dy;
   while (true) {
     if (x === tx && y === ty) return true;
-    if ((x !== cx || y !== cy) && isBarrier(barriers, x, y)) return false;
+    if ((x !== cx || y !== cy) && isWall(tiles, x, y)) return false;
     const e2 = 2 * err;
     if (e2 > -dy) {
       err -= dy;
@@ -71,20 +75,20 @@ export const hasLineOfSight = (
   }
 };
 
-/** Casillas dentro de un radio (círculo) en pies. Las barreras bloquean el área. */
+/** Casillas dentro de un radio (círculo) en pies. Los muros bloquean el área. */
 export const cellsInSphere = (
   cx: number,
   cy: number,
   radiusFeet: number,
-  barriers?: MapCell[]
+  tiles?: MapTile[]
 ): MapCell[] => {
   const r = feetToCells(radiusFeet);
   const out: MapCell[] = [];
   for (let y = Math.max(0, cy - r); y <= Math.min(MAP_ROWS - 1, cy + r); y++) {
     for (let x = Math.max(0, cx - r); x <= Math.min(MAP_COLS - 1, cx + r); x++) {
       if (Math.max(Math.abs(x - cx), Math.abs(y - cy)) > r) continue;
-      if (isBarrier(barriers, x, y)) continue;
-      if (!hasLineOfSight(cx, cy, x, y, barriers)) continue;
+      if (isWall(tiles, x, y)) continue;
+      if (!hasLineOfSight(cx, cy, x, y, tiles)) continue;
       out.push({ x, y });
     }
   }
@@ -98,7 +102,7 @@ export const cellsInLine = (
   tx: number,
   ty: number,
   lengthFeet: number,
-  barriers?: MapCell[]
+  tiles?: MapTile[]
 ): MapCell[] => {
   const L = feetToCells(lengthFeet);
   const vecX = tx - cx;
@@ -114,7 +118,7 @@ export const cellsInLine = (
     const x = cx + stepX * i;
     const y = cy + stepY * i;
     if (!inBounds(x, y)) break;
-    if (isBarrier(barriers, x, y)) break;
+    if (isWall(tiles, x, y)) break;
     out.push({ x, y });
   }
   return out;
@@ -127,7 +131,7 @@ export const cellsInCone = (
   tx: number,
   ty: number,
   lengthFeet: number,
-  barriers?: MapCell[]
+  tiles?: MapTile[]
 ): MapCell[] => {
   const L = feetToCells(lengthFeet);
   const vecX = tx - cx;
@@ -148,8 +152,8 @@ export const cellsInCone = (
       if (d > L) continue;
       const dot = ((x - cx) * ux + (y - cy) * uy) / d;
       if (dot < cosHalf) continue;
-      if (isBarrier(barriers, x, y)) continue;
-      if (!hasLineOfSight(cx, cy, x, y, barriers)) continue;
+      if (isWall(tiles, x, y)) continue;
+      if (!hasLineOfSight(cx, cy, x, y, tiles)) continue;
       out.push({ x, y });
     }
   }
@@ -168,7 +172,7 @@ export const isOccupied = (participants: Combatant[], x: number, y: number): boo
 export const findSpawnCell = (
   participants: Combatant[],
   isPlayer: boolean,
-  barriers?: MapCell[]
+  tiles?: MapTile[]
 ): MapCell => {
   const direction = isPlayer ? 1 : -1;
   const startX = isPlayer ? 1 : MAP_COLS - 2;
@@ -176,14 +180,14 @@ export const findSpawnCell = (
   for (let step = 0; step < reach; step++) {
     const x = startX + direction * step;
     for (let y = 0; y < MAP_ROWS; y++) {
-      if (inBounds(x, y) && !isOccupied(participants, x, y) && !isBarrier(barriers, x, y))
+      if (inBounds(x, y) && !isOccupied(participants, x, y) && !isWall(tiles, x, y))
         return { x, y };
     }
   }
   // Fallback: primera casilla libre de todo el tablero.
   for (let y = 0; y < MAP_ROWS; y++) {
     for (let x = 0; x < MAP_COLS; x++) {
-      if (!isOccupied(participants, x, y) && !isBarrier(barriers, x, y)) return { x, y };
+      if (!isOccupied(participants, x, y) && !isWall(tiles, x, y)) return { x, y };
     }
   }
   return { x: 0, y: 0 };

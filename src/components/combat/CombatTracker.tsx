@@ -25,7 +25,7 @@ import { CombatantActionsModal } from './CombatantActionsModal';
 import { useCombatStore } from '../../store/combatStore';
 import { useLayoutStore } from '../../store/layoutStore';
 import { randomLayout } from '../../utils/layoutPatterns';
-import type { Combatant } from '../../types';
+import type { Combatant, TileType } from '../../types';
 
 /**
  * Pantalla principal de gestión del combate.
@@ -41,13 +41,14 @@ export const CombatTracker = () => {
     setTurn,
     reorderParticipants,
     moveCombatant,
-    toggleBarrier,
-    setBarriers,
+    toggleTile,
+    setTiles,
+    clearTiles,
     initializeCombat,
     resetCombat,
     endCombat,
     encounterCount,
-    barriers,
+    tiles,
   } = useCombatStore();
 
   const { savedLayouts, saveLayout, savedLayout: getSavedLayout, deleteLayout, exportLayouts, importLayouts } = useLayoutStore();
@@ -56,8 +57,10 @@ export const CombatTracker = () => {
   const [selected, setSelected] = useState<Combatant | null>(null);
   // Ficha seleccionada en el mapa (resalta sus movimientos posibles).
   const [selectedTokenId, setSelectedTokenId] = useState<string | null>(null);
-  // Modo de colocar barreras en el mapa.
-  const [barrierMode, setBarrierMode] = useState(false);
+  // Modo de colocar tiles en el mapa.
+  const [tileMode, setTileMode] = useState(false);
+  // Tipo de tile seleccionado.
+  const [tileType, setTileType] = useState<TileType>('wall');
   const [view, setView] = useState<'list' | 'map'>('list');
 
   // Pantalla completa del módulo de combate.
@@ -101,18 +104,20 @@ export const CombatTracker = () => {
   // --- Gestión de layouts de mapa ------------------------------------------
   const handleSaveLayout = (name: string) => {
     if (!name.trim()) return;
-    saveLayout(name, barriers);
+    // Guardar solo muros para compatibilidad con layouts existentes.
+    const walls = tiles.filter((t) => t.type === 'wall').map((t) => ({ x: t.x, y: t.y }));
+    saveLayout(name, walls);
   };
   const handleLoadLayout = (id: string) => {
     const layout = getSavedLayout(id);
-    if (layout) setBarriers(layout.barriers);
+    if (layout) setTiles(layout.barriers.map((b) => ({ ...b, type: 'wall' })));
   };
   const handleDeleteLayout = (id: string) => {
     deleteLayout(id);
   };
   const handleRandomLayout = () => {
     const { barriers: b } = randomLayout();
-    setBarriers(b);
+    setTiles(b.map((t) => ({ ...t, type: 'wall' })));
   };
 
   const handleExportLayouts = () => {
@@ -313,11 +318,13 @@ return (
               activeId={activeCombatant?.id}
               nextId={nextCombatant?.id}
               selectedId={selectedTokenId}
-              barriers={barriers}
-              barrierMode={barrierMode}
-              onToggleBarrierMode={() => setBarrierMode((v) => !v)}
-              onToggleBarrier={toggleBarrier}
-              onClearBarriers={() => setBarriers([])}
+              tiles={tiles}
+              tileType={tileType}
+              onTileTypeChange={setTileType}
+              tileMode={tileMode}
+              onToggleTileMode={() => setTileMode((v) => !v)}
+              onToggleTile={toggleTile}
+              onClearTiles={clearTiles}
               savedLayouts={savedLayouts}
               onSaveLayout={handleSaveLayout}
               onLoadLayout={handleLoadLayout}
@@ -335,15 +342,15 @@ return (
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => setBarrierMode((v) => !v)}
-            aria-pressed={barrierMode}
-            aria-label="Modo muros: marcar casillas como barreras"
+            onClick={() => setTileMode((v) => !v)}
+            aria-pressed={tileMode}
+            aria-label="Modo tiles: colocar muros, trampas, tesoros, investigación"
             className={`mb-2 w-full justify-center gap-2 text-xs ${
-              barrierMode ? '!border-red-400 !bg-red-500/20 !text-red-200' : ''
+              tileMode ? '!border-amber-400 !bg-amber-500/20 !text-amber-200' : ''
             }`}
-            icon={<span aria-hidden="true">▦</span>}
+            icon={<span aria-hidden="true">🧱</span>}
           >
-            {barrierMode ? 'Colocando muros (clic en el mapa)' : 'Muros / barreras'}
+            {tileMode ? 'Colocando tiles (clic en el mapa)' : 'Tiles (muros/trampas/tesoros)'}
           </Button>
           <CombatLog />
         </div>
