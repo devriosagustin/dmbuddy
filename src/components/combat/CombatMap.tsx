@@ -40,6 +40,8 @@ interface CombatMapProps {
   onToggleBarrierMode: () => void;
   /** Alterna una casilla como barrera. */
   onToggleBarrier: (x: number, y: number) => void;
+  /** Elimina todas las barreras del mapa. */
+  onClearBarriers: () => void;
   /** Layouts de mapa guardados por el usuario. */
   savedLayouts: MapLayout[];
   /** Guarda el layout actual de barreras con un nombre. */
@@ -78,7 +80,7 @@ const SAME = <T,>(a: T, b: T) => JSON.stringify(a) === JSON.stringify(b);
 const RANGE_PRESETS = [5, 10, 15, 30, 60, 90, 120];
 const AOE_PRESETS = [5, 10, 15, 20, 30, 60];
 
-export const CombatMap = ({ participants, activeId, nextId, selectedId, barriers, barrierMode, onToggleBarrierMode, onToggleBarrier, savedLayouts, onSaveLayout, onLoadLayout, onDeleteLayout, onRandomLayout, onOpenActions, onMove, onSelect }: CombatMapProps) => {
+export const CombatMap = ({ participants, activeId, nextId, selectedId, barriers, barrierMode, onToggleBarrierMode, onToggleBarrier, onClearBarriers, savedLayouts, onSaveLayout, onLoadLayout, onDeleteLayout, onRandomLayout, onOpenActions, onMove, onSelect }: CombatMapProps) => {
   const gridRef = useRef<HTMLDivElement>(null);
   const [mode, setMode] = useState<Mode>('move');
   const [drag, setDrag] = useState<DragState | null>(null);
@@ -302,6 +304,15 @@ export const CombatMap = ({ participants, activeId, nextId, selectedId, barriers
           >
             ▦ Muros
           </button>
+          {barrierMode && (
+            <button
+              type="button"
+              onClick={onClearBarriers}
+              className="rounded-full bg-red-900/60 px-2.5 py-1 text-[11px] font-bold text-red-200 transition-colors hover:bg-red-700 hover:text-white"
+            >
+              🗑 Borrar todos
+            </button>
+          )}
         </div>
 
         <div className="relative flex items-center gap-1">
@@ -318,12 +329,12 @@ export const CombatMap = ({ participants, activeId, nextId, selectedId, barriers
             🗺 Mapas
           </button>
           {layoutsOpen && (
-            <div className="absolute left-0 top-full z-50 mt-1 flex flex-col gap-2 rounded-dnd-lg border border-dnd-leather/40 bg-dnd-ink p-3 shadow-lg">
-              <div className="flex flex-col gap-1">
-                <span className="text-[10px] font-bold uppercase tracking-wide text-dnd-muted">Guardar actual</span>
-                <div className="flex gap-1">
+            <div className="absolute left-0 top-full z-50 mt-1 w-80 max-w-[90vw] rounded-dnd-lg border border-dnd-leather/40 bg-dnd-ink p-4 shadow-xl">
+              <div className="mb-3 flex flex-col gap-1.5">
+                <span className="text-[11px] font-bold uppercase tracking-wide text-dnd-muted">Guardar actual</span>
+                <div className="flex gap-2">
                   <input
-                    className="input h-7 min-w-0 flex-1 text-xs"
+                    className="input h-8 min-w-0 flex-1 text-sm"
                     placeholder="Nombre del layout"
                     value={layoutName}
                     onChange={(e) => setLayoutName(e.target.value)}
@@ -340,21 +351,21 @@ export const CombatMap = ({ participants, activeId, nextId, selectedId, barriers
                       onSaveLayout(layoutName);
                       setLayoutName('');
                     }}
-                    className="rounded-md bg-dnd-gold px-2 py-1 text-[11px] font-bold text-dnd-ink hover:bg-dnd-gold/80"
+                    className="rounded-md bg-dnd-gold px-3 py-1 text-xs font-bold text-dnd-ink hover:bg-dnd-gold/80"
                   >
                     Guardar
                   </button>
                 </div>
               </div>
 
-              <div className="flex flex-col gap-1">
-                <span className="text-[10px] font-bold uppercase tracking-wide text-dnd-muted">Guardados ({savedLayouts.length})</span>
+              <div className="flex flex-col gap-1.5">
+                <span className="text-[11px] font-bold uppercase tracking-wide text-dnd-muted">Guardados ({savedLayouts.length})</span>
                 {savedLayouts.length === 0 ? (
-                  <span className="text-[11px] text-dnd-muted">Aún no hay layouts guardados.</span>
+                  <span className="text-xs text-dnd-muted">Aún no hay layouts guardados.</span>
                 ) : (
-                  <div className="flex flex-col gap-1">
+                  <>
                     <select
-                      className="input h-7 text-xs"
+                      className="input h-8 w-full text-sm"
                       value={layoutSel}
                       onChange={(e) => setLayoutSel(e.target.value)}
                     >
@@ -365,14 +376,14 @@ export const CombatMap = ({ participants, activeId, nextId, selectedId, barriers
                         </option>
                       ))}
                     </select>
-                    <div className="flex gap-1">
+                    <div className="grid grid-cols-3 gap-2">
                       <button
                         type="button"
                         onClick={() => {
                           if (layoutSel) onLoadLayout(layoutSel);
                         }}
                         disabled={!layoutSel}
-                        className="rounded-md bg-emerald-500 px-2 py-1 text-[11px] font-bold text-white hover:bg-emerald-400 disabled:opacity-40"
+                        className="rounded-md bg-emerald-500 px-2 py-1.5 text-xs font-bold text-white hover:bg-emerald-400 disabled:opacity-40"
                       >
                         Cargar
                       </button>
@@ -385,19 +396,19 @@ export const CombatMap = ({ participants, activeId, nextId, selectedId, barriers
                           }
                         }}
                         disabled={!layoutSel}
-                        className="rounded-md bg-red-500 px-2 py-1 text-[11px] font-bold text-white hover:bg-red-400 disabled:opacity-40"
+                        className="rounded-md bg-red-500 px-2 py-1.5 text-xs font-bold text-white hover:bg-red-400 disabled:opacity-40"
                       >
                         Borrar
                       </button>
                       <button
                         type="button"
                         onClick={onRandomLayout}
-                        className="rounded-md bg-violet-500 px-2 py-1 text-[11px] font-bold text-white hover:bg-violet-400"
+                        className="rounded-md bg-violet-500 px-2 py-1.5 text-xs font-bold text-white hover:bg-violet-400"
                       >
                         🎲 Aleatorio
                       </button>
                     </div>
-                  </div>
+                  </>
                 )}
               </div>
             </div>

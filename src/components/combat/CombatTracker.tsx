@@ -283,6 +283,7 @@ return (
               barrierMode={barrierMode}
               onToggleBarrierMode={() => setBarrierMode((v) => !v)}
               onToggleBarrier={toggleBarrier}
+              onClearBarriers={() => setBarriers([])}
               savedLayouts={savedLayouts}
               onSaveLayout={handleSaveLayout}
               onLoadLayout={handleLoadLayout}
