@@ -39,16 +39,20 @@ export const CombatTracker = () => {
     setTurn,
     reorderParticipants,
     moveCombatant,
+    toggleBarrier,
     initializeCombat,
     resetCombat,
     endCombat,
     encounterCount,
+    barriers,
   } = useCombatStore();
 
   const [showAdd, setShowAdd] = useState(false);
   const [selected, setSelected] = useState<Combatant | null>(null);
   // Ficha seleccionada en el mapa (resalta sus movimientos posibles).
   const [selectedTokenId, setSelectedTokenId] = useState<string | null>(null);
+  // Modo de colocar barreras en el mapa.
+  const [barrierMode, setBarrierMode] = useState(false);
   const [view, setView] = useState<'list' | 'map'>('list');
 
   // Pantalla completa del módulo de combate.
@@ -253,6 +257,10 @@ return (
               activeId={activeCombatant?.id}
               nextId={nextCombatant?.id}
               selectedId={selectedTokenId}
+              barriers={barriers}
+              barrierMode={barrierMode}
+              onToggleBarrierMode={() => setBarrierMode((v) => !v)}
+              onToggleBarrier={toggleBarrier}
               onSelect={setSelectedTokenId}
               onOpenActions={setSelected}
               onMove={moveCombatant}
@@ -260,6 +268,19 @@ return (
           )}
         </div>
         <div className="relative z-[60] hidden min-h-0 w-[19rem] shrink-0 flex-col md:flex">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setBarrierMode((v) => !v)}
+            aria-pressed={barrierMode}
+            aria-label="Modo muros: marcar casillas como barreras"
+            className={`mb-2 w-full justify-center gap-2 text-xs ${
+              barrierMode ? '!border-red-400 !bg-red-500/20 !text-red-200' : ''
+            }`}
+            icon={<span aria-hidden="true">▦</span>}
+          >
+            {barrierMode ? 'Colocando muros (clic en el mapa)' : 'Muros / barreras'}
+          </Button>
           <CombatLog />
         </div>
       </div>

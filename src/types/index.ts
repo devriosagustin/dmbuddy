@@ -170,6 +170,8 @@ export interface CombatState {
   combatLog: CombatLogEntry[];
   startTime: Date;
   encounterCount: number;
+  /** Casillas del mapa que no se pueden atravesar y bloquean áreas/movimiento. */
+  barriers: { x: number; y: number }[];
 }
 
 // --------- Lanzador de dados ---------

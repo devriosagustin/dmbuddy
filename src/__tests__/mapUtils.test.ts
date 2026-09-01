@@ -3,6 +3,7 @@ import type { Combatant } from '../types';
 import {
   findSpawnCell,
   inBounds,
+  isBarrier,
   MAP_COLS,
   MAP_ROWS,
   cellsInCone,
@@ -98,5 +99,40 @@ describe('mapUtils geometría', () => {
     for (const c of cells) {
       expect(trueDistanceFeet({ x: 5, y: 5 }, c)).toBeLessThanOrEqual(10 + 0.001);
     }
+  });
+});
+
+describe('mapUtils barreras', () => {
+  const barriers: { x: number; y: number }[] = [{ x: 7, y: 5 }];
+
+  it('isBarrier detecta casillas barrera', () => {
+    expect(isBarrier(barriers, 7, 5)).toBe(true);
+    expect(isBarrier(barriers, 6, 5)).toBe(false);
+    expect(isBarrier(undefined, 7, 5)).toBe(false);
+  });
+
+  it('cellsInLine se detiene en una barrera', () => {
+    // Sin barrera llega más allá de la casilla 7.
+    const free = cellsInLine(5, 5, 12, 5, 40);
+    expect(free.some((c) => c.x > 7)).toBe(true);
+    // Con barrera se detiene en la casilla 6 (antes de la 7).
+    const blocked = cellsInLine(5, 5, 12, 5, 40, barriers);
+    expect(blocked.some((c) => c.x === 7)).toBe(false);
+    expect(blocked.some((c) => c.x > 7)).toBe(false);
+  });
+
+  it('cellsInSphere excluye la casilla barrera y lo que hay detrás', () => {
+    const free = cellsInSphere(5, 5, 30);
+    expect(free.some((c) => c.x === 7 && c.y === 5)).toBe(true);
+    expect(free.some((c) => c.x === 9 && c.y === 5)).toBe(true);
+    const blocked = cellsInSphere(5, 5, 30, barriers);
+    expect(blocked.some((c) => c.x === 7 && c.y === 5)).toBe(false);
+    // La casilla con barrera bloquea la línea de visión hacia el este.
+    expect(blocked.some((c) => c.x > 7 && c.y === 5)).toBe(false);
+  });
+
+  it('cellsInCone excluye casillas barrera y sin línea de visión', () => {
+    const blocked = cellsInCone(5, 5, 9, 5, 30, barriers);
+    expect(blocked.some((c) => c.x === 7 && c.y === 5)).toBe(false);
   });
 });

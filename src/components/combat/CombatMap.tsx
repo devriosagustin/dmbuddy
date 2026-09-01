@@ -13,6 +13,7 @@ import {
   MAP_ROWS,
   inBounds,
   isOccupied,
+  isBarrier,
   cellsInCone,
   cellsInLine,
   cellsInSphere,
@@ -30,6 +31,14 @@ interface CombatMapProps {
   nextId?: string | null;
   /** Id del combatiente seleccionado (resalta sus movimientos posibles según su velocidad). */
   selectedId?: string | null;
+  /** Casillas del mapa que son barrera (no atravesables). */
+  barriers: MapCell[];
+  /** Si el modo de colocar barreras está activo. */
+  barrierMode: boolean;
+  /** Alterna el modo de colocar barreras. */
+  onToggleBarrierMode: () => void;
+  /** Alterna una casilla como barrera. */
+  onToggleBarrier: (x: number, y: number) => void;
   onOpenActions: (combatant: Combatant) => void;
   /** Mueve una ficha a una casilla (acción del store). */
   onMove: (id: string, x: number, y: number) => void;
@@ -58,7 +67,7 @@ const SAME = <T,>(a: T, b: T) => JSON.stringify(a) === JSON.stringify(b);
 const RANGE_PRESETS = [5, 10, 15, 30, 60, 90, 120];
 const AOE_PRESETS = [5, 10, 15, 20, 30, 60];
 
-export const CombatMap = ({ participants, activeId, nextId, selectedId, onOpenActions, onMove, onSelect }: CombatMapProps) => {
+export const CombatMap = ({ participants, activeId, nextId, selectedId, barriers, barrierMode, onToggleBarrierMode, onToggleBarrier, onOpenActions, onMove, onSelect }: CombatMapProps) => {
   const gridRef = useRef<HTMLDivElement>(null);
   const [mode, setMode] = useState<Mode>('move');
   const [drag, setDrag] = useState<DragState | null>(null);
@@ -114,6 +123,11 @@ export const CombatMap = ({ participants, activeId, nextId, selectedId, onOpenAc
     // Evita que el clic en una ficha llegue al manejador del grid (casilla "vacía").
     e.stopPropagation();
     const cell = { x: combatant.x ?? 0, y: combatant.y ?? 0 };
+    if (barrierMode) {
+      // En modo barrera, clic en una ficha alterna la casilla como barrera.
+      onToggleBarrier(cell.x, cell.y);
+      return;
+    }
     if (mode === 'move') {
       gridRef.current?.setPointerCapture(e.pointerId);
       setDrag({ id: combatant.id, startX: e.clientX, startY: e.clientY, moved: false });
@@ -130,6 +144,11 @@ export const CombatMap = ({ participants, activeId, nextId, selectedId, onOpenAc
   // --- Clic en una casilla vacía ------------------------------------------
   const handleEmptyDown = (e: React.PointerEvent, cell: MapCell) => {
     if (e.button !== 0) return;
+    if (barrierMode) {
+      // En modo barrera, clic en una casilla la alterna como barrera.
+      onToggleBarrier(cell.x, cell.y);
+      return;
+    }
     if (mode === 'move') {
       if (selectedId && moveCells.some((c) => c.x === cell.x && c.y === cell.y)) {
         // Clic en un cuadro alcanzable: mueve la ficha seleccionada allí.
@@ -179,15 +198,15 @@ export const CombatMap = ({ participants, activeId, nextId, selectedId, onOpenAc
   const aoeCells = useMemo<MapCell[]>(() => {
     if (!aoeSource) return [];
     const aim = hover ?? aoeSource;
-    if (aoeShape === 'sphere') return cellsInSphere(aoeSource.x, aoeSource.y, aoeFeet);
-    if (aoeShape === 'cone') return cellsInCone(aoeSource.x, aoeSource.y, aim.x, aim.y, aoeFeet);
-    return cellsInLine(aoeSource.x, aoeSource.y, aim.x, aim.y, aoeFeet);
-  }, [aoeSource, aoeShape, aoeFeet, hover]);
+    if (aoeShape === 'sphere') return cellsInSphere(aoeSource.x, aoeSource.y, aoeFeet, barriers);
+    if (aoeShape === 'cone') return cellsInCone(aoeSource.x, aoeSource.y, aim.x, aim.y, aoeFeet, barriers);
+    return cellsInLine(aoeSource.x, aoeSource.y, aim.x, aim.y, aoeFeet, barriers);
+  }, [aoeSource, aoeShape, aoeFeet, hover, barriers]);
 
   const rangeCells = useMemo<MapCell[]>(() => {
     if (!rangeSource || rangeSource.x === undefined || rangeSource.y === undefined) return [];
-    return cellsInSphere(rangeSource.x, rangeSource.y, rangeFeet);
-  }, [rangeSource, rangeFeet]);
+    return cellsInSphere(rangeSource.x, rangeSource.y, rangeFeet, barriers);
+  }, [rangeSource, rangeFeet, barriers]);
 
   const selectedCombatant = participants.find((p) => p.id === selectedId);
 
@@ -197,8 +216,11 @@ export const CombatMap = ({ participants, activeId, nextId, selectedId, onOpenAc
   const moveCells: MapCell[] =
     selectedX === undefined || selectedY === undefined
       ? []
-      : cellsInSphere(selectedX, selectedY, selectedCombatant?.speed ?? 30).filter(
-          (c) => (c.x !== selectedX || c.y !== selectedY) && !isOccupied(participants, c.x, c.y)
+      : cellsInSphere(selectedX, selectedY, selectedCombatant?.speed ?? 30, barriers).filter(
+          (c) =>
+            (c.x !== selectedX || c.y !== selectedY) &&
+            !isOccupied(participants, c.x, c.y) &&
+            !isBarrier(barriers, c.x, c.y)
         );
 
   // --- Info mostrada -------------------------------------------------------
@@ -252,6 +274,18 @@ export const CombatMap = ({ participants, activeId, nextId, selectedId, onOpenAc
           {modeButton('measure', 'Medir')}
           {modeButton('range', 'Alcance')}
           {modeButton('aoe', 'Área')}
+          <button
+            type="button"
+            onClick={onToggleBarrierMode}
+            aria-pressed={barrierMode}
+            className={`rounded-full px-2.5 py-1 text-[11px] font-bold transition-colors ${
+              barrierMode
+                ? 'bg-red-500 text-white'
+                : 'bg-dnd-leather/30 text-dnd-muted hover:text-dnd-text'
+            }`}
+          >
+            ▦ Muros
+          </button>
         </div>
 
         {mode === 'range' && (
@@ -359,6 +393,27 @@ export const CombatMap = ({ participants, activeId, nextId, selectedId, onOpenAc
             return <div key={i} className={`${cellClass(x, y)} border-r border-b border-dnd-ink/70`} />;
           })}
         </div>
+
+        {/* Barreras (obstáculos que bloquean movimiento y áreas) */}
+        {barriers.length > 0 && (
+          <div className="pointer-events-none absolute inset-0 grid" style={{ gridTemplateColumns: `repeat(${MAP_COLS}, 1fr)`, gridAutoRows: '1fr' }} aria-hidden="true">
+            {Array.from({ length: MAP_COLS * MAP_ROWS }, (_, i) => {
+              const x = i % MAP_COLS;
+              const y = Math.floor(i / MAP_COLS);
+              if (!isBarrier(barriers, x, y)) return <div key={i} />;
+              return (
+                <div
+                  key={i}
+                  className={`${
+                    barrierMode ? 'ring-2 ring-inset ring-red-300' : ''
+                  } flex items-center justify-center bg-dnd-ink/90`}
+                >
+                  <span className="text-[10px] leading-none text-red-300/90">▦</span>
+                </div>
+              );
+            })}
+          </div>
+        )}
 
         {/* Movimientos posibles del combatiente seleccionado (según su velocidad) */}
         {moveCells.length > 0 && (
@@ -493,10 +548,11 @@ export const CombatMap = ({ participants, activeId, nextId, selectedId, onOpenAc
       </div>
 
       <p className="text-[10px] text-dnd-muted">
-        {mode === 'move' && 'Clic en una ficha para seleccionarla · segundo clic para abrir sus acciones · clic en un cuadro resaltado para moverla.'}
-        {mode === 'measure' && 'Clic en un punto y luego pasa el ratón (o haz clic) para medir la distancia en pies.'}
-        {mode === 'range' && 'Haz clic en una ficha para ver su alcance (radio) y las fichas dentro.'}
-        {mode === 'aoe' && 'Haz clic en una casilla de origen; mueve el ratón para orientar conos y líneas.'}
+        {barrierMode && 'Modo muros: haz clic en una casilla para añadirla o quitarla como barrera (bloquea movimiento y áreas).'}
+        {!barrierMode && mode === 'move' && 'Clic en una ficha para seleccionarla · segundo clic para abrir sus acciones · clic en un cuadro resaltado para moverla.'}
+        {!barrierMode && mode === 'measure' && 'Clic en un punto y luego pasa el ratón (o haz clic) para medir la distancia en pies.'}
+        {!barrierMode && mode === 'range' && 'Haz clic en una ficha para ver su alcance (radio) y las fichas dentro.'}
+        {!barrierMode && mode === 'aoe' && 'Haz clic en una casilla de origen; mueve el ratón para orientar conos y líneas.'}
       </p>
     </div>
   );

@@ -6,7 +6,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { CombatState, Combatant, CombatLogEntry, StatusEffect } from '../types';
 import { sortByInitiative } from '../utils/combatUtils';
-import { findSpawnCell, inBounds, MAP_COLS, MAP_ROWS, gridDistanceFeet } from '../utils/mapUtils';
+import { findSpawnCell, inBounds, isBarrier, MAP_COLS, MAP_ROWS, gridDistanceFeet } from '../utils/mapUtils';
 
 // Sincroniza los PG finales del combate con el party (sin recarga circular:
 // playerStore no importa combatStore).
@@ -38,6 +38,8 @@ interface CombatStore extends CombatState {
   setAC: (id: string, ac: number) => void;
   setInitiative: (id: string, initiative: number) => void;
   setSpeed: (id: string, speed: number) => void;
+  /** Alterna una casilla del mapa entre barrera y transitable. */
+  toggleBarrier: (x: number, y: number) => void;
   reorderParticipants: (ordered: Combatant[]) => void;
   /** Mueve una ficha a una casilla del mapa (coordenadas columna/fila). */
   moveCombatant: (id: string, x: number, y: number) => void;
@@ -60,6 +62,7 @@ export const useCombatStore = create<CombatStore>()(
       combatLog: [],
       startTime: new Date(),
       encounterCount: 0,
+      barriers: [],
 
       initializeCombat: () => {
         set({
@@ -92,14 +95,15 @@ export const useCombatStore = create<CombatStore>()(
           : 0;
         const name =
           isMonster && sameBefore >= 1 ? `${base} ${copyLetter(sameBefore)}` : combatant.name;
+        const spawn = findSpawnCell(get().participants, combatant.type === 'player', get().barriers);
         const newCombatant: Combatant = {
           ...combatant,
           name,
           id: makeId(),
           isActive: true,
           isDead: false,
-          x: combatant.x ?? findSpawnCell(get().participants, combatant.type === 'player').x,
-          y: combatant.y ?? findSpawnCell(get().participants, combatant.type === 'player').y,
+          x: combatant.x ?? spawn.x,
+          y: combatant.y ?? spawn.y,
         };
         set((state) => {
           const withNew = [...state.participants, newCombatant];
@@ -293,6 +297,17 @@ export const useCombatStore = create<CombatStore>()(
         }));
       },
 
+      toggleBarrier: (x, y) => {
+        const { barriers } = get();
+        if (isBarrier(barriers, x, y)) {
+          // Quitar la barrera existente.
+          set({ barriers: barriers.filter((b) => !(b.x === x && b.y === y)) });
+        } else if (inBounds(x, y)) {
+          // Añadir nueva barrera.
+          set({ barriers: [...barriers, { x, y }] });
+        }
+      },
+
       moveCombatant: (id, x, y) => {
         const { participants } = get();
         const combatant = participants.find((p) => p.id === id);
@@ -304,6 +319,8 @@ export const useCombatStore = create<CombatStore>()(
           ? { x: cx, y: cy }
           : { x: Math.max(0, Math.min(MAP_COLS - 1, cx)), y: Math.max(0, Math.min(MAP_ROWS - 1, cy)) };
         if (combatant.x === clamped.x && combatant.y === clamped.y) return;
+        // No se puede terminar el movimiento sobre una barrera.
+        if (isBarrier(get().barriers, clamped.x, clamped.y)) return;
         const from = { x: combatant.x ?? 0, y: combatant.y ?? 0 };
         set((state) => ({
           participants: state.participants.map((p) =>
