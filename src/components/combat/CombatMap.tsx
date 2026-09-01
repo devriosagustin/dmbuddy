@@ -8,6 +8,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Combatant } from '../../types';
 import type { MapCell } from '../../utils/mapUtils';
+import type { MapLayout } from '../../utils/layoutPatterns';
 import {
   MAP_COLS,
   MAP_ROWS,
@@ -39,6 +40,16 @@ interface CombatMapProps {
   onToggleBarrierMode: () => void;
   /** Alterna una casilla como barrera. */
   onToggleBarrier: (x: number, y: number) => void;
+  /** Layouts de mapa guardados por el usuario. */
+  savedLayouts: MapLayout[];
+  /** Guarda el layout actual de barreras con un nombre. */
+  onSaveLayout: (name: string) => void;
+  /** Aplica (reemplaza) las barreras de un layout cargado. */
+  onLoadLayout: (id: string) => void;
+  /** Elimina un layout guardado. */
+  onDeleteLayout: (id: string) => void;
+  /** Aplica un layout aleatorio generado por patrón. */
+  onRandomLayout: () => void;
   onOpenActions: (combatant: Combatant) => void;
   /** Mueve una ficha a una casilla (acción del store). */
   onMove: (id: string, x: number, y: number) => void;
@@ -67,7 +78,7 @@ const SAME = <T,>(a: T, b: T) => JSON.stringify(a) === JSON.stringify(b);
 const RANGE_PRESETS = [5, 10, 15, 30, 60, 90, 120];
 const AOE_PRESETS = [5, 10, 15, 20, 30, 60];
 
-export const CombatMap = ({ participants, activeId, nextId, selectedId, barriers, barrierMode, onToggleBarrierMode, onToggleBarrier, onOpenActions, onMove, onSelect }: CombatMapProps) => {
+export const CombatMap = ({ participants, activeId, nextId, selectedId, barriers, barrierMode, onToggleBarrierMode, onToggleBarrier, savedLayouts, onSaveLayout, onLoadLayout, onDeleteLayout, onRandomLayout, onOpenActions, onMove, onSelect }: CombatMapProps) => {
   const gridRef = useRef<HTMLDivElement>(null);
   const [mode, setMode] = useState<Mode>('move');
   const [drag, setDrag] = useState<DragState | null>(null);
@@ -87,6 +98,11 @@ export const CombatMap = ({ participants, activeId, nextId, selectedId, barriers
   // cabe en el área disponible (así no hay scroll y todo se ve completo).
   const measureRef = useRef<HTMLDivElement>(null);
   const [mapSize, setMapSize] = useState({ w: 0, h: 0 });
+
+  // Panel de layouts de mapa.
+  const [layoutsOpen, setLayoutsOpen] = useState(false);
+  const [layoutName, setLayoutName] = useState('');
+  const [layoutSel, setLayoutSel] = useState('');
 
   useEffect(() => {
     const el = measureRef.current;
@@ -288,6 +304,106 @@ export const CombatMap = ({ participants, activeId, nextId, selectedId, barriers
           </button>
         </div>
 
+        <div className="relative flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => setLayoutsOpen((v) => !v)}
+            aria-expanded={layoutsOpen}
+            className={`rounded-full px-2.5 py-1 text-[11px] font-bold transition-colors ${
+              layoutsOpen
+                ? 'bg-dnd-gold text-dnd-ink'
+                : 'bg-dnd-leather/30 text-dnd-muted hover:text-dnd-text'
+            }`}
+          >
+            🗺 Mapas
+          </button>
+          {layoutsOpen && (
+            <div className="absolute left-0 top-full z-50 mt-1 flex flex-col gap-2 rounded-dnd-lg border border-dnd-leather/40 bg-dnd-ink p-3 shadow-lg">
+              <div className="flex flex-col gap-1">
+                <span className="text-[10px] font-bold uppercase tracking-wide text-dnd-muted">Guardar actual</span>
+                <div className="flex gap-1">
+                  <input
+                    className="input h-7 min-w-0 flex-1 text-xs"
+                    placeholder="Nombre del layout"
+                    value={layoutName}
+                    onChange={(e) => setLayoutName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        onSaveLayout(layoutName);
+                        setLayoutName('');
+                      }
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onSaveLayout(layoutName);
+                      setLayoutName('');
+                    }}
+                    className="rounded-md bg-dnd-gold px-2 py-1 text-[11px] font-bold text-dnd-ink hover:bg-dnd-gold/80"
+                  >
+                    Guardar
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <span className="text-[10px] font-bold uppercase tracking-wide text-dnd-muted">Guardados ({savedLayouts.length})</span>
+                {savedLayouts.length === 0 ? (
+                  <span className="text-[11px] text-dnd-muted">Aún no hay layouts guardados.</span>
+                ) : (
+                  <div className="flex flex-col gap-1">
+                    <select
+                      className="input h-7 text-xs"
+                      value={layoutSel}
+                      onChange={(e) => setLayoutSel(e.target.value)}
+                    >
+                      <option value="">— Elegir —</option>
+                      {savedLayouts.map((l) => (
+                        <option key={l.id} value={l.id}>
+                          {l.name} ({l.barriers.length} celdas)
+                        </option>
+                      ))}
+                    </select>
+                    <div className="flex gap-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (layoutSel) onLoadLayout(layoutSel);
+                        }}
+                        disabled={!layoutSel}
+                        className="rounded-md bg-emerald-500 px-2 py-1 text-[11px] font-bold text-white hover:bg-emerald-400 disabled:opacity-40"
+                      >
+                        Cargar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (layoutSel) {
+                            onDeleteLayout(layoutSel);
+                            setLayoutSel('');
+                          }
+                        }}
+                        disabled={!layoutSel}
+                        className="rounded-md bg-red-500 px-2 py-1 text-[11px] font-bold text-white hover:bg-red-400 disabled:opacity-40"
+                      >
+                        Borrar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={onRandomLayout}
+                        className="rounded-md bg-violet-500 px-2 py-1 text-[11px] font-bold text-white hover:bg-violet-400"
+                      >
+                        🎲 Aleatorio
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
         {mode === 'range' && (
           <div className="flex items-center gap-1">
             <span className="text-[11px] text-dnd-muted">Radio</span>
@@ -401,15 +517,19 @@ export const CombatMap = ({ participants, activeId, nextId, selectedId, barriers
               const x = i % MAP_COLS;
               const y = Math.floor(i / MAP_COLS);
               if (!isBarrier(barriers, x, y)) return <div key={i} />;
+              // Bordes del muro que dan a una casilla no-barrera (contorno visible).
+              const openTop = !isBarrier(barriers, x, y - 1);
+              const openBottom = !isBarrier(barriers, x, y + 1);
+              const openLeft = !isBarrier(barriers, x - 1, y);
+              const openRight = !isBarrier(barriers, x + 1, y);
+              const wall = 'border-red-400';
               return (
                 <div
                   key={i}
-                  className={`${
+                  className={`bg-dnd-ink/95 ${
                     barrierMode ? 'ring-2 ring-inset ring-red-300' : ''
-                  } flex items-center justify-center bg-dnd-ink/90`}
-                >
-                  <span className="text-[10px] leading-none text-red-300/90">▦</span>
-                </div>
+                  } ${openTop ? `border-t-2 ${wall}` : ''} ${openBottom ? `border-b-2 ${wall}` : ''} ${openLeft ? `border-l-2 ${wall}` : ''} ${openRight ? `border-r-2 ${wall}` : ''}`}
+                />
               );
             })}
           </div>

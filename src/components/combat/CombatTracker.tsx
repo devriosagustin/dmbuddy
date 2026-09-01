@@ -23,6 +23,8 @@ import { CombatLog } from './CombatLog';
 import { AddCombatantModal } from './AddCombatantModal';
 import { CombatantActionsModal } from './CombatantActionsModal';
 import { useCombatStore } from '../../store/combatStore';
+import { useLayoutStore } from '../../store/layoutStore';
+import { randomLayout } from '../../utils/layoutPatterns';
 import type { Combatant } from '../../types';
 
 /**
@@ -40,12 +42,15 @@ export const CombatTracker = () => {
     reorderParticipants,
     moveCombatant,
     toggleBarrier,
+    setBarriers,
     initializeCombat,
     resetCombat,
     endCombat,
     encounterCount,
     barriers,
   } = useCombatStore();
+
+  const { savedLayouts, saveLayout, savedLayout: getSavedLayout, deleteLayout } = useLayoutStore();
 
   const [showAdd, setShowAdd] = useState(false);
   const [selected, setSelected] = useState<Combatant | null>(null);

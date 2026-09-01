@@ -40,6 +40,8 @@ interface CombatStore extends CombatState {
   setSpeed: (id: string, speed: number) => void;
   /** Alterna una casilla del mapa entre barrera y transitable. */
   toggleBarrier: (x: number, y: number) => void;
+  /** Reemplaza todas las barreras (para cargar un layout de mapa). */
+  setBarriers: (barriers: { x: number; y: number }[]) => void;
   reorderParticipants: (ordered: Combatant[]) => void;
   /** Mueve una ficha a una casilla del mapa (coordenadas columna/fila). */
   moveCombatant: (id: string, x: number, y: number) => void;
@@ -306,6 +308,11 @@ export const useCombatStore = create<CombatStore>()(
           // Añadir nueva barrera.
           set({ barriers: [...barriers, { x, y }] });
         }
+      },
+
+      setBarriers: (barriers) => {
+        // Solo conserva casillas dentro del mapa.
+        set({ barriers: barriers.filter((b) => inBounds(b.x, b.y)) });
       },
 
       moveCombatant: (id, x, y) => {
