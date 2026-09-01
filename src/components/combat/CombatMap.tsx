@@ -1,13 +1,25 @@
 // ============================================================
 // Mapa de combate (cuadrícula)
-// Muestra las fichas de los combatientes y permite moverlas
-// arrastrándolas; un clic sin arrastrar abre sus acciones.
+// Fichas movibles arrastrándolas + herramientas para medir
+// distancias, ver el alcance (radio) de una ficha y pintar
+// áreas de efecto (radio, cono, línea).
 // ============================================================
 
 import { useMemo, useRef, useState } from 'react';
 import type { Combatant } from '../../types';
 import type { MapCell } from '../../utils/mapUtils';
-import { MAP_COLS, MAP_ROWS, inBounds, FEET_PER_CELL } from '../../utils/mapUtils';
+import {
+  MAP_COLS,
+  MAP_ROWS,
+  inBounds,
+  cellsInCone,
+  cellsInLine,
+  cellsInSphere,
+  gridDistanceFeet,
+} from '../../utils/mapUtils';
+
+type Mode = 'move' | 'measure' | 'range' | 'aoe';
+type AoeShape = 'sphere' | 'cone' | 'line';
 
 interface CombatMapProps {
   participants: Combatant[];
@@ -24,8 +36,6 @@ interface DragState {
   startY: number;
   moved: boolean;
 }
-
-/** Devuelve la celda bajo un evento puntero, o null si está fuera. */
 const cellFromPointer = (e: React.PointerEvent, gridRect: DOMRect): MapCell | null => {
   if (gridRect.width <= 0 || gridRect.height <= 0) return null;
   const cellW = gridRect.width / MAP_COLS;
@@ -36,90 +46,249 @@ const cellFromPointer = (e: React.PointerEvent, gridRect: DOMRect): MapCell | nu
   return { x, y };
 };
 
+const SAME = <T,>(a: T, b: T) => JSON.stringify(a) === JSON.stringify(b);
+
+const RANGE_PRESETS = [5, 10, 15, 30, 60, 90, 120];
+const AOE_PRESETS = [5, 10, 15, 20, 30, 60];
+
 export const CombatMap = ({ participants, activeId, onOpenActions, onMove }: CombatMapProps) => {
   const gridRef = useRef<HTMLDivElement>(null);
+  const [mode, setMode] = useState<Mode>('move');
   const [drag, setDrag] = useState<DragState | null>(null);
   const [hover, setHover] = useState<MapCell | null>(null);
 
-  const byCell = useMemo(() => {
-    const map = new Map<string, MapCell>();
-    for (const p of participants) {
-      if (p.x !== undefined && p.y !== undefined) map.set(p.id, { x: p.x, y: p.y });
-    }
-    return map;
-  }, [participants]);
+  // Herramienta «medir distancia».
+  const [measureFrom, setMeasureFrom] = useState<MapCell | null>(null);
+  // Herramienta «alcance».
+  const [rangeSourceId, setRangeSourceId] = useState<string | null>(null);
+  const [rangeFeet, setRangeFeet] = useState(30);
+  // Herramienta «área de efecto».
+  const [aoeSource, setAoeSource] = useState<MapCell | null>(null);
+  const [aoeShape, setAoeShape] = useState<AoeShape>('sphere');
+  const [aoeFeet, setAoeFeet] = useState(20);
 
-  const tokenAt = (cell: MapCell): Combatant | undefined =>
-    participants.find((p) => p.x === cell.x && p.y === cell.y);
+  const rangeSource = useMemo(
+    () => participants.find((p) => p.id === rangeSourceId) ?? null,
+    [participants, rangeSourceId]
+  );
 
-  const handleDown = (e: React.PointerEvent, combatant: Combatant) => {
-    if (e.button !== 0) return;
-    gridRef.current?.setPointerCapture(e.pointerId);
-    setDrag({ id: combatant.id, startX: e.clientX, startY: e.clientY, moved: false });
-    setHover({ x: combatant.x ?? 0, y: combatant.y ?? 0 });
+  const clearTool = () => {
+    setMeasureFrom(null);
+    setRangeSourceId(null);
+    setAoeSource(null);
   };
 
+  const selectMode = (next: Mode) => {
+    setMode(next);
+    clearTool();
+  };
+
+  // --- Fichas bajo el ratón -----------------------------------------------
+  const handleTokenPointerDown = (e: React.PointerEvent, combatant: Combatant) => {
+    if (e.button !== 0) return;
+    const cell = { x: combatant.x ?? 0, y: combatant.y ?? 0 };
+    if (mode === 'move') {
+      gridRef.current?.setPointerCapture(e.pointerId);
+      setDrag({ id: combatant.id, startX: e.clientX, startY: e.clientY, moved: false });
+      setHover(cell);
+    } else if (mode === 'measure') {
+      setMeasureFrom(cell);
+    } else if (mode === 'range') {
+      setRangeSourceId(combatant.id);
+    } else if (mode === 'aoe') {
+      setAoeSource(cell);
+    }
+  };
+
+  // --- Clic en una casilla vacía ------------------------------------------
+  const handleEmptyDown = (e: React.PointerEvent, cell: MapCell) => {
+    if (e.button !== 0) return;
+    if (mode === 'measure') {
+      setMeasureFrom(cell);
+    } else if (mode === 'aoe') {
+      setAoeSource(cell);
+    }
+  };
+
+  // --- Puntero en movimiento ----------------------------------------------
   const handleMove = (e: React.PointerEvent) => {
-    if (!drag || !gridRef.current) return;
+    if (!gridRef.current) return;
     const rect = gridRef.current.getBoundingClientRect();
     const cell = cellFromPointer(e, rect);
     setHover(cell);
+    if (!drag) return;
     const distance = Math.hypot(e.clientX - drag.startX, e.clientY - drag.startY);
-    if (!drag.moved && distance > 6) {
-      setDrag({ ...drag, moved: true });
-    }
+    if (!drag.moved && distance > 6) setDrag({ ...drag, moved: true });
   };
 
-  const handleUp = (_e: React.PointerEvent) => {
-    if (!drag) return;
-    if (drag.moved && hover) {
-      onMove(drag.id, hover.x, hover.y);
-    } else if (!drag.moved) {
-      const target =
-        hover && (byCell.get(drag.id)?.x === hover.x && byCell.get(drag.id)?.y === hover.y)
-          ? tokenAt(hover)
-          : undefined;
+  const handleUp = () => {
+    if (drag && !drag.moved) {
+      const target = participants.find((p) => p.id === drag.id);
       if (target) onOpenActions(target);
+    } else if (drag?.moved && hover) {
+      onMove(drag.id, hover.x, hover.y);
     }
     setDrag(null);
     setHover(null);
   };
 
+  // --- Cálculo de áreas ----------------------------------------------------
+  const aoeCells = useMemo<MapCell[]>(() => {
+    if (!aoeSource) return [];
+    const aim = hover ?? aoeSource;
+    if (aoeShape === 'sphere') return cellsInSphere(aoeSource.x, aoeSource.y, aoeFeet);
+    if (aoeShape === 'cone') return cellsInCone(aoeSource.x, aoeSource.y, aim.x, aim.y, aoeFeet);
+    return cellsInLine(aoeSource.x, aoeSource.y, aim.x, aim.y, aoeFeet);
+  }, [aoeSource, aoeShape, aoeFeet, hover]);
+
+  const rangeCells = useMemo<MapCell[]>(() => {
+    if (!rangeSource || rangeSource.x === undefined || rangeSource.y === undefined) return [];
+    return cellsInSphere(rangeSource.x, rangeSource.y, rangeFeet);
+  }, [rangeSource, rangeFeet]);
+
+  // --- Info mostrada -------------------------------------------------------
+  const measureDistance = measureFrom && hover ? gridDistanceFeet(measureFrom, hover) : null;
+
+  const inRangeCount = rangeSource
+    ? participants.filter((p) => {
+        if (p.x === undefined || p.y === undefined) return false;
+        return gridDistanceFeet({ x: p.x, y: p.y }, { x: rangeSource.x ?? 0, y: rangeSource.y ?? 0 }) <= rangeFeet;
+      }).length
+    : 0;
+
+  const inAoeCount = aoeCells.length > 0
+    ? participants.filter((p) => p.x !== undefined && p.y !== undefined && aoeCells.some((c) => c.x === p.x && c.y === p.y)).length
+    : 0;
+
   const cellClass = (x: number, y: number): string => {
     const isHover = hover?.x === x && hover?.y === y;
-    const base = (x + y) % 2 === 0 ? 'bg-dnd-leather/[0.05]' : 'bg-dnd-leather/[0.09]';
+    const base = (x + y) % 2 === 0 ? 'bg-dnd-leather/[0.09]' : 'bg-dnd-leather/[0.18]';
     return `${base} ${isHover ? 'bg-dnd-gold/30' : ''}`;
   };
+
+  const isInRange = (x: number, y: number) => rangeCells.some((c) => c.x === x && c.y === y);
+  const isInAoe = (x: number, y: number) => aoeCells.some((c) => c.x === x && c.y === y);
 
   const cellColPct = 100 / MAP_COLS;
   const cellRowPct = 100 / MAP_ROWS;
 
+  const modeButton = (m: Mode, label: string) => (
+    <button
+      type="button"
+      key={m}
+      onClick={() => selectMode(m)}
+      aria-pressed={mode === m}
+      className={`rounded-full px-2.5 py-1 text-[11px] font-bold transition-colors ${
+        mode === m
+          ? 'bg-dnd-gold text-dnd-ink'
+          : 'bg-dnd-leather/30 text-dnd-muted hover:text-dnd-text'
+      }`}
+    >
+      {label}
+    </button>
+  );
+
   return (
     <div className="flex flex-col gap-2">
-      <div className="flex items-center justify-between text-[11px] text-dnd-muted">
-        <span>
-          Mapa · {MAP_COLS}×{MAP_ROWS} · <span className="text-dnd-text">{FEET_PER_CELL} pies/casilla</span>
-        </span>
-        <span>
-          {drag?.moved
-            ? 'Arrastra para mover'
-            : 'Arrastra una ficha para moverla · clic para abrir acciones'}
-        </span>
+      {/* Barra de herramientas */}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+        <div className="flex items-center gap-1" role="group" aria-label="Herramientas de mapa">
+          {modeButton('move', 'Mover')}
+          {modeButton('measure', 'Medir')}
+          {modeButton('range', 'Alcance')}
+          {modeButton('aoe', 'Área')}
+        </div>
+
+        {mode === 'range' && (
+          <div className="flex items-center gap-1">
+            <span className="text-[11px] text-dnd-muted">Radio</span>
+            <select
+              className="input h-7 w-20 text-xs"
+              value={rangeFeet}
+              onChange={(e) => setRangeFeet(Number(e.target.value))}
+            >
+              {RANGE_PRESETS.map((r) => (
+                <option key={r} value={r}>
+                  {r} pies
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {mode === 'aoe' && (
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-1" role="group" aria-label="Forma del área">
+              {(
+                [
+                  ['sphere', 'Radio'],
+                  ['cone', 'Cono'],
+                  ['line', 'Línea'],
+                ] as [AoeShape, string][]
+              ).map(([s, label]) => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => setAoeShape(s)}
+                  aria-pressed={aoeShape === s}
+                  className={`rounded-full px-2.5 py-1 text-[11px] font-bold transition-colors ${
+                    aoeShape === s
+                      ? 'bg-dnd-gold text-dnd-ink'
+                      : 'bg-dnd-leather/30 text-dnd-muted hover:text-dnd-text'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <select
+              className="input h-7 w-20 text-xs"
+              value={aoeFeet}
+              onChange={(e) => setAoeFeet(Number(e.target.value))}
+            >
+              {AOE_PRESETS.map((r) => (
+                <option key={r} value={r}>
+                  {r} pies
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {measureDistance !== null && (
+          <span className="text-[11px] font-bold text-dnd-gold">
+            Distancia: {measureDistance} pies
+          </span>
+        )}
+        {mode === 'range' && rangeSource && (
+          <span className="text-[11px] font-bold text-sky-300">
+            Alcance: {rangeFeet} pies · {inRangeCount} fichas dentro
+          </span>
+        )}
+        {mode === 'aoe' && aoeSource && (
+          <span className="text-[11px] font-bold text-violet-300">
+            {aoeShape === 'sphere' ? 'Radio' : aoeShape === 'cone' ? 'Cono' : 'Línea'}: {aoeFeet} pies ·{' '}
+            {inAoeCount} fichas afectadas
+          </span>
+        )}
       </div>
 
       <div
         ref={gridRef}
         onPointerMove={handleMove}
         onPointerUp={handleUp}
-        className="relative w-full overflow-hidden rounded-dnd-lg border border-dnd-leather/30 bg-dnd-ink/40"
-        style={{
-          aspectRatio: `${MAP_COLS} / ${MAP_ROWS}`,
-          touchAction: 'none',
+        onPointerDown={(e) => {
+          if (e.button !== 0) return;
+          if (mode === 'move') return; // los tokens gestionan su propio arrastre
+          const cell = gridRef.current && cellFromPointer(e, gridRef.current.getBoundingClientRect());
+          if (cell) handleEmptyDown(e, cell);
         }}
+        className="relative w-full overflow-hidden rounded-dnd-lg border border-dnd-leather/40 bg-dnd-ink/40"
+        style={{ aspectRatio: `${MAP_COLS} / ${MAP_ROWS}`, touchAction: 'none' }}
         aria-label="Mapa de combate"
         role="grid"
       >
-        {/* Casillas de fondo */}
+        {/* Casillas de fondo con mayor contraste */}
         <div
           className="absolute inset-0 grid"
           style={{ gridTemplateColumns: `repeat(${MAP_COLS}, 1fr)`, gridAutoRows: '1fr' }}
@@ -128,13 +297,66 @@ export const CombatMap = ({ participants, activeId, onOpenActions, onMove }: Com
           {Array.from({ length: MAP_COLS * MAP_ROWS }, (_, i) => {
             const x = i % MAP_COLS;
             const y = Math.floor(i / MAP_COLS);
-            return <div key={i} className={cellClass(x, y)} />;
+            return <div key={i} className={`${cellClass(x, y)} border-r border-b border-dnd-ink/70`} />;
           })}
         </div>
 
-        {/* Eje de referencia de coordenadas (arriba/izquierda) */}
-        <div className="pointer-events-none absolute left-1 top-0.5 text-[9px] leading-none text-dnd-muted/60">
-          A
+        {/* Capa de áreas: alcance y áreas de efecto */}
+        {mode === 'range' && rangeCells.length > 0 && (
+          <div className="pointer-events-none absolute inset-0 grid" style={{ gridTemplateColumns: `repeat(${MAP_COLS}, 1fr)`, gridAutoRows: '1fr' }} aria-hidden="true">
+            {Array.from({ length: MAP_COLS * MAP_ROWS }, (_, i) => {
+              const x = i % MAP_COLS;
+              const y = Math.floor(i / MAP_COLS);
+              if (!isInRange(x, y)) return <div key={i} />;
+              return <div key={i} className="bg-sky-500/[0.22] ring-1 ring-inset ring-sky-400/60" />;
+            })}
+          </div>
+        )}
+
+        {mode === 'aoe' && aoeCells.length > 0 && (
+          <div className="pointer-events-none absolute inset-0 grid" style={{ gridTemplateColumns: `repeat(${MAP_COLS}, 1fr)`, gridAutoRows: '1fr' }} aria-hidden="true">
+            {Array.from({ length: MAP_COLS * MAP_ROWS }, (_, i) => {
+              const x = i % MAP_COLS;
+              const y = Math.floor(i / MAP_COLS);
+              if (!isInAoe(x, y)) return <div key={i} />;
+              return <div key={i} className="bg-violet-500/[0.25] ring-1 ring-inset ring-violet-400/70" />;
+            })}
+          </div>
+        )}
+
+        {/* Línea de medición */}
+        {measureFrom && hover && !SAME(measureFrom, hover) && mode === 'measure' && (
+          <svg className="pointer-events-none absolute inset-0 h-full w-full" aria-hidden="true">
+            <line
+              x1={`${(measureFrom.x + 0.5) * cellColPct}%`}
+              y1={`${(measureFrom.y + 0.5) * cellRowPct}%`}
+              x2={`${(hover.x + 0.5) * cellColPct}%`}
+              y2={`${(hover.y + 0.5) * cellRowPct}%`}
+              stroke="#f5c542"
+              strokeWidth="2"
+              strokeDasharray="6 4"
+            />
+          </svg>
+        )}
+
+        {/* Marcador del origen del área/medición */}
+        {(mode === 'aoe' && aoeSource) || (measureFrom && mode === 'measure') ? (
+          <div
+            className="pointer-events-none absolute z-10 flex items-center justify-center"
+            style={{
+              width: `${cellColPct}%`,
+              height: `${cellRowPct}%`,
+              left: `${(measureFrom ?? aoeSource ?? { x: 0, y: 0 }).x * cellColPct}%`,
+              top: `${(measureFrom ?? aoeSource ?? { x: 0, y: 0 }).y * cellRowPct}%`,
+            }}
+          >
+            <div className="h-3 w-3 rounded-full border-2 border-dnd-gold bg-dnd-gold/60" />
+          </div>
+        ) : null}
+
+        {/* Eje de referencia de coordenadas */}
+        <div className="pointer-events-none absolute left-1 top-0.5 text-[9px] leading-none text-dnd-muted/70">
+          1
         </div>
 
         {/* Fichas */}
@@ -142,8 +364,8 @@ export const CombatMap = ({ participants, activeId, onOpenActions, onMove }: Com
           if (combatant.x === undefined || combatant.y === undefined) return null;
           const isPlayer = combatant.type === 'player';
           const isActive = combatant.id === activeId;
+          const isRangeSource = combatant.id === rangeSourceId;
           const isDragging = drag?.id === combatant.id;
-          // Duplicados en la misma celda: apiñarlos ligeramente.
           const inSame = participants.filter((p) => p.x === combatant.x && p.y === combatant.y);
           const dupIndex = inSame.findIndex((p) => p.id === combatant.id);
           const offsetX = inSame.length > 1 ? (dupIndex % 2) * 30 - 15 : 0;
@@ -154,7 +376,7 @@ export const CombatMap = ({ participants, activeId, onOpenActions, onMove }: Com
               key={combatant.id}
               role="gridcell"
               aria-label={`${combatant.name}, ${isPlayer ? 'Jugador' : 'Monstruo'}, casilla ${combatant.x},${combatant.y}`}
-              className="absolute flex items-center justify-center"
+              className="absolute z-10 flex items-center justify-center"
               style={{
                 width: `${cellColPct}%`,
                 height: `${cellRowPct}%`,
@@ -166,14 +388,16 @@ export const CombatMap = ({ participants, activeId, onOpenActions, onMove }: Com
             >
               <button
                 type="button"
-                onPointerDown={(e) => handleDown(e, combatant)}
+                onPointerDown={(e) => handleTokenPointerDown(e, combatant)}
                 className={`flex h-[82%] w-[72%] items-center justify-center rounded-full border-2 text-xs font-bold shadow-lg outline-none ring-2 ring-transparent transition-all focus:ring-dnd-gold ${
                   isPlayer
                     ? 'border-emerald-400 bg-emerald-950/90 text-emerald-100'
                     : 'border-red-500 bg-red-950/90 text-red-100'
                 } ${isActive ? 'ring-2 ring-dnd-gold shadow-dnd-glow' : ''} ${
-                  combatant.isDead ? 'opacity-40 grayscale' : ''
-                } ${isDragging ? 'z-20 cursor-grabbing ring-2 ring-dnd-gold' : 'cursor-grab hover:scale-110'}`}
+                  isRangeSource ? 'ring-2 ring-sky-400 shadow-[0_0_12px_rgba(56,189,248,0.8)]' : ''
+                } ${combatant.isDead ? 'opacity-40 grayscale' : ''} ${
+                  isDragging ? 'z-20 cursor-grabbing ring-2 ring-dnd-gold' : 'cursor-grab hover:scale-110'
+                }`}
                 title={`${combatant.name} · ${combatant.hp}/${combatant.maxHp} PG · (${combatant.x},${combatant.y})`}
               >
                 {combatant.name.charAt(0).toUpperCase()}
@@ -184,7 +408,10 @@ export const CombatMap = ({ participants, activeId, onOpenActions, onMove }: Com
       </div>
 
       <p className="text-[10px] text-dnd-muted">
-        Las fichas en la misma casilla se muestran apiñadas. Mueve fichas arrastrándolas para separarlas.
+        {mode === 'move' && 'Arrastra una ficha para moverla · clic para abrir sus acciones.'}
+        {mode === 'measure' && 'Clic en un punto y luego pasa el ratón (o haz clic) para medir la distancia en pies.'}
+        {mode === 'range' && 'Haz clic en una ficha para ver su alcance (radio) y las fichas dentro.'}
+        {mode === 'aoe' && 'Haz clic en una casilla de origen; mueve el ratón para orientar conos y líneas.'}
       </p>
     </div>
   );
