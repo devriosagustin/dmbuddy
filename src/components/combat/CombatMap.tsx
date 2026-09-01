@@ -609,7 +609,7 @@ export const CombatMap = ({ participants, activeId, nextId, selectedId, tiles, t
               const x = i % MAP_COLS;
               const y = Math.floor(i / MAP_COLS);
               if (!moveCells.some((c) => c.x === x && c.y === y)) return <div key={i} />;
-              return <div key={i} className="bg-emerald-500/[0.22] ring-1 ring-inset ring-emerald-400/60" />;
+              return <div key={i} className="bg-green-700/15 ring-1 ring-inset ring-green-700/30" />;
             })}
           </div>
         )}
@@ -730,8 +730,8 @@ export const CombatMap = ({ participants, activeId, nextId, selectedId, tiles, t
               </button>
               {isSelected && (
                 <div
-                  className="absolute bottom-[-6%] left-1/2 h-[8%] w-[64%] -translate-x-1/2 overflow-hidden rounded-full border border-black/40 bg-dnd-ink/90"
-                  style={{ minWidth: '22px' }}
+                  className="absolute bottom-[-4%] left-1/2 h-[12%] w-[70%] -translate-x-1/2 overflow-hidden rounded-full border-2 border-black/50 bg-dnd-ink/95 shadow-md"
+                  style={{ minWidth: '26px', minHeight: '7px' }}
                   aria-hidden="true"
                 >
                   <div
