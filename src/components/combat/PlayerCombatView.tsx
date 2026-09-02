@@ -11,6 +11,7 @@ import { Modal } from '../common/Modal';
 import { useSessionStore } from '../../store/sessionStore';
 import { usePlayerStore } from '../../store/playerStore';
 import { useFullscreen } from '../../hooks/useFullscreen';
+import { getMapBackground, type MapBackground } from '../../config/mapBackgrounds';
 import {
   isEnemyRevealed,
   isTileRevealed,
@@ -35,8 +36,8 @@ const isFriendly = (c: Combatant): boolean =>
 const isHiddenHostile = (c: Combatant): boolean =>
   c.type === 'monster' || (c.type === 'npc' && c.npcRole === 'enemy');
 
-const cellClass = (x: number, y: number): string =>
-  (x + y) % 2 === 0 ? 'bg-dnd-leather/[0.09]' : 'bg-dnd-leather/[0.18]';
+const cellBg = (x: number, y: number, bg: MapBackground): string =>
+  (x + y) % 2 === 0 ? bg.a : bg.b;
 
 const tokenClass = (c: Combatant): string => {
   const isPlayer = c.type === 'player';
@@ -72,6 +73,7 @@ export const PlayerCombatView = () => {
   const visionRange = remoteCombat?.settings?.visionRange ?? 30;
   const mapCols = remoteCombat?.settings?.mapCols ?? 28;
   const mapRows = remoteCombat?.settings?.mapRows ?? 16;
+  const bg = getMapBackground(remoteCombat?.settings?.mapBackground);
   const participants = snapshot?.participants ?? [];
   const tiles = snapshot?.tiles ?? [];
   const mapCreatures: MapCreature[] = snapshot?.mapCreatures ?? [];
@@ -224,7 +226,7 @@ export const PlayerCombatView = () => {
 
   // Tiles visibles: muros y puertas siempre; trampa/tesoro/investigación solo si revelados.
   const visibleTiles = tiles.filter((t) => {
-    if (t.type === 'wall' || t.type === 'door') return true;
+    if (t.type === 'wall' || t.type === 'door' || t.type === 'secretDoor') return true;
     return isTileRevealed(snapshot, t.x, t.y);
   });
 
@@ -361,7 +363,7 @@ export const PlayerCombatView = () => {
             {Array.from({ length: mapCols * mapRows }, (_, i) => {
               const x = i % mapCols;
               const y = Math.floor(i / mapCols);
-              return <div key={i} className={`${cellClass(x, y)} border-r border-b border-dnd-ink/70`} />;
+              return <div key={i} className="border-r border-b border-dnd-ink/70" style={{ background: cellBg(x, y, bg) }} />;
             })}
           </div>
 
@@ -375,11 +377,12 @@ export const PlayerCombatView = () => {
                 if (!tile) return <div key={i} />;
                 let baseClass = '';
                 let icon = '';
-                if (tile.type === 'wall') {
-                  const openTop = !hasTile(visibleTiles, x, y - 1, 'wall');
-                  const openBottom = !hasTile(visibleTiles, x, y + 1, 'wall');
-                  const openLeft = !hasTile(visibleTiles, x - 1, y, 'wall');
-                  const openRight = !hasTile(visibleTiles, x + 1, y, 'wall');
+                if (tile.type === 'wall' || tile.type === 'secretDoor') {
+                  // La puerta secreta se ve igual que un muro para el jugador.
+                  const openTop = !hasTile(visibleTiles, x, y - 1, 'wall') && !hasTile(visibleTiles, x, y - 1, 'secretDoor');
+                  const openBottom = !hasTile(visibleTiles, x, y + 1, 'wall') && !hasTile(visibleTiles, x, y + 1, 'secretDoor');
+                  const openLeft = !hasTile(visibleTiles, x - 1, y, 'wall') && !hasTile(visibleTiles, x - 1, y, 'secretDoor');
+                  const openRight = !hasTile(visibleTiles, x + 1, y, 'wall') && !hasTile(visibleTiles, x + 1, y, 'secretDoor');
                   baseClass = `bg-dnd-ink/95 ${openTop ? 'border-t-2 border-red-400' : ''} ${openBottom ? 'border-b-2 border-red-400' : ''} ${openLeft ? 'border-l-2 border-red-400' : ''} ${openRight ? 'border-r-2 border-red-400' : ''}`;
                 } else if (tile.type === 'trap') {
                   baseClass = 'bg-red-900/40 flex items-center justify-center';

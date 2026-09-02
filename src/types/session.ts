@@ -41,6 +41,8 @@ export interface SessionSettings {
   mapCols: number;
   /** Filas de la cuadrícula del mapa (resolución). */
   mapRows: number;
+  /** Id del patrón de fondo de la cuadrícula (ver MAP_BACKGROUNDS). */
+  mapBackground: string;
 }
 
 /** Metadatos de la sesión. */

@@ -12,6 +12,7 @@ import { db } from './firebase';
 import type { ChatMessage, Combatant, MapTile, MapCreature, PartyToken, XpAward } from '../types';
 import type { RemotePlayerSheet, SessionMeta, SessionSettings, SyncCombatSnapshot, RollResponsePayload, SyncRollRequest } from '../types/session';
 import { tileKey } from '../types/session';
+import { DEFAULT_MAP_BACKGROUND } from '../config/mapBackgrounds';
 
 /** Código normalizado de sesión (mayúsculas, alfanumérico, sin espacios). */
 export const normalizeCode = (code: string): string =>
@@ -63,7 +64,7 @@ export const watchCombat = (code: string, cb: (payload: CombatPayload | null) =>
   let latestSnapshot: SyncCombatSnapshot | null = null;
   let latestSettings: SessionSettings | null = null;
   const emit = () => {
-    if (latestSnapshot) cb({ snapshot: latestSnapshot, settings: latestSettings ?? { visionRange: 30, mapCols: 28, mapRows: 16 } });
+    if (latestSnapshot) cb({ snapshot: latestSnapshot, settings: latestSettings ?? { visionRange: 30, mapCols: 28, mapRows: 16, mapBackground: DEFAULT_MAP_BACKGROUND } });
     else cb(null);
   };
   const offCombat = onValue(child(sessionRef(code), 'combat'), (snap) => {

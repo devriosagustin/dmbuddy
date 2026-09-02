@@ -54,9 +54,13 @@ export const isWall = (tiles: MapTile[] | undefined, x: number, y: number): bool
 export const isDoorClosed = (tiles: MapTile[] | undefined, x: number, y: number): boolean =>
   !!tiles && tiles.some((t) => t.x === x && t.y === y && t.type === 'door' && t.open !== true);
 
-/** Tile que bloquea movimiento y visión: muro o puerta cerrada. */
+/** Indica si una casilla es una puerta secreta (bloquea como un muro). */
+export const isSecretDoor = (tiles: MapTile[] | undefined, x: number, y: number): boolean =>
+  !!tiles && tiles.some((t) => t.x === x && t.y === y && t.type === 'secretDoor');
+
+/** Tile que bloquea movimiento y visión: muro, puerta cerrada o puerta secreta. */
 export const isBlocked = (tiles: MapTile[] | undefined, x: number, y: number): boolean =>
-  isWall(tiles, x, y) || isDoorClosed(tiles, x, y);
+  isWall(tiles, x, y) || isDoorClosed(tiles, x, y) || isSecretDoor(tiles, x, y);
 
 /** Indica si una casilla tiene un tile del tipo dado. */
 export const hasTile = (tiles: MapTile[] | undefined, x: number, y: number, type: TileType): boolean =>

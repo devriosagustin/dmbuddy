@@ -23,7 +23,7 @@ export interface LayoutCreature {
 export interface LayoutTile {
   x: number;
   y: number;
-  type: 'wall' | 'door' | 'trap' | 'treasure' | 'investigation';
+  type: 'wall' | 'door' | 'secretDoor' | 'trap' | 'treasure' | 'investigation';
   /** Solo para "door": true = abierta (no bloquea), false/undefined = cerrada. */
   open?: boolean;
 }

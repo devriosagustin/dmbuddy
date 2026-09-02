@@ -56,6 +56,8 @@ export const MapExplorer = () => {
   const toggleRevealTile = useCombatStore((s) => s.toggleRevealTile);
   const toggleRevealEnemy = useCombatStore((s) => s.toggleRevealEnemy);
   const setVisionRange = useCombatStore((s) => s.setVisionRange);
+  const mapBackground = useCombatStore((s) => s.mapBackground);
+  const setMapBackground = useCombatStore((s) => s.setMapBackground);
   const mapVisible = useCombatStore((s) => s.mapVisible);
   const setMapVisible = useCombatStore((s) => s.setMapVisible);
   const {
@@ -480,6 +482,8 @@ export const MapExplorer = () => {
             revealedEnemyIds={revealedEnemyIds}
             onToggleRevealTile={toggleRevealTile}
             onToggleRevealEnemy={toggleRevealEnemy}
+            mapBackground={mapBackground}
+            onMapBackground={setMapBackground}
           />
         </div>
 

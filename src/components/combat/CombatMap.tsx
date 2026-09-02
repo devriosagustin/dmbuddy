@@ -19,6 +19,7 @@ import {
   gridDistanceFeet,
 } from '../../utils/mapUtils';
 import { MAP_SIZE_PRESETS, presetForSize } from '../../utils/mapSize';
+import { MAP_BACKGROUNDS, getMapBackground } from '../../config/mapBackgrounds';
 import { hpRatio, hpBarColorClass } from '../../utils/combatUtils';
 import { FogOfWarPanel } from './FogOfWarPanel';
 
@@ -79,6 +80,9 @@ interface CombatMapProps {
   revealedEnemyIds: string[];
   onToggleRevealTile: (x: number, y: number) => void;
   onToggleRevealEnemy: (id: string) => void;
+  /** Id del patrón de fondo de la cuadrícula (ver MAP_BACKGROUNDS). */
+  mapBackground: string;
+  onMapBackground: (id: string) => void;
 }
 
 interface DragState {
@@ -102,7 +106,7 @@ const SAME = <T,>(a: T, b: T) => JSON.stringify(a) === JSON.stringify(b);
 const RANGE_PRESETS = [5, 10, 15, 30, 60, 90, 120];
 const AOE_PRESETS = [5, 10, 15, 20, 30, 60];
 
-export const CombatMap = ({ participants, activeId, nextId, selectedId, tiles, tileType, onTileTypeChange, tileMode, onToggleTileMode, onToggleTile, onClearTiles, onExportLayouts, onImportLayouts, savedLayouts, onSaveLayout, onLoadLayout, onDeleteLayout, onRandomLayout, onOpenActions, onMove, onSelect, cols, rows, onMapSizeChange, visionRange, onVisionRange, revealedTileKeys, revealedEnemyIds, onToggleRevealTile, onToggleRevealEnemy }: CombatMapProps) => {
+export const CombatMap = ({ participants, activeId, nextId, selectedId, tiles, tileType, onTileTypeChange, tileMode, onToggleTileMode, onToggleTile, onClearTiles, onExportLayouts, onImportLayouts, savedLayouts, onSaveLayout, onLoadLayout, onDeleteLayout, onRandomLayout, onOpenActions, onMove, onSelect, cols, rows, onMapSizeChange, visionRange, onVisionRange, revealedTileKeys, revealedEnemyIds, onToggleRevealTile, onToggleRevealEnemy, mapBackground, onMapBackground }: CombatMapProps) => {
   const gridRef = useRef<HTMLDivElement>(null);
   const [mode, setMode] = useState<Mode>('move');
   const [drag, setDrag] = useState<DragState | null>(null);
@@ -280,10 +284,11 @@ export const CombatMap = ({ participants, activeId, nextId, selectedId, tiles, t
     ? participants.filter((p) => p.x !== undefined && p.y !== undefined && aoeCells.some((c) => c.x === p.x && c.y === p.y)).length
     : 0;
 
+  const bg = getMapBackground(mapBackground);
+  const cellBg = (x: number, y: number): string => (x + y) % 2 === 0 ? bg.a : bg.b;
   const cellClass = (x: number, y: number): string => {
     const isHover = hover?.x === x && hover?.y === y;
-    const base = (x + y) % 2 === 0 ? 'bg-dnd-leather/[0.09]' : 'bg-dnd-leather/[0.18]';
-    return `${base} ${isHover ? 'bg-dnd-gold/30' : ''}`;
+    return isHover ? 'bg-dnd-gold/40' : '';
   };
 
   const isInRange = (x: number, y: number) => rangeCells.some((c) => c.x === x && c.y === y);
@@ -372,6 +377,7 @@ export const CombatMap = ({ participants, activeId, nextId, selectedId, tiles, t
               >
                 <option value="wall">Muro</option>
                 <option value="door">🚪 Puerta</option>
+                <option value="secretDoor">🚪 Puerta secreta</option>
                 <option value="trap">✚ Trampa</option>
                 <option value="treasure">🟨 Tesoro</option>
                 <option value="investigation">🔍 Investigación</option>
@@ -417,6 +423,20 @@ export const CombatMap = ({ participants, activeId, nextId, selectedId, tiles, t
             {MAP_SIZE_PRESETS.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.label} · {p.cols * 5}×{p.rows * 5} pies
+              </option>
+            ))}
+          </select>
+          <select
+            value={getMapBackground(mapBackground).id}
+            onChange={(e) => onMapBackground(e.target.value)}
+            aria-label="Fondo del mapa"
+            title="Patrón de fondo de la cuadrícula"
+            className="input h-8 shrink-0 px-2 py-0 text-xs"
+            style={{ width: '8rem' }}
+          >
+            {MAP_BACKGROUNDS.map((b) => (
+              <option key={b.id} value={b.id}>
+                {b.label}
               </option>
             ))}
           </select>
@@ -626,7 +646,7 @@ export const CombatMap = ({ participants, activeId, nextId, selectedId, tiles, t
           {Array.from({ length: cols * rows }, (_, i) => {
             const x = i % cols;
             const y = Math.floor(i / cols);
-            return <div key={i} className={`${cellClass(x, y)} border-r border-b border-dnd-ink/70`} />;
+            return <div key={i} className={`${cellClass(x, y)} border-r border-b border-dnd-ink/70`} style={{ background: cellBg(x, y) }} />;
           })}
         </div>
 
@@ -658,6 +678,15 @@ export const CombatMap = ({ participants, activeId, nextId, selectedId, tiles, t
                   ? 'bg-emerald-700/40 flex items-center justify-center'
                   : 'bg-amber-950/90 flex items-center justify-center';
                 icon = tile.open === true ? '🚪' : '🔒';
+              } else if (tile.type === 'secretDoor') {
+                // Puerta secreta (vista DM): muro oscuro con contorno dorado
+                // punteado para distinguirla. Para el jugador se ve como un muro.
+                const openTop = !hasTile(tiles, x, y - 1, 'wall') && !hasTile(tiles, x, y - 1, 'secretDoor');
+                const openBottom = !hasTile(tiles, x, y + 1, 'wall') && !hasTile(tiles, x, y + 1, 'secretDoor');
+                const openLeft = !hasTile(tiles, x - 1, y, 'wall') && !hasTile(tiles, x - 1, y, 'secretDoor');
+                const openRight = !hasTile(tiles, x + 1, y, 'wall') && !hasTile(tiles, x + 1, y, 'secretDoor');
+                baseClass = `bg-dnd-ink/95 flex items-center justify-center ring-1 ring-inset ring-dnd-gold/80 ${openTop ? 'border-t-2 border-dnd-gold' : ''} ${openBottom ? 'border-b-2 border-dnd-gold' : ''} ${openLeft ? 'border-l-2 border-dnd-gold' : ''} ${openRight ? 'border-r-2 border-dnd-gold' : ''}`;
+                icon = '🚪';
               } else if (tile.type === 'treasure') {
                 baseClass = 'bg-yellow-600/50 flex items-center justify-center';
                 icon = '🟨';

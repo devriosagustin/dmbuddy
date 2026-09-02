@@ -8,6 +8,7 @@ import type { CombatState, Combatant, CombatLogEntry, StatusEffect, MapTile, Til
 import { sortByInitiative, playerToCombatant } from '../utils/combatUtils';
 import { findSpawnCell, inBounds, gridDistanceFeet, isBlocked, setActiveMapSize, MAP_COLS, MAP_ROWS } from '../utils/mapUtils';
 import { tileKey } from '../types/session';
+import { DEFAULT_MAP_BACKGROUND } from '../config/mapBackgrounds';
 
 // Sincroniza los PG finales del combate con el party (sin recarga circular:
 // playerStore no importa combatStore).
@@ -128,6 +129,8 @@ export interface CombatStore extends CombatState {  // Acciones
   toggleRevealEnemy: (id: string) => void;
   /** Fija el radio de visión (pies) de la cortina de guerra. */
   setVisionRange: (feet: number) => void;
+  /** Cambia el patrón de fondo de la cuadrícula del mapa. */
+  setMapBackground: (id: string) => void;
   /** Cambia la resolución de la cuadrícula (columnas/filas) del mapa. */
   setMapSize: (cols: number, rows: number) => void;
   /** Activa/desactiva si el party puede ver el mapa. */
@@ -189,6 +192,7 @@ export const useCombatStore = create<CombatStore>()(
       mapCols: MAP_COLS,
       mapRows: MAP_ROWS,
       mapVisible: true,
+      mapBackground: DEFAULT_MAP_BACKGROUND,
       chat: [],
       xpAwards: [],
       rollRequest: null,
@@ -945,6 +949,10 @@ export const useCombatStore = create<CombatStore>()(
 
       setVisionRange: (feet) => {
         set({ visionRange: Math.max(5, Math.round(feet)) });
+      },
+
+      setMapBackground: (id) => {
+        set({ mapBackground: id });
       },
 
       setMapSize: (cols, rows) => {

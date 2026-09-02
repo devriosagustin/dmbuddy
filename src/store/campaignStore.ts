@@ -9,6 +9,7 @@ import type { CombatState, Player } from '../types';
 import { usePlayerStore } from './playerStore';
 import { useCombatStore } from './combatStore';
 import { setActiveMapSize } from '../utils/mapUtils';
+import { DEFAULT_MAP_BACKGROUND } from '../config/mapBackgrounds';
 
 const makeId = (): string => {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return crypto.randomUUID();
@@ -64,6 +65,7 @@ const captureLive = (): CampaignSnapshot => {
       mapCols: c.mapCols,
       mapRows: c.mapRows,
       mapVisible: c.mapVisible,
+      mapBackground: c.mapBackground,
       chat: c.chat,
       xpAwards: c.xpAwards,
     },
@@ -92,6 +94,7 @@ const applySnapshot = (snapshot: CampaignSnapshot): void => {
     mapCols: snapshot.combat.mapCols,
     mapRows: snapshot.combat.mapRows,
     mapVisible: snapshot.combat.mapVisible ?? true,
+    mapBackground: snapshot.combat.mapBackground ?? DEFAULT_MAP_BACKGROUND,
     chat: snapshot.combat.chat ?? [],
     xpAwards: snapshot.combat.xpAwards ?? [],
   });

@@ -42,7 +42,7 @@ const makeSnapshot = (overrides: Partial<SyncCombatSnapshot> = {}): SyncCombatSn
 const applyAward = (awards: XpAward[], id = 'c1') => {
   useSessionStore.getState().setRemoteCombat({
     snapshot: makeSnapshot({ id, isActive: false, xpAwards: awards }),
-    settings: { visionRange: 30, mapCols: 28, mapRows: 16 },
+    settings: { visionRange: 30, mapCols: 28, mapRows: 16, mapBackground: 'leather' },
   });
 };
 

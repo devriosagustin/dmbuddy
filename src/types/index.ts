@@ -364,6 +364,8 @@ export interface CombatState {
   mapRows: number;
   /** Visible para el party: false muestra "El DM está preparando el mapa". */
   mapVisible: boolean;
+  /** Id del patrón de fondo de la cuadrícula (ver MAP_BACKGROUNDS). */
+  mapBackground: string;
   /** Mensajes de chat/lore de la sesión (sincronizados a la party). */
   chat: ChatMessage[];
   /** Reparto de XP del último combate finalizado (sincronizado a la party). */
@@ -402,7 +404,7 @@ export interface PendingEncounter {
   partyTokens: PartyToken[];
 }
 
-export type TileType = 'wall' | 'door' | 'trap' | 'treasure' | 'investigation';
+export type TileType = 'wall' | 'door' | 'secretDoor' | 'trap' | 'treasure' | 'investigation';
 
 export interface MapTile {
   x: number;

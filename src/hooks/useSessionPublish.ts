@@ -9,6 +9,7 @@ import { usePlayerStore } from '../store/playerStore';
 import { useSessionStore } from '../store/sessionStore';
 import { buildCombatSnapshot, publishCombat, watchRollResponses } from '../services/firebaseSync';
 import { playerToCombatant } from '../utils/combatUtils';
+import { DEFAULT_MAP_BACKGROUND } from '../config/mapBackgrounds';
 import type { Combatant } from '../types';
 
 /**
@@ -63,6 +64,7 @@ export const useSessionPublish = () => {
         visionRange: s.visionRange,
         mapCols: s.mapCols ?? 28,
         mapRows: s.mapRows ?? 16,
+        mapBackground: s.mapBackground ?? DEFAULT_MAP_BACKGROUND,
       });
     };
 
