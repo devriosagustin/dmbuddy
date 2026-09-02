@@ -136,8 +136,8 @@ export const PlaceCreatureModal = ({ open, onClose }: PlaceCreatureModalProps) =
     <Modal
       open={open}
       onClose={onClose}
-      title="Añadir criatura al mapa"
-      subtitle="La criatura se coloca en una casilla libre y permanece hasta que la retires"
+      title="Añadir al mapa"
+      subtitle="Se coloca en una casilla libre y permanece hasta que la retires"
       maxWidth="xl"
     >
       <div className="mb-4 flex gap-2" role="tablist" aria-label="Tipo de criatura">

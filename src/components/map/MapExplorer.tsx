@@ -403,7 +403,7 @@ export const MapExplorer = () => {
                 Iniciar encuentro
               </Button>
               <Button variant="secondary" onClick={() => setShowAdd(true)} icon={<Plus size={16} />}>
-                Añadir criatura
+                Añadir
               </Button>
               {(mapCreatures.length > 0 || partyTokens.length > 0) && (
                 <Button
