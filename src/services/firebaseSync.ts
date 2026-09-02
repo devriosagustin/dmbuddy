@@ -112,11 +112,11 @@ export const removePlayerSheet = async (code: string, playerId: string): Promise
 
 /** Indica si el DM ha revelado la vida de un combatiente. */
 export const isEnemyRevealed = (snapshot: SyncCombatSnapshot, id: string): boolean =>
-  snapshot.revealedEnemyIds.includes(id);
+  (snapshot.revealedEnemyIds ?? []).includes(id);
 
 /** Indica si el DM ha revelado una casilla de trampa/tesoro/investigación. */
 export const isTileRevealed = (snapshot: SyncCombatSnapshot, x: number, y: number): boolean =>
-  snapshot.revealedTileKeys.includes(tileKey(x, y));
+  (snapshot.revealedTileKeys ?? []).includes(tileKey(x, y));
 
 /** Tipo de "enemigo" según tipo de combatiente (monstruo o NPC hostil). */
 export const isHostileType = (c: Combatant): boolean => c.type === 'monster' || (c.type === 'npc' && c.npcRole === 'enemy');
@@ -145,8 +145,8 @@ export const buildCombatSnapshot = (
   encounterCount: state.encounterCount,
   participants: state.participants,
   tiles: state.tiles,
-  revealedTileKeys: state.revealedTileKeys,
-  revealedEnemyIds: state.revealedEnemyIds,
+  revealedTileKeys: state.revealedTileKeys ?? [],
+  revealedEnemyIds: state.revealedEnemyIds ?? [],
 });
 
 export type { RemotePlayerSheet, Combatant, MapTile };

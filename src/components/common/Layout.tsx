@@ -33,6 +33,11 @@ export const Layout = () => {
   useSessionPublish();
   usePlayerPublish();
 
+  // Si hay una sesión persistida (recarga de página), reintenta conectarse.
+  useEffect(() => {
+    useSessionStore.getState().restoreSession();
+  }, []);
+
   // Detectar dispositivos móviles
   useEffect(() => {
     const handleResize = () => {

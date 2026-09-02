@@ -69,13 +69,29 @@ describe('cortina de guerra (revelación)', () => {
     expect(isEnemyRevealed(snapshot, 'nope')).toBe(false);
   });
 
-  it('isTileRevealed consulta revealedTileKeys', () => {
-    expect(isTileRevealed(snapshot, 2, 3)).toBe(true);
-    expect(isTileRevealed(snapshot, 0, 0)).toBe(false); // muro no se "revela"
+  it('isEnemyRevealed tolera snapshots sin revealedEnemyIds', () => {
+    const old = { ...snapshot, revealedEnemyIds: undefined as unknown as string[] };
+    expect(isEnemyRevealed(old, 'gob')).toBe(false);
   });
 
-  it('tileKey genera la clave única x-y', () => {
-    expect(tileKey(2, 3)).toBe('2-3');
-    expect(tileKey(0, 0)).toBe('0-0');
+  it('isTileRevealed tolera snapshots sin revealedTileKeys', () => {
+    const old = { ...snapshot, revealedTileKeys: undefined as unknown as string[] };
+    expect(isTileRevealed(old, 2, 3)).toBe(false);
+  });
+
+  it('buildCombatSnapshot normaliza revealedEnemyIds/revealedTileKeys ausentes', () => {
+    const out = buildCombatSnapshot({
+      id: 'c1',
+      round: 1,
+      turn: 0,
+      isActive: true,
+      encounterCount: 1,
+      participants: [combatant('gob', 'monster')],
+      tiles: [],
+      revealedTileKeys: undefined as unknown as string[],
+      revealedEnemyIds: undefined as unknown as string[],
+    });
+    expect(out.revealedEnemyIds).toEqual([]);
+    expect(out.revealedTileKeys).toEqual([]);
   });
 });

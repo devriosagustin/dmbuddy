@@ -1,9 +1,12 @@
 // ============================================================
 // Store de sesión multijugador: rol, código y estado remoto.
-// No se persiste en localStorage: cada carga parte sin sesión.
+// Se persiste rol + código en localStorage para volver a
+// reconectar al recargar la página (restoreSession reinicia los
+// listeners). El estado de conexión en sí no se persiste.
 // ============================================================
 
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import {
   createSessionMeta,
   normalizeCode,
@@ -35,6 +38,8 @@ interface SessionStore {
   setRemoteCombat: (payload: CombatPayload | null) => void;
   setRemotePlayers: (players: RemotePlayerSheet[]) => void;
   setError: (message: string | null) => void;
+  /** Reestablece los listeners tras recargar con una sesión persistida. */
+  restoreSession: () => void;
 }
 
 let activeDetach: (() => void) | null = null;
@@ -44,87 +49,116 @@ const detach = () => {
   activeDetach = null;
 };
 
-export const useSessionStore = create<SessionStore>()((set, get) => ({
-  role: null,
-  code: null,
-  status: 'idle',
-  error: null,
-  remoteCombat: null,
-  remotePlayers: [],
-  recentCodes: [],
-
-  createSession: async (code) => {
-    const normalized = normalizeCode(code);
-    if (normalized.length < 3) {
-      set({ error: 'El código debe tener al menos 3 caracteres alfanuméricos.' });
-      return false;
-    }
-
-    detach();
-    const dmId = `dm-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
-
-    set({ role: 'dm', code: normalized, status: 'connecting', error: null });
-    try {
-      const existing = await readSessionMeta(normalized);
-      if (existing) {
-        set({ role: null, code: null, status: 'error', error: 'Ese código ya está en uso. Prueba otro.' });
-        return false;
-      }
-      await createSessionMeta(normalized, dmId);
-
-      const detachPlayers = watchPlayers(normalized, (players) => {
-        get().setRemotePlayers(players);
-      });
-      activeDetach = detachPlayers;
-      set({ status: 'connected', error: null });
-      return true;
-    } catch {
-      set({ role: null, code: null, status: 'error', error: 'No se pudo crear la sesión. Revisa tu conexión.' });
-      return false;
-    }
-  },
-
-  joinSession: async (code) => {
-    const normalized = normalizeCode(code);
-    if (normalized.length < 3) {
-      set({ error: 'El código debe tener al menos 3 caracteres alfanuméricos.' });
-      return false;
-    }
-
-    detach();
-    set({ role: 'player', code: normalized, status: 'connecting', error: null });
-    try {
-      const meta = await readSessionMeta(normalized);
-      if (!meta) {
-        set({ role: null, code: null, status: 'error', error: 'No existe una sesión con ese código.' });
-        return false;
-      }
-
-      const detachCombat = watchCombat(normalized, (payload) => {
-        get().setRemoteCombat(payload);
-      });
-      activeDetach = detachCombat;
-      set({ status: 'connected', error: null });
-      return true;
-    } catch {
-      set({ role: null, code: null, status: 'error', error: 'No se pudo unir a la sesión. Revisa tu conexión.' });
-      return false;
-    }
-  },
-
-  leaveSession: () => {
-    detach();
-    set({
+export const useSessionStore = create<SessionStore>()(
+  persist(
+    (set, get) => ({
       role: null,
       code: null,
       status: 'idle',
       error: null,
       remoteCombat: null,
       remotePlayers: [],
-    });
-  },
+      recentCodes: [],
 
-  setRemoteCombat: (payload) => set({ remoteCombat: payload }),
-  setRemotePlayers: (players) => set({ remotePlayers: players }),
-  setError: (message) => set({ error: message }),
-}));
+      createSession: async (code) => {
+        const normalized = normalizeCode(code);
+        if (normalized.length < 3) {
+          set({ error: 'El código debe tener al menos 3 caracteres alfanuméricos.' });
+          return false;
+        }
+
+        detach();
+        const dmId = `dm-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+
+        set({ role: 'dm', code: normalized, status: 'connecting', error: null });
+        try {
+          const existing = await readSessionMeta(normalized);
+          if (existing) {
+            set({ role: null, code: null, status: 'error', error: 'Ese código ya está en uso. Prueba otro.' });
+            return false;
+          }
+          await createSessionMeta(normalized, dmId);
+
+          const detachPlayers = watchPlayers(normalized, (players) => {
+            get().setRemotePlayers(players);
+          });
+          activeDetach = detachPlayers;
+          set({ status: 'connected', error: null });
+          return true;
+        } catch {
+          set({ role: null, code: null, status: 'error', error: 'No se pudo crear la sesión. Revisa tu conexión.' });
+          return false;
+        }
+      },
+
+      joinSession: async (code) => {
+        const normalized = normalizeCode(code);
+        if (normalized.length < 3) {
+          set({ error: 'El código debe tener al menos 3 caracteres alfanuméricos.' });
+          return false;
+        }
+
+        detach();
+        set({ role: 'player', code: normalized, status: 'connecting', error: null });
+        try {
+          const meta = await readSessionMeta(normalized);
+          if (!meta) {
+            set({ role: null, code: null, status: 'error', error: 'No existe una sesión con ese código.' });
+            return false;
+          }
+
+          const detachCombat = watchCombat(normalized, (payload) => {
+            get().setRemoteCombat(payload);
+          });
+          activeDetach = detachCombat;
+          set({ status: 'connected', error: null });
+          return true;
+        } catch {
+          set({ role: null, code: null, status: 'error', error: 'No se pudo unir a la sesión. Revisa tu conexión.' });
+          return false;
+        }
+      },
+
+      leaveSession: () => {
+        detach();
+        set({
+          role: null,
+          code: null,
+          status: 'idle',
+          error: null,
+          remoteCombat: null,
+          remotePlayers: [],
+        });
+      },
+
+      setRemoteCombat: (payload) => set({ remoteCombat: payload }),
+      setRemotePlayers: (players) => set({ remotePlayers: players }),
+      setError: (message) => set({ error: message }),
+
+      restoreSession: () => {
+        const { role, code, status } = get();
+        if (!role || !code || status === 'connected' || status === 'connecting') return;
+
+        detach();
+        set({ status: 'connecting', error: null });
+
+        if (role === 'dm') {
+          const detachPlayers = watchPlayers(code, (players) => {
+            get().setRemotePlayers(players);
+          });
+          activeDetach = detachPlayers;
+        } else {
+          const detachCombat = watchCombat(code, (payload) => {
+            get().setRemoteCombat(payload);
+          });
+          activeDetach = detachCombat;
+        }
+        set({ status: 'connected' });
+      },
+    }),
+    {
+      name: 'dmbuddy-session',
+      partialize: (state) => ({ role: state.role, code: state.code }),
+    },
+  ),
+);

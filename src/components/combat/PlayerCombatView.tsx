@@ -55,7 +55,7 @@ export const PlayerCombatView = () => {
   const [selected, setSelected] = useState<Combatant | null>(null);
 
   const snapshot = remoteCombat?.snapshot ?? null;
-  const visionRange = remoteCombat?.settings.visionRange ?? 30;
+  const visionRange = remoteCombat?.settings?.visionRange ?? 30;
   const participants = snapshot?.participants ?? [];
   const tiles = snapshot?.tiles ?? [];
 
@@ -104,8 +104,8 @@ export const PlayerCombatView = () => {
   });
 
   const hostileHiddenCount = hiddenHostiles.filter((h) => !visibleTokens.includes(h)).length;
-  const revealedCount = snapshot.revealedEnemyIds.length;
-  const revealedTilesCount = snapshot.revealedTileKeys.length;
+  const revealedCount = (snapshot.revealedEnemyIds ?? []).length;
+  const revealedTilesCount = (snapshot.revealedTileKeys ?? []).length;
 
   const cellColPct = 100 / MAP_COLS;
   const cellRowPct = 100 / MAP_ROWS;
@@ -118,11 +118,11 @@ export const PlayerCombatView = () => {
           <span className="rounded-md bg-dnd-leather/40 px-2 py-0.5 text-[11px] font-bold uppercase text-dnd-muted">
             Ronda {snapshot.round}
           </span>
-          {snapshot.turn >= 0 && snapshot.participants[snapshot.turn] && (
+          {snapshot.turn >= 0 && participants[snapshot.turn] && (
             <span className="flex items-center gap-1 text-dnd-muted">
               <MapPin size={13} className="text-dnd-gold" />
               Turno de{' '}
-              <span className="font-bold text-dnd-text">{snapshot.participants[snapshot.turn]?.name}</span>
+              <span className="font-bold text-dnd-text">{participants[snapshot.turn]?.name}</span>
             </span>
           )}
         </div>
