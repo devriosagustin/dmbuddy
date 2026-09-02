@@ -28,6 +28,7 @@ import { StartEncounterModal } from './StartEncounterModal';
 import { CreatureEditorModal } from './CreatureEditorModal';
 import { useCombatStore } from '../../store/combatStore';
 import { useLayoutStore } from '../../store/layoutStore';
+import { usePlayerStore } from '../../store/playerStore';
 import { useFullscreen } from '../../hooks/useFullscreen';
 import { randomLayout } from '../../utils/layoutPatterns';
 import { mapCreatureToCombatant } from '../../utils/combatUtils';
@@ -69,7 +70,11 @@ export const MapExplorer = () => {
     updateMapCreature,
     endCombat,
     resetCombat,
+    partyTokens,
+    setPartyToken,
+    removePartyToken,
   } = useCombatStore();
+  const players = usePlayerStore((s) => s.players);
 
   const { savedLayouts, saveLayout, savedLayout: getSavedLayout, deleteLayout, exportLayouts, importLayouts } = useLayoutStore();
 
@@ -83,24 +88,52 @@ export const MapExplorer = () => {
 
   const { isFullscreen, toggle: toggleFullscreen, targetRef: mapRef, overlayClass } = useFullscreen();
 
-  // Tokens mostrados: en exploración las criaturas del mapa; en encuentro,
-  // los combatientes activos.
+  // Tokens mostrados: en exploración las criaturas del mapa + las fichas del
+  // party (que NO son criaturas); en encuentro, los combatientes activos.
   const tokens = useMemo<Combatant[]>(() => {
     if (isActive) return participants;
-    return mapCreatures.map(mapCreatureToCombatant);
-  }, [isActive, participants, mapCreatures]);
+    const creatureTokens = mapCreatures.map(mapCreatureToCombatant);
+    const partyTokensOnMap = partyTokens
+      .map((t) => {
+        const player = players.find((p) => p.id === t.playerId);
+        if (!player) return null;
+        const c: Combatant = {
+          id: `party-${player.id}`,
+          name: player.name,
+          initiative: 0,
+          hp: player.hp,
+          maxHp: player.maxHp,
+          tempHp: 0,
+          armorClass: player.armorClass,
+          type: 'player',
+          isActive: true,
+          statusEffects: [],
+          playerId: player.id,
+          isDead: false,
+          speed: 30,
+          x: t.x,
+          y: t.y,
+        };
+        return c;
+      })
+      .filter((c): c is Combatant => c !== null);
+    return [...creatureTokens, ...partyTokensOnMap];
+  }, [isActive, participants, mapCreatures, partyTokens, players]);
 
   const handleMove = (id: string, x: number, y: number) => {
     if (isActive) {
       moveCombatant(id, x, y);
+    } else if (id.startsWith('party-')) {
+      const playerId = id.replace('party-', '');
+      setPartyToken(playerId, x, y);
     } else {
       updateMapCreature(id, { x, y });
     }
   };
 
   const handleOpenActions = (combatant: Combatant) => {
-    // En exploración, buscamos la criatura del mapa y abrimos su editor.
-    // En encuentro, abrimos el modal de acciones de combate.
+    // En exploración, abrimos el editor de la criatura del mapa (los PJ del
+    // party no se editan como criaturas). En encuentro, el modal de acciones.
     if (isActive) {
       setSelected(combatant);
     } else {
@@ -109,12 +142,11 @@ export const MapExplorer = () => {
     }
   };
 
-  // Layouts: guardar/exportar/importar incluye criaturas del mapa.
+  // Layouts: guardar/exportar/importar incluye criaturas del mapa. Los
+  // miembros del party no se guardan: sus fichas viven en partyTokens.
   const handleSaveLayout = (name: string) => {
     const walls = tiles.filter((t) => t.type === 'wall').map((t) => ({ x: t.x, y: t.y }));
-    // Los personajes del party no se guardan en los layouts.
     const creatures = mapCreatures
-      .filter((c) => c.kind !== 'player')
       .map((c) => ({
         name: c.name,
         kind: c.kind as 'monster' | 'npc',
@@ -135,28 +167,30 @@ export const MapExplorer = () => {
     const layout = getSavedLayout(id);
     if (!layout) return;
     setTiles(layout.barriers.map((b) => ({ ...b, type: 'wall' as const })));
-    // Restaurar las criaturas guardadas del layout. Los personajes del party
-    // actuales se conservan (no se guardan en layouts).
-    const current = useCombatStore.getState().mapCreatures;
-    const keptPlayers = current.filter((c) => c.kind === 'player');
-    const restored: MapCreature[] = (layout.creatures ?? []).map((c) => ({
-      id: `mc-${layout.id}-${c.x}-${c.y}-${Math.random().toString(36).slice(2, 8)}`,
-      name: c.name,
-      kind: c.kind,
-      refId: c.refId,
-      x: c.x,
-      y: c.y,
-      hp: c.hp,
-      maxHp: c.maxHp,
-      tempHp: c.tempHp,
-      armorClass: c.armorClass,
-      speed: c.speed,
-      npcRole: c.npcRole,
-      xpReward: c.xpReward,
-      statusEffects: [],
-      isDead: false,
-    }));
-    useCombatStore.setState({ mapCreatures: [...keptPlayers, ...restored] });
+    // Restaurar las criaturas guardadas del layout. Las fichas del party
+    // actuales se conservan (viven en partyTokens y no se guardan en layouts).
+    // Los layouts antiguos podrían incluir kind === 'player' (legacy): se
+    // descartan, pues los PJ ya no son criaturas.
+    const restored: MapCreature[] = (layout.creatures ?? [])
+      .filter((c): c is MapCreature & { kind: 'monster' | 'npc' } => c.kind !== 'player')
+      .map((c) => ({
+        id: `mc-${layout.id}-${c.x}-${c.y}-${Math.random().toString(36).slice(2, 8)}`,
+        name: c.name,
+        kind: c.kind,
+        refId: c.refId,
+        x: c.x,
+        y: c.y,
+        hp: c.hp,
+        maxHp: c.maxHp,
+        tempHp: c.tempHp,
+        armorClass: c.armorClass,
+        speed: c.speed,
+        npcRole: c.npcRole,
+        xpReward: c.xpReward,
+        statusEffects: [],
+        isDead: false,
+      }));
+    useCombatStore.setState({ mapCreatures: restored });
   };
   const handleDeleteLayout = (id: string) => deleteLayout(id);
   const handleRandomLayout = () => {
@@ -377,6 +411,32 @@ export const MapExplorer = () => {
                     </button>
                   </li>
                 ))}
+                {partyTokens.map((t) => {
+                  const player = players.find((p) => p.id === t.playerId);
+                  if (!player) return null;
+                  return (
+                    <li
+                      key={`party-${t.playerId}`}
+                      className="flex items-center justify-between gap-2 rounded-md border border-emerald-500/30 px-2.5 py-1.5 text-left text-xs"
+                    >
+                      <span className="flex min-w-0 items-center gap-1.5 truncate font-bold text-emerald-200">
+                        <Users size={13} className="shrink-0 text-emerald-400" />
+                        <span className="truncate">{player.name} (party)</span>
+                      </span>
+                      <span className="shrink-0 text-[10px] text-dnd-muted">
+                        ({t.x},{t.y}) {player.hp}/{player.maxHp}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => removePartyToken(player.id)}
+                        className="shrink-0 text-[10px] font-bold text-red-300 hover:text-red-100"
+                        aria-label={`Retirar a ${player.name} del mapa`}
+                      >
+                        ✕
+                      </button>
+                    </li>
+                  );
+                })}
               </ul>
             </div>
           )}

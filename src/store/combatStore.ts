@@ -39,11 +39,10 @@ const creatureToCombatant = (c: MapCreature): Omit<Combatant, 'id'> => {
     maxHp: c.maxHp,
     tempHp: c.tempHp,
     armorClass: c.armorClass,
-    type: c.kind === 'player' ? 'player' : c.kind === 'npc' ? 'npc' : 'monster',
+    type: c.kind === 'npc' ? 'npc' : 'monster',
     isActive: true,
     statusEffects: c.statusEffects,
     monsterId: c.kind === 'monster' ? c.refId : undefined,
-    playerId: c.playerId,
     npcId: c.kind === 'npc' ? c.refId : undefined,
     npcRole: c.npcRole,
     xpReward: c.xpReward,
@@ -89,6 +88,10 @@ export interface CombatStore extends CombatState {  // Acciones
   removeMapCreature: (id: string) => void;
   /** Actualiza campos de una criatura persistente del mapa. */
   updateMapCreature: (id: string, updates: Partial<MapCreature>) => void;
+  /** Fija o mueve la posición de ficha de un miembro del party en el mapa. */
+  setPartyToken: (playerId: string, x: number, y: number) => void;
+  /** Retira la ficha de un miembro del party del mapa. */
+  removePartyToken: (playerId: string) => void;
   /** Inicia un encuentro con las criaturas indicadas + el party indicado. */
   startEncounter: (creatureIds: string[], playerIds: string[]) => void;
   /** Revela u oculta una casilla (trampa/tesoro/investigación) a la party. */
@@ -134,6 +137,7 @@ export const useCombatStore = create<CombatStore>()(
       encounterCount: 0,
       tiles: [],
       mapCreatures: [],
+      partyTokens: [],
       revealedTileKeys: [],
       revealedEnemyIds: [],
       visionRange: 30,
@@ -644,41 +648,34 @@ export const useCombatStore = create<CombatStore>()(
         // - Los monstruos/NPCs que participaron y sobrevivieron conservan su PG
         //   en el mapa para futuros encuentros.
         // - Los monstruos/NPCs derrotados (0 PG) se retiran del mapa.
-        // - Los personajes del party NUNCA se retiran: siguen explorando aunque
-        //   hayan caído a 0 PG (estabilizados/moribundos).
+        // Los personajes del party NO son criaturas: su PG ya se sincronizó
+        // arriba a playerStore y sus fichas (partyTokens) permanecen explorando.
         const mapCreatures = get().mapCreatures;
-        const updated = mapCreatures.map((mc) => {
-          // Buscar el combatiente del encuentro que corresponde a esta criatura:
-          // por ref/name, por id (si se conservó) o como último recurso por su
-          // posición en el mapa (criaturas sin refId añadidas a mano).
-          const combatant =
-            participants.find(
-              (p) => p.id === mc.id || (mc.refId !== undefined && p.monsterId === mc.refId && p.name === mc.name)
-            ) ??
-            participants.find(
-              (p) => (p.x === mc.x && p.y === mc.y && p.name === mc.name) || (p.x === mc.x && p.y === mc.y && p.type === mc.kind)
-            );
-          if (!combatant) return mc;
-          // Los personajes del party permanecen en el mapa pase lo que pase.
-          if (mc.kind === 'player') {
+        const updated = mapCreatures
+          .map((mc) => {
+            // Buscar el combatiente del encuentro que corresponde a esta criatura:
+            // por ref/name, por id (si se conservó) o como último recurso por su
+            // posición en el mapa (criaturas sin refId añadidas a mano).
+            const combatant =
+              participants.find(
+                (p) => p.id === mc.id || (mc.refId !== undefined && p.monsterId === mc.refId && p.name === mc.name)
+              ) ??
+              participants.find(
+                (p) => (p.x === mc.x && p.y === mc.y && p.name === mc.name) || (p.x === mc.x && p.y === mc.y && p.type === mc.kind)
+              );
+            if (!combatant) return mc;
+            // Monstruo/NPC muerto: retirarlo del mapa (filter más abajo lo elimina).
+            if (combatant.isDead || combatant.hp <= 0) return { ...mc, isDead: true };
             return {
               ...mc,
-              hp: Math.max(0, Math.min(mc.maxHp, combatant.hp ?? mc.hp)),
+              hp: combatant.hp,
               tempHp: combatant.tempHp,
               statusEffects: combatant.statusEffects,
               isDead: false,
             };
-          }
-          // Monstruo/NPC muerto: retirarlo del mapa (filter más abajo lo elimina).
-          if (combatant.isDead || combatant.hp <= 0) return { ...mc, isDead: true };
-          return {
-            ...mc,
-            hp: combatant.hp,
-            tempHp: combatant.tempHp,
-            statusEffects: combatant.statusEffects,
-            isDead: false,
-          };
-        }).filter((mc) => !(mc.isDead && mc.kind !== 'player'));
+          })
+          .filter((mc) => !mc.isDead)
+          .map((mc) => ({ ...mc, isDead: false }));
         set({ mapCreatures: updated });
       },
 
@@ -725,8 +722,39 @@ export const useCombatStore = create<CombatStore>()(
         }));
       },
 
+      setPartyToken: (playerId, x, y) => {
+        set((state) => {
+          const exists = state.partyTokens.some((t) => t.playerId === playerId);
+          const partyTokens = exists
+            ? state.partyTokens.map((t) => (t.playerId === playerId ? { ...t, x, y } : t))
+            : [...state.partyTokens, { playerId, x, y }];
+          return { partyTokens };
+        });
+        const player = usePlayerStore.getState().players.find((p) => p.id === playerId);
+        if (player) {
+          get().addLogEntry({
+            type: 'custom',
+            message: `🪪 ${player.name} colocado en el mapa en (${x},${y})`,
+          });
+        }
+      },
+
+      removePartyToken: (playerId) => {
+        const token = get().partyTokens.find((t) => t.playerId === playerId);
+        set((state) => ({
+          partyTokens: state.partyTokens.filter((t) => t.playerId !== playerId),
+        }));
+        if (token) {
+          const player = usePlayerStore.getState().players.find((p) => p.id === playerId);
+          get().addLogEntry({
+            type: 'custom',
+            message: `🗑 ${player?.name ?? 'Un miembro del party'} retirado del mapa`,
+          });
+        }
+      },
+
       startEncounter: (creatureIds, playerIds) => {
-        const { mapCreatures } = get();
+        const { mapCreatures, partyTokens } = get();
         const selected = mapCreatures.filter((c) => creatureIds.includes(c.id));
         if (selected.length === 0 && playerIds.length === 0) return;
 
@@ -743,16 +771,17 @@ export const useCombatStore = create<CombatStore>()(
         for (const p of playerIds) {
           const c = fromPlayer(p);
           if (c) {
-            // Si el jugador ya está colocado en el mapa (exploración), conserva su
-            // posición y PG actuales al entrar al encuentro.
-            const placed = mapCreatures.find((m) => m.kind === 'player' && m.playerId === p);
+            // Si el jugador ya tiene ficha en el mapa (exploración), conserva su
+            // posición y PG actuales al entrar al encuentro. Los PJ no son
+            // criaturas: su posición vive en partyTokens.
+            const placed = partyTokens.find((t) => t.playerId === p);
             const spawn = findSpawnCell(participants, true, get().tiles);
             participants.push({
               ...c,
               id: makeId(),
               x: placed?.x ?? c.x ?? spawn.x,
               y: placed?.y ?? c.y ?? spawn.y,
-              hp: placed?.hp ?? c.hp,
+              hp: c.hp,
             });
           }
         }
@@ -860,18 +889,42 @@ export const useCombatStore = create<CombatStore>()(
       name: 'combat-storage',
       // v1 = un PJ puede llevar varias armas equipadas (weaponIds).
       // v2 = capa de criaturas persistentes del mapa (mapCreatures).
-      version: 2,
+      // v3 = los miembros del party ya no son criaturas: se separan en
+      //      partyTokens (posición en el mapa) y se sacan de mapCreatures.
+      version: 3,
       migrate: (persisted, version) => {
         const state = (persisted ?? {}) as {
           participants?: Array<Record<string, unknown>>;
-          mapCreatures?: unknown;
+          mapCreatures?: Array<Record<string, unknown>>;
+          partyTokens?: unknown;
         };
         let out = state as Record<string, unknown>;
-        if (version === 1) {
+        if (version < 1) {
           out = migrateWeapons(state as never);
         }
         if (out.mapCreatures === undefined) {
           out.mapCreatures = [];
+        }
+        if (out.partyTokens === undefined) {
+          out.partyTokens = [];
+        }
+        // v3: separar a los miembros del party (kind === 'player') que aún
+        // vivieran como criaturas en mapCreatures hacia partyTokens.
+        if (version < 3) {
+          const creatures = (out.mapCreatures as Array<Record<string, unknown>>) ?? [];
+          const playersAsCreatures = creatures.filter((c) => c.kind === 'player');
+          const cleanCreatures = creatures.filter((c) => c.kind !== 'player');
+          const tokens: Array<{ playerId: string; x: number; y: number }> = [
+            ...((out.partyTokens as Array<{ playerId: string; x: number; y: number }>) ?? []),
+            ...playersAsCreatures
+              .filter((c) => typeof c.playerId === 'string')
+              .map((c) => ({
+                playerId: c.playerId as string,
+                x: typeof c.x === 'number' ? c.x : 0,
+                y: typeof c.y === 'number' ? c.y : 0,
+              })),
+          ];
+          out = { ...out, mapCreatures: cleanCreatures, partyTokens: tokens };
         }
         return out as unknown as CombatStore;
       },

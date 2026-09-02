@@ -70,13 +70,40 @@ export const PlayerCombatView = () => {
   const participants = snapshot?.participants ?? [];
   const tiles = snapshot?.tiles ?? [];
   const mapCreatures: MapCreature[] = snapshot?.mapCreatures ?? [];
+  const partyTokens = snapshot?.partyTokens ?? [];
 
   // En exploración (sin combate activo) los tokens provienen de las criaturas
-  // persistentes del mapa; en combate, de la lista de iniciativa.
+  // persistentes del mapa + las fichas del party (que NO son criaturas); en
+  // combate, de la lista de iniciativa.
   const inCombat = !!snapshot?.isActive;
   const tokens: Combatant[] = inCombat
     ? participants
-    : mapCreatures.map((c) => mapCreatureToCombatant(c));
+    : [
+        ...mapCreatures.map((c) => mapCreatureToCombatant(c)),
+        ...partyTokens
+          .map((t): Combatant | null => {
+            const player = localPlayers.find((p) => p.id === t.playerId);
+            if (!player) return null;
+            return {
+              id: `party-${player.id}`,
+              name: player.name,
+              initiative: 0,
+              hp: player.hp,
+              maxHp: player.maxHp,
+              tempHp: 0,
+              armorClass: player.armorClass,
+              type: 'player',
+              isActive: true,
+              statusEffects: [],
+              playerId: player.id,
+              isDead: false,
+              speed: 30,
+              x: t.x,
+              y: t.y,
+            };
+          })
+          .filter((c): c is Combatant => c !== null),
+      ];
 
   // Dimensionado del mapa: celdas cuadradas que quepan en el área disponible.
   useEffect(() => {

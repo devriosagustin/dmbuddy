@@ -391,25 +391,12 @@ describe('Combat Store', () => {
     expect(s.mapCreatures.some((c) => c.name === 'Goblin')).toBe(false);
   });
 
-  it('mantiene a los miembros del party en el mapa tras finalizar el encuentro', () => {
+  it('los miembros del party no son criaturas y se conservan en el mapa tras el encuentro', () => {
     usePlayerStore.setState({ players: [] });
     const player = usePlayerStore.getState().addPlayer(makePlayer());
-    const { addMapCreature, startEncounter, endCombat } = useCombatStore.getState();
-    // El DM coloca al PJ en el mapa (exploración) y a un monstruo.
-    addMapCreature({
-      name: player.name,
-      kind: 'player',
-      playerId: player.id,
-      hp: player.hp,
-      maxHp: player.maxHp,
-      tempHp: 0,
-      armorClass: player.armorClass,
-      speed: 30,
-      x: 5,
-      y: 5,
-      statusEffects: [],
-      isDead: false,
-    });
+    const { addMapCreature, setPartyToken, startEncounter, endCombat } = useCombatStore.getState();
+    // El DM coloca la ficha del PJ (partyTokens) y un monstruo (mapCreature).
+    setPartyToken(player.id, 5, 5);
     addMapCreature({
       name: 'Goblin',
       kind: 'monster',
@@ -423,27 +410,33 @@ describe('Combat Store', () => {
       statusEffects: [],
       isDead: false,
     });
-    const party = useCombatStore.getState().mapCreatures.find((c) => c.kind === 'player')!;
-    const goblin = useCombatStore.getState().mapCreatures.find((c) => c.kind === 'monster')!;
 
-    startEncounter([goblin.id], [player.id]);
+    // El PJ NO es una criatura: no aparece en mapCreatures.
     let s = useCombatStore.getState();
-    // El PJ colocado conserva su posición al entrar al encuentro.
-    const partyCombat = s.participants.find((p) => p.name === player.name);
-    expect(partyCombat).toBeDefined();
-    expect(partyCombat!.x).toBe(5);
-    expect(partyCombat!.y).toBe(5);
+    expect(s.mapCreatures.some((c) => c.name === player.name)).toBe(false);
+    expect(s.partyTokens.some((t) => t.playerId === player.id)).toBe(true);
+
+    const goblin = s.mapCreatures.find((c) => c.name === 'Goblin')!;
+    startEncounter([goblin.id], [player.id]);
+    s = useCombatStore.getState();
+    // El PJ entra al encuentro conservando la posición de su ficha y NO se
+    // duplica (aparece una sola vez, desde la lista del party).
+    const partyCombatants = s.participants.filter((p) => p.name === player.name);
+    expect(partyCombatants).toHaveLength(1);
+    expect(partyCombatants[0].x).toBe(5);
+    expect(partyCombatants[0].y).toBe(5);
+
     // El PJ cae a 0 PG en el combate.
-    useCombatStore.getState().updateHP(partyCombat!.id, 99, true);
+    useCombatStore.getState().updateHP(partyCombatants[0].id, 99, true);
     endCombat();
 
     s = useCombatStore.getState();
-    // El monstruo sobrevive; el PJ NUNCA se retira del mapa aunque esté a 0.
+    // El monstruo sobrevive; el PJ conserva su ficha en el mapa, en ningún
+    // momento es una criatura y no se ha duplicado.
     expect(s.mapCreatures.some((c) => c.id === goblin.id)).toBe(true);
-    const keptParty = s.mapCreatures.find((c) => c.id === party.id);
-    expect(keptParty).toBeDefined();
-    expect(keptParty!.hp).toBe(0);
-    expect(keptParty!.isDead).toBe(false);
+    expect(s.partyTokens.some((t) => t.playerId === player.id)).toBe(true);
+    expect(s.mapCreatures.some((c) => c.name === player.name)).toBe(false);
+    expect(s.partyTokens.length).toBe(1);
   });
 });
 

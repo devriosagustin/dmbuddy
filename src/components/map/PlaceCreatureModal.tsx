@@ -41,7 +41,9 @@ export const PlaceCreatureModal = ({ open, onClose }: PlaceCreatureModalProps) =
   const npcs = useNpcStore((s) => s.npcs);
   const players = usePlayerStore((s) => s.players);
   const mapCreatures = useCombatStore((s) => s.mapCreatures);
+  const partyTokens = useCombatStore((s) => s.partyTokens);
   const addMapCreature = useCombatStore((s) => s.addMapCreature);
+  const setPartyToken = useCombatStore((s) => s.setPartyToken);
   const mapCols = useCombatStore((s) => s.mapCols);
   const mapRows = useCombatStore((s) => s.mapRows);
 
@@ -49,13 +51,11 @@ export const PlaceCreatureModal = ({ open, onClose }: PlaceCreatureModalProps) =
   const [tab, setTab] = useState<'monsters' | 'npcs' | 'players'>('monsters');
 
   const filteredPlayers = useMemo(() => {
-    const placedIds = new Set(
-      mapCreatures.filter((c) => c.kind === 'player').map((c) => c.playerId)
-    );
+    const placedIds = new Set(partyTokens.map((t) => t.playerId));
     const list = players.filter((pl) => !placedIds.has(pl.id));
     if (!search.trim()) return list;
     return list.filter((pl) => pl.name.toLowerCase().includes(search.toLowerCase()));
-  }, [players, mapCreatures, search]);
+  }, [players, partyTokens, search]);
 
   const filteredMonsters = useMemo(() => {
     if (!search.trim()) return monsters;
@@ -67,11 +67,11 @@ export const PlaceCreatureModal = ({ open, onClose }: PlaceCreatureModalProps) =
     return npcs.filter((n) => n.name.toLowerCase().includes(search.toLowerCase()));
   }, [npcs, search]);
 
-  // Primera casilla libre (sin ficha y sin muro).
+  // Primera casilla libre (sin ficha de criatura ni de party, y sin muro).
   const freeCell = (): { x: number; y: number } => {
     for (let y = 0; y < mapRows; y++) {
       for (let x = 0; x < mapCols; x++) {
-        const occupied = mapCreatures.some((c) => c.x === x && c.y === y);
+        const occupied = mapCreatures.some((c) => c.x === x && c.y === y) || partyTokens.some((t) => t.x === x && t.y === y);
         if (!occupied) return { x, y };
       }
     }
@@ -126,20 +126,9 @@ export const PlaceCreatureModal = ({ open, onClose }: PlaceCreatureModalProps) =
     const player = players.find((pl) => pl.id === playerId);
     if (!player) return;
     const cell = freeCell();
-    addMapCreature({
-      name: player.name,
-      kind: 'player',
-      playerId: player.id,
-      x: cell.x,
-      y: cell.y,
-      hp: player.hp,
-      maxHp: player.maxHp,
-      tempHp: 0,
-      armorClass: player.armorClass,
-      speed: 30,
-      statusEffects: [],
-      isDead: false,
-    });
+    // Los miembros del party NO son criaturas: solo se fija la posición de su
+    // ficha en el mapa (partyTokens), separada de las criaturas.
+    setPartyToken(player.id, cell.x, cell.y);
     onClose();
   };
 

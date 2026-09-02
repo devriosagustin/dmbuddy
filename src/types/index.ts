@@ -214,16 +214,28 @@ export interface XpAward {
 }
 
 /**
- * Criatura persistente en el mapa actual (monstruo, NPC o personaje del
- * party). A diferencia de un Combatant, vive fuera del combate: el DM la
- * coloca mientras explora y solo entra en "combate" cuando se inicia un
- * encuentro. Los personajes del party no se guardan en los layouts.
+ * Posición de un miembro del party en el mapa en modo exploración. Los
+ * personajes del party NO son criaturas: no viven en mapCreatures sino en
+ * partyTokens. Así, al iniciar un encuentro nunca se duplican (se añaden una
+ * sola vez desde la lista del party).
+ */
+export interface PartyToken {
+  playerId: string;
+  x: number;
+  y: number;
+}
+
+/**
+ * Criatura persistente en el mapa actual (monstruo o NPC). A diferencia de un
+ * Combatant, vive fuera del combate: el DM la coloca mientras explora y solo
+ * entra en "combate" cuando se inicia un encuentro. Los personajes del party
+ * NO son criaturas y no se guardan aquí (ver PartyToken).
  */
 export interface MapCreature {
   id: string;
   name: string;
-  kind: 'monster' | 'npc' | 'player';
-  /** Id del registro en su catálogo (monster.id / npc.id / player.id). */
+  kind: 'monster' | 'npc';
+  /** Id del registro en su catálogo (monster.id / npc.id). */
   refId?: string;
   /** Posición en la cuadrícula del mapa. */
   x: number;
@@ -233,8 +245,6 @@ export interface MapCreature {
   tempHp: number;
   armorClass: number;
   speed: number;
-  /** Vínculo con un personaje del party (kind === 'player'). */
-  playerId?: string;
   /** Rol del NPC (hostage/ally/neutral/enemy). */
   npcRole?: 'hostage' | 'ally' | 'neutral' | 'enemy';
   /** XP que otorga al ser derrotado (monstruos). */
@@ -270,6 +280,8 @@ export interface CombatState {
   encounterCount: number;
   /** Personajes/jugadores persistentes colocados en el mapa (modo exploración). */
   mapCreatures: MapCreature[];
+  /** Posiciones de los miembros del party en el mapa (NO son criaturas). */
+  partyTokens: PartyToken[];
   /** Tiles en el mapa: muros, trampas, tesoros, investigación. */
   tiles: MapTile[];
   /** Claves "x-y" de tiles revelados a la party (trampa/tesoro/investigación). */

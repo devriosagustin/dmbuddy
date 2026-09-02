@@ -18,7 +18,6 @@ interface CreatureEditorModalProps {
 const kindLabel: Record<MapCreature['kind'], string> = {
   monster: 'Monstruo',
   npc: 'NPC',
-  player: 'Personaje',
 };
 
 export const CreatureEditorModal = ({ creature, onClose }: CreatureEditorModalProps) => {
