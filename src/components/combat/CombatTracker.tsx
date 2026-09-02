@@ -20,11 +20,9 @@ import { Button } from '../common/Button';
 import { InitiativeOrder } from './InitiativeOrder';
 import { CombatMap } from './CombatMap';
 import { CombatLog } from './CombatLog';
-import { FogOfWarPanel } from './FogOfWarPanel';
 import { AddCombatantModal } from './AddCombatantModal';
 import { CombatantActionsModal } from './CombatantActionsModal';
 import { useCombatStore } from '../../store/combatStore';
-import { useSessionStore } from '../../store/sessionStore';
 import { useLayoutStore } from '../../store/layoutStore';
 import { useFullscreen } from '../../hooks/useFullscreen';
 import { randomLayout } from '../../utils/layoutPatterns';
@@ -35,7 +33,6 @@ import type { Combatant, TileType } from '../../types';
  * Pantalla principal de gestión del combate.
  */
 export const CombatTracker = () => {
-  const sessionRole = useSessionStore((s) => s.role);
   const revealedTileKeys = useCombatStore((s) => s.revealedTileKeys);
   const revealedEnemyIds = useCombatStore((s) => s.revealedEnemyIds);
   const visionRange = useCombatStore((s) => s.visionRange);
@@ -339,35 +336,16 @@ return (
               cols={mapCols ?? 28}
               rows={mapRows ?? 16}
               onMapSizeChange={setMapSize}
+              visionRange={visionRange}
+              onVisionRange={setVisionRange}
+              revealedTileKeys={revealedTileKeys}
+              revealedEnemyIds={revealedEnemyIds}
+              onToggleRevealTile={toggleRevealTile}
+              onToggleRevealEnemy={toggleRevealEnemy}
             />
           )}
         </div>
         <div className="relative z-[60] hidden min-h-0 w-[19rem] shrink-0 flex-col md:flex">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setTileMode((v) => !v)}
-            aria-pressed={tileMode}
-            aria-label="Modo tiles: colocar muros, trampas, tesoros, investigación"
-            className={`mb-2 w-full justify-center gap-2 text-xs ${
-              tileMode ? '!border-amber-400 !bg-amber-500/20 !text-amber-200' : ''
-            }`}
-            icon={<span aria-hidden="true">🧱</span>}
-          >
-            {tileMode ? 'Colocando tiles (clic en el mapa)' : 'Tiles (muros/trampas/tesoros)'}
-          </Button>
-          {sessionRole === 'dm' && (
-            <FogOfWarPanel
-              participants={participants}
-              tiles={tiles}
-              visionRange={visionRange}
-              revealedTileKeys={revealedTileKeys}
-              revealedEnemyIds={revealedEnemyIds}
-              onToggleTile={toggleRevealTile}
-              onToggleEnemy={toggleRevealEnemy}
-              onVisionRange={setVisionRange}
-            />
-          )}
           <div className="flex h-56 min-h-0 shrink-0 flex-col">
             <ChatPanel
               messages={chat ?? []}

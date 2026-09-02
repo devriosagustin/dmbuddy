@@ -20,6 +20,7 @@ import {
 } from '../../utils/mapUtils';
 import { MAP_SIZE_PRESETS, presetForSize } from '../../utils/mapSize';
 import { hpRatio, hpBarColorClass } from '../../utils/combatUtils';
+import { FogOfWarPanel } from './FogOfWarPanel';
 
 type Mode = 'move' | 'measure' | 'range' | 'aoe';
 type AoeShape = 'sphere' | 'cone' | 'line';
@@ -70,6 +71,14 @@ interface CombatMapProps {
   rows: number;
   /** Cambia la resolución de la cuadrícula. */
   onMapSizeChange: (cols: number, rows: number) => void;
+  /** Radio de visión de los jugadores (cortina de guerra). */
+  visionRange: number;
+  onVisionRange: (feet: number) => void;
+  /** Tiles ya revelados y enemigos con la vida visible. */
+  revealedTileKeys: string[];
+  revealedEnemyIds: string[];
+  onToggleRevealTile: (x: number, y: number) => void;
+  onToggleRevealEnemy: (id: string) => void;
 }
 
 interface DragState {
@@ -93,7 +102,7 @@ const SAME = <T,>(a: T, b: T) => JSON.stringify(a) === JSON.stringify(b);
 const RANGE_PRESETS = [5, 10, 15, 30, 60, 90, 120];
 const AOE_PRESETS = [5, 10, 15, 20, 30, 60];
 
-export const CombatMap = ({ participants, activeId, nextId, selectedId, tiles, tileType, onTileTypeChange, tileMode, onToggleTileMode, onToggleTile, onClearTiles, onExportLayouts, onImportLayouts, savedLayouts, onSaveLayout, onLoadLayout, onDeleteLayout, onRandomLayout, onOpenActions, onMove, onSelect, cols, rows, onMapSizeChange }: CombatMapProps) => {
+export const CombatMap = ({ participants, activeId, nextId, selectedId, tiles, tileType, onTileTypeChange, tileMode, onToggleTileMode, onToggleTile, onClearTiles, onExportLayouts, onImportLayouts, savedLayouts, onSaveLayout, onLoadLayout, onDeleteLayout, onRandomLayout, onOpenActions, onMove, onSelect, cols, rows, onMapSizeChange, visionRange, onVisionRange, revealedTileKeys, revealedEnemyIds, onToggleRevealTile, onToggleRevealEnemy }: CombatMapProps) => {
   const gridRef = useRef<HTMLDivElement>(null);
   const [mode, setMode] = useState<Mode>('move');
   const [drag, setDrag] = useState<DragState | null>(null);
@@ -108,6 +117,9 @@ export const CombatMap = ({ participants, activeId, nextId, selectedId, tiles, t
   const [aoeSource, setAoeSource] = useState<MapCell | null>(null);
   const [aoeShape, setAoeShape] = useState<AoeShape>('sphere');
   const [aoeFeet, setAoeFeet] = useState(20);
+
+  // Desplegable de cortina de guerra (radio de visión y revelados).
+  const [fogOpen, setFogOpen] = useState(false);
 
   // Dimensionado del mapa: calcula el mayor tamaño con celdas cuadradas que
   // cabe en el área disponible (así no hay scroll y todo se ve completo).
@@ -305,6 +317,39 @@ export const CombatMap = ({ participants, activeId, nextId, selectedId, tiles, t
           {modeButton('measure', 'Medir')}
           {modeButton('range', 'Alcance')}
           {modeButton('aoe', 'Área')}
+          <div className="relative flex items-center">
+            <button
+              type="button"
+              onClick={() => {
+                setFogOpen((v) => !v);
+                setLayoutsOpen(false);
+              }}
+              aria-expanded={fogOpen}
+              className={`rounded-full px-2.5 py-1 text-[11px] font-bold transition-colors ${
+                fogOpen
+                  ? 'bg-sky-500 text-white'
+                  : revealedTileKeys.length > 0 || revealedEnemyIds.length > 0
+                    ? 'bg-sky-500/40 text-sky-100 hover:bg-sky-500/60'
+                    : 'bg-dnd-leather/30 text-dnd-muted hover:text-dnd-text'
+              }`}
+            >
+              👁 Cortina
+            </button>
+            {fogOpen && (
+              <div className="absolute left-0 top-full z-50 mt-1 w-80 max-w-[90vw] rounded-dnd-lg border border-sky-500/30 bg-dnd-ink p-4 shadow-xl">
+                <FogOfWarPanel
+                  participants={participants}
+                  tiles={tiles}
+                  visionRange={visionRange}
+                  revealedTileKeys={revealedTileKeys}
+                  revealedEnemyIds={revealedEnemyIds}
+                  onToggleTile={onToggleRevealTile}
+                  onToggleEnemy={onToggleRevealEnemy}
+                  onVisionRange={onVisionRange}
+                />
+              </div>
+            )}
+          </div>
           <button
             type="button"
             onClick={onToggleTileMode}
@@ -345,7 +390,10 @@ export const CombatMap = ({ participants, activeId, nextId, selectedId, tiles, t
         <div className="relative flex items-center gap-1">
           <button
             type="button"
-            onClick={() => setLayoutsOpen((v) => !v)}
+            onClick={() => {
+              setLayoutsOpen((v) => !v);
+              setFogOpen(false);
+            }}
             aria-expanded={layoutsOpen}
             className={`rounded-full px-2.5 py-1 text-[11px] font-bold transition-colors ${
               layoutsOpen
