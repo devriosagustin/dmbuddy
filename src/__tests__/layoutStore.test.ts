@@ -4,14 +4,14 @@
 
 import { beforeEach, describe, expect, it } from 'vitest';
 import { useLayoutStore } from '../store/layoutStore';
-import type { LayoutCreature } from '../utils/layoutPatterns';
+import type { LayoutCreature, LayoutTile } from '../utils/layoutPatterns';
 
 beforeEach(() => {
   useLayoutStore.setState({ savedLayouts: [] });
 });
 
 describe('Layout Store', () => {
-  it('guarda barreras y criaturas en un layout', () => {
+  it('guarda tiles (con su tipo) y criaturas en un layout', () => {
     const { saveLayout, savedLayout } = useLayoutStore.getState();
     const creatures: LayoutCreature[] = [
       {
@@ -26,12 +26,20 @@ describe('Layout Store', () => {
         speed: 30,
       },
     ];
-    saveLayout('Sala del trono', [{ x: 1, y: 1 }], creatures);
+    const tiles: LayoutTile[] = [
+      { x: 1, y: 1, type: 'wall' },
+      { x: 2, y: 2, type: 'trap' },
+      { x: 3, y: 3, type: 'door', open: true },
+      { x: 4, y: 4, type: 'treasure' },
+      { x: 5, y: 5, type: 'investigation' },
+    ];
+    saveLayout('Sala del trono', tiles, creatures);
 
     const layout = savedLayout(useLayoutStore.getState().savedLayouts[0].id);
     expect(layout).toBeDefined();
     expect(layout!.name).toBe('Sala del trono');
-    expect(layout!.barriers).toEqual([{ x: 1, y: 1 }]);
+    expect(layout!.tiles).toHaveLength(5);
+    expect(layout!.tiles).toEqual(tiles);
     expect(layout!.creatures).toHaveLength(1);
     expect(layout!.creatures![0].name).toBe('Orco');
     expect(layout!.creatures![0].x).toBe(5);
@@ -39,12 +47,13 @@ describe('Layout Store', () => {
 
   it('actualiza criaturas al guardar con el mismo nombre', () => {
     const { saveLayout, savedLayout } = useLayoutStore.getState();
-    saveLayout('Zona', [{ x: 0, y: 0 }], [
+    const tiles: LayoutTile[] = [{ x: 0, y: 0, type: 'wall' }];
+    saveLayout('Zona', tiles, [
       { name: 'A', kind: 'npc', x: 1, y: 1, hp: 5, maxHp: 5, tempHp: 0, armorClass: 10, speed: 30 },
     ]);
     const firstId = useLayoutStore.getState().savedLayouts[0].id;
 
-    saveLayout('Zona', [{ x: 0, y: 0 }], [
+    saveLayout('Zona', [{ x: 0, y: 0, type: 'wall' }], [
       { name: 'B', kind: 'npc', x: 2, y: 2, hp: 8, maxHp: 8, tempHp: 0, armorClass: 11, speed: 30 },
     ]);
 

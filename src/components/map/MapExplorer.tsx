@@ -151,7 +151,13 @@ export const MapExplorer = () => {
   // Layouts: guardar/exportar/importar incluye criaturas del mapa. Los
   // miembros del party no se guardan: sus fichas viven en partyTokens.
   const handleSaveLayout = (name: string) => {
-    const walls = tiles.filter((t) => t.type === 'wall').map((t) => ({ x: t.x, y: t.y }));
+    // Guardar TODOS los tipos de tiles (wall, door, trap, treasure, investigation).
+    const savedTiles = tiles.map((t) => ({
+      x: t.x,
+      y: t.y,
+      type: t.type,
+      open: t.open,
+    }));
     const creatures = mapCreatures
       .map((c) => ({
         name: c.name,
@@ -167,12 +173,17 @@ export const MapExplorer = () => {
         npcRole: c.npcRole,
         xpReward: c.xpReward,
       }));
-    saveLayout(name, walls, creatures);
+    saveLayout(name, savedTiles, creatures);
   };
   const handleLoadLayout = (id: string) => {
     const layout = getSavedLayout(id);
     if (!layout) return;
-    setTiles(layout.barriers.map((b) => ({ ...b, type: 'wall' as const })));
+    // Restaurar los tiles con su tipo. Los layouts nuevos guardan `tiles`;
+    // los antiguos solo tenían `barriers` (muros) que se convierten a wall.
+    const restoredTiles = layout.tiles
+      ? layout.tiles.map((t) => ({ x: t.x, y: t.y, type: t.type, open: t.open }))
+      : (layout.barriers ?? []).map((b) => ({ ...b, type: 'wall' as const }));
+    setTiles(restoredTiles);
     // Restaurar las criaturas guardadas del layout. Las fichas del party
     // actuales se conservan (viven en partyTokens y no se guardan en layouts).
     // Los layouts antiguos podrían incluir kind === 'player' (legacy): se

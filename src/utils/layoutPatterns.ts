@@ -19,10 +19,22 @@ export interface LayoutCreature {
   xpReward?: number;
 }
 
+/** Tile de mapa guardado en un layout, conservando su tipo (wall/door/trap/…). */
+export interface LayoutTile {
+  x: number;
+  y: number;
+  type: 'wall' | 'door' | 'trap' | 'treasure' | 'investigation';
+  /** Solo para "door": true = abierta (no bloquea), false/undefined = cerrada. */
+  open?: boolean;
+}
+
 export interface MapLayout {
   id: string;
   name: string;
-  barriers: { x: number; y: number }[];
+  /** Retrocompatibilidad: posiciones de muro de layouts antiguos. */
+  barriers?: { x: number; y: number }[];
+  /** Tiles guardados con su tipo. Es la fuente de verdad en layouts nuevos. */
+  tiles?: LayoutTile[];
   /** Criaturas (monstruos/NPCs) guardadas con el layout. No se guardan PJs. */
   creatures?: LayoutCreature[];
 }

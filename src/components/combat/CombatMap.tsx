@@ -481,7 +481,7 @@ export const CombatMap = ({ participants, activeId, nextId, selectedId, tiles, t
                       <option value="">— Elegir —</option>
                       {savedLayouts.map((l) => (
                         <option key={l.id} value={l.id}>
-                          {l.name} ({l.barriers.length} celdas)
+                          {l.name} ({(l.tiles?.length ?? l.barriers?.length ?? 0)} celdas)
                         </option>
                       ))}
                     </select>

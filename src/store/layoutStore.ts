@@ -4,7 +4,7 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { MapLayout, LayoutCreature } from '../utils/layoutPatterns';
+import type { MapLayout, LayoutCreature, LayoutTile } from '../utils/layoutPatterns';
 
 const makeId = (): string => {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
@@ -15,8 +15,8 @@ const makeId = (): string => {
 
 interface LayoutStore {
   savedLayouts: MapLayout[];
-  /** Guarda (o actualiza por nombre) un layout de barreras y criaturas. */
-  saveLayout: (name: string, barriers: { x: number; y: number }[], creatures?: LayoutCreature[]) => MapLayout;
+  /** Guarda (o actualiza por nombre) un layout de tiles y criaturas. */
+  saveLayout: (name: string, tiles: LayoutTile[], creatures?: LayoutCreature[]) => MapLayout;
   savedLayout: (id: string) => MapLayout | undefined;
   deleteLayout: (id: string) => void;
   /** Exporta todos los layouts a JSON string. */
@@ -29,17 +29,17 @@ export const useLayoutStore = create<LayoutStore>()(
   persist(
     (set, get) => ({
       savedLayouts: [],
-      saveLayout: (name, barriers, creatures) => {
+      saveLayout: (name, tiles, creatures) => {
         const trimmed = name.trim() || 'Layout sin nombre';
         const existing = get().savedLayouts.find((l) => l.name === trimmed);
         let layout: MapLayout;
         if (existing) {
-          layout = { ...existing, barriers, creatures };
+          layout = { ...existing, tiles, creatures };
           set((s) => ({
             savedLayouts: s.savedLayouts.map((l) => (l.id === existing.id ? layout! : l)),
           }));
         } else {
-          layout = { id: makeId(), name: trimmed, barriers, creatures };
+          layout = { id: makeId(), name: trimmed, tiles, creatures };
           set((s) => ({ savedLayouts: [...s.savedLayouts, layout!] }));
         }
         return layout;
@@ -60,7 +60,7 @@ export const useLayoutStore = create<LayoutStore>()(
           const current = get().savedLayouts;
           const nameSet = new Set(current.map((l) => l.name));
           for (const l of parsed) {
-            if (!l.id || !l.name || !Array.isArray(l.barriers)) {
+            if (!l.id || !l.name || !(Array.isArray(l.tiles) || Array.isArray(l.barriers))) {
               skipped++;
               continue;
             }
