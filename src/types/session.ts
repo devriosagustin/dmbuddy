@@ -2,7 +2,7 @@
 // Tipos para la sincronización de sesiones (Firebase RTDB)
 // ============================================================
 
-import type { ChatMessage, Combatant, MapTile, MapCreature, PartyToken, XpAward } from './index';
+import type { ChatMessage, Combatant, MapTile, MapCreature, PartyToken, XpAward, RollRequest, RollRequest as SyncRollRequest, RollResponse, RollAbility, RollKind } from './index';
 
 /** Snapshot del combate publicado por el DM (formato serializable). */
 export interface SyncCombatSnapshot {
@@ -21,6 +21,10 @@ export interface SyncCombatSnapshot {
   revealedTileKeys: string[];
   /** Ids de enemigos cuya vida es visible a la party. */
   revealedEnemyIds: string[];
+  /** false = el party ve "El DM está preparando el mapa" en vez del mapa. */
+  mapVisible: boolean;
+  /** Petición de tirada vigente del DM (null/ausente si no hay ninguna). */
+  rollRequest?: SyncRollRequest | null;
   /** Mensajes de chat/lore del DM (Narrador, NPC o monstruo). */
   chat: ChatMessage[];
   /** Reparto de XP del último combate finalizado (ausente en snapshots antiguos). */
@@ -52,6 +56,15 @@ export interface RemotePlayerSheet {
   updatedAt: number;
   sheet: Record<string, unknown>;
 }
+
+// Re-export de los tipos de petición/respuesta de tirada (definidos en index).
+export type { RollRequest as SyncRollRequest, RollResponse as RollResponsePayload, RollAbility, RollKind };
+
+/**
+ * Petición de tirada que el DM envía a un jugador (se publica dentro del
+ * snapshot de combate y el jugador la lee en vivo). Ej.: una tirada de
+ * salvación de Constitución contra un DC concreto.
+ */
 
 export type SessionRole = 'dm' | 'player' | null;
 

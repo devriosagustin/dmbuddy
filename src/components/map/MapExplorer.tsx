@@ -5,7 +5,7 @@
 // cortina de guerra y herramientas iguales a las de combate.
 // ============================================================
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import {
   ChevronLeft,
@@ -18,6 +18,10 @@ import {
   Trash2,
   Users,
   Skull,
+  Eye,
+  EyeOff,
+  Dices,
+  Wand2,
 } from 'lucide-react';
 import { Button } from '../common/Button';
 import { CombatMap } from '../combat/CombatMap';
@@ -31,9 +35,12 @@ import { CreatureEditorModal } from './CreatureEditorModal';
 import { useCombatStore } from '../../store/combatStore';
 import { useLayoutStore } from '../../store/layoutStore';
 import { usePlayerStore } from '../../store/playerStore';
+import { useSessionStore } from '../../store/sessionStore';
 import { useFullscreen } from '../../hooks/useFullscreen';
 import { randomLayout } from '../../utils/layoutPatterns';
 import { mapCreatureToCombatant, playerToCombatant } from '../../utils/combatUtils';
+import { RollRequestModal } from '../session/RollRequestModal';
+import { SkillRollModal } from '../session/SkillRollModal';
 import type { Combatant, MapCreature, TileType } from '../../types';
 
 /**
@@ -49,6 +56,8 @@ export const MapExplorer = () => {
   const toggleRevealTile = useCombatStore((s) => s.toggleRevealTile);
   const toggleRevealEnemy = useCombatStore((s) => s.toggleRevealEnemy);
   const setVisionRange = useCombatStore((s) => s.setVisionRange);
+  const mapVisible = useCombatStore((s) => s.mapVisible);
+  const setMapVisible = useCombatStore((s) => s.setMapVisible);
   const {
     participants,
     turn,
@@ -63,6 +72,11 @@ export const MapExplorer = () => {
     setMapSize,
     chat,
     sendChatMessage,
+    clearChat,
+    requestRoll,
+    pendingEncounter,
+    finalizeEncounter,
+    cancelPendingEncounter,
     toggleTile,
     setTiles,
     clearTiles,
@@ -78,6 +92,30 @@ export const MapExplorer = () => {
     clearMap,
   } = useCombatStore();
   const players = usePlayerStore((s) => s.players);
+  const remotePlayers = useSessionStore((s) => s.remotePlayers);
+
+  // Registro: anota qué personaje trae cada jugador conectado la primera vez
+  // que aparece su ficha activa en la sesión.
+  const seenPlayerRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    const combat = useCombatStore.getState();
+    for (const rp of remotePlayers) {
+      const isActive = rp.sheet?.active === true;
+      const pid = (rp.sheet?.ownerPlayerId as string | undefined) ?? rp.id;
+      if (isActive && !seenPlayerRef.current.has(pid)) {
+        seenPlayerRef.current.add(pid);
+        combat.addLogEntry({
+          type: 'custom',
+          message: `🎭 ${rp.name} se unió a la sesión — trae su personaje.`,
+        });
+      }
+    }
+  }, [remotePlayers]);
+
+  // Personajes activos conectados que pueden recibir una petición de tirada.
+  const rollTargets = remotePlayers
+    .filter((rp) => rp.sheet?.active === true)
+    .map((rp) => ({ playerId: (rp.sheet?.ownerPlayerId as string | undefined) ?? rp.id, playerName: rp.name }));
 
   const { savedLayouts, saveLayout, savedLayout: getSavedLayout, deleteLayout, exportLayouts, importLayouts } = useLayoutStore();
 
@@ -86,6 +124,8 @@ export const MapExplorer = () => {
   const [selectedTokenId, setSelectedTokenId] = useState<string | null>(null);
   const [showAdd, setShowAdd] = useState(false);
   const [showStart, setShowStart] = useState(false);
+  const [showRoll, setShowRoll] = useState(false);
+  const [showSkillRoll, setShowSkillRoll] = useState(false);
   const [selected, setSelected] = useState<Combatant | null>(null);
   const [editingCreature, setEditingCreature] = useState<MapCreature | null>(null);
   const [partyDetail, setPartyDetail] = useState<Combatant | null>(null);
@@ -294,6 +334,48 @@ export const MapExplorer = () => {
         </div>
 
         <div className="page-actions">
+          <Button
+            variant={mapVisible ? 'secondary' : 'ghost'}
+            size="sm"
+            onClick={() => setMapVisible(!mapVisible)}
+            aria-pressed={mapVisible}
+            title={
+              mapVisible
+                ? 'El mapa es visible para el party. Clic para ocultarlo.'
+                : 'El mapa está oculto para el party. Clic para mostrarlo.'
+            }
+            icon={mapVisible ? <Eye size={15} /> : <EyeOff size={15} />}
+          >
+            <span className="hidden sm:inline">{mapVisible ? 'Mapa visible' : 'Mapa oculto'}</span>
+          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => setShowRoll(true)}
+            disabled={rollTargets.length === 0}
+            title={
+              rollTargets.length === 0
+                ? 'Esperando a que un jugador se conecte y traiga su personaje'
+                : 'Pedir una tirada de salvación a un jugador conectado'
+            }
+            icon={<Dices size={15} />}
+          >
+            <span className="hidden sm:inline">Pedir tirada</span>
+          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => setShowSkillRoll(true)}
+            disabled={rollTargets.length === 0}
+            title={
+              rollTargets.length === 0
+                ? 'Esperando a que un jugador se conecte y traiga su personaje'
+                : 'Pedir una prueba de habilidad a un jugador conectado'
+            }
+            icon={<Wand2 size={15} />}
+          >
+            <span className="hidden sm:inline">Pedir habilidad</span>
+          </Button>
           {isActive ? (
             <>
               <Button variant="ghost" size="sm" onClick={previousTurn} aria-label="Turno anterior" icon={<ChevronLeft size={16} />}>
@@ -469,7 +551,7 @@ export const MapExplorer = () => {
             </div>
           )}
           <div className="flex h-56 min-h-0 shrink-0 flex-col">
-            <ChatPanel messages={chat ?? []} participants={isActive ? participants : undefined} onSend={sendChatMessage} />
+            <ChatPanel messages={chat ?? []} participants={isActive ? participants : undefined} onSend={sendChatMessage} onClear={clearChat} />
           </div>
           <CombatLog />
         </div>
@@ -480,6 +562,56 @@ export const MapExplorer = () => {
       <CreatureEditorModal creature={editingCreature} onClose={() => setEditingCreature(null)} />
       <CombatantActionsModal key={selected?.id ?? 'none'} combatant={selected} onClose={() => setSelected(null)} />
       <PlayerPartyDetail combatant={partyDetail} onClose={() => setPartyDetail(null)} />
+      <RollRequestModal
+        open={showRoll}
+        onClose={() => setShowRoll(false)}
+        targets={rollTargets}
+        onRequest={requestRoll}
+      />
+      <SkillRollModal
+        open={showSkillRoll}
+        onClose={() => setShowSkillRoll(false)}
+        targets={rollTargets}
+        onRequest={requestRoll}
+      />
+
+      {pendingEncounter && (
+        <div className="card flex flex-wrap items-center justify-between gap-3 border-amber-500/50 bg-amber-950/20 p-3">
+          <div className="flex items-center gap-2 text-sm font-bold text-amber-200">
+            <span className="inline-block h-2.5 w-2.5 animate-pulse rounded-full bg-amber-400" />
+            Esperando iniciativa
+          </div>
+          <div className="flex flex-wrap items-center gap-1.5 text-xs text-amber-100/90">
+            {(pendingEncounter.pendingNames ?? []).map((n) => (
+              <span key={n} className={`rounded-full border px-2 py-0.5 font-bold ${pendingEncounter.currentName === n ? 'border-amber-300 bg-amber-400/20 text-amber-100' : 'border-amber-500/30 bg-amber-500/10 text-amber-100/60'}`}>
+                {n}
+              </span>
+            ))}
+            {(pendingEncounter.pendingNames ?? []).length === 0 && (
+              <span className="text-amber-200">Resolviendo orden de turnos…</span>
+            )}
+          </div>
+          <div className="flex gap-2">
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => cancelPendingEncounter()}
+              title="Cancelar el inicio del encuentro"
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => finalizeEncounter()}
+              title="Continúa con la iniciativa autotirada de los que falten (como respaldo)"
+              icon={<ChevronRight size={14} />}
+            >
+              Continuar
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

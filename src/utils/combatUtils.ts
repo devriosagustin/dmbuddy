@@ -2,9 +2,10 @@
 // Utilidades de combate de DM Copilot Web
 // ============================================================
 
-import type { Combatant, Monster, Npc, Player, StatAbbrev, MapCreature } from '../types';
+import type { Combatant, Monster, Npc, Player, StatAbbrev, MapCreature, PlayerStats } from '../types';
 import { SRD_CLASSES } from '../data/srd2024';
 import { crToXp } from '../data/srdMonsters';
+import { abilityModifier } from './diceUtils';
 
 // Salvaciones competentes de una clase (SRD) al abreviatura de estadística.
 const SAVE_LABEL_TO_STAT: Record<string, StatAbbrev> = {
@@ -31,6 +32,38 @@ const classSaves = (className: string | undefined): StatAbbrev[] => {
   if (!entry) return [];
   return entry.saves.map((s) => SAVE_LABEL_TO_STAT[s]).filter((s): s is StatAbbrev => Boolean(s));
 };
+
+/**
+ * Bono total de una tirada de salvación: modificador de característica más el
+ * bono de competencia si el personaje es competente en esa salvación.
+ */
+export const savingThrowBonus = (
+  stats: PlayerStats,
+  ability: StatAbbrev,
+  proficientSaves: StatAbbrev[] | undefined,
+  proficiencyBonus: number
+): number => {
+  const mod = abilityModifier(stats[ability]);
+  const prof = (proficientSaves ?? []).includes(ability) ? proficiencyBonus : 0;
+  return mod + prof;
+};
+
+/**
+ * Bono de tirada de salvación de un Personaje (party): mod de característica +
+ * competencia si la clase del personaje es competente en esa salvación.
+ */
+export const playerSavingThrowBonus = (
+  player: Pick<Player, 'stats' | 'proficiencyBonus' | 'class'>,
+  ability: StatAbbrev
+): number => savingThrowBonus(player.stats, ability, classSaves(player.class), player.proficiencyBonus);
+
+/**
+ * Bono de iniciativa de un personaje: solo el modificador de Destreza
+ * (regla estándar de D&D).
+ */
+export const playerInitiativeBonus = (player: Pick<Player, 'stats'>): number =>
+  abilityModifier(player.stats.dex);
+
 
 /**
  * Ordena los combatientes por iniciativa descendente.

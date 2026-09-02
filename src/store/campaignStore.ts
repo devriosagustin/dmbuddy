@@ -63,6 +63,7 @@ const captureLive = (): CampaignSnapshot => {
       visionRange: c.visionRange,
       mapCols: c.mapCols,
       mapRows: c.mapRows,
+      mapVisible: c.mapVisible,
       chat: c.chat,
       xpAwards: c.xpAwards,
     },
@@ -90,6 +91,7 @@ const applySnapshot = (snapshot: CampaignSnapshot): void => {
     visionRange: snapshot.combat.visionRange ?? 30,
     mapCols: snapshot.combat.mapCols,
     mapRows: snapshot.combat.mapRows,
+    mapVisible: snapshot.combat.mapVisible ?? true,
     chat: snapshot.combat.chat ?? [],
     xpAwards: snapshot.combat.xpAwards ?? [],
   });

@@ -4,7 +4,7 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { CombatState, Combatant, CombatLogEntry, StatusEffect, MapTile, TileType, ChatMessage, XpAward, MapCreature } from '../types';
+import type { CombatState, Combatant, CombatLogEntry, StatusEffect, MapTile, TileType, ChatMessage, XpAward, MapCreature, RollRequest, RollResponse, RollAbility, PendingEncounter } from '../types';
 import { sortByInitiative, playerToCombatant } from '../utils/combatUtils';
 import { findSpawnCell, inBounds, gridDistanceFeet, isBlocked, setActiveMapSize, MAP_COLS, MAP_ROWS } from '../utils/mapUtils';
 import { tileKey } from '../types/session';
@@ -12,6 +12,8 @@ import { tileKey } from '../types/session';
 // Sincroniza los PG finales del combate con el party (sin recarga circular:
 // playerStore no importa combatStore).
 import { usePlayerStore } from './playerStore';
+// Para saber qué miembros del party están conectados al pedir iniciativas.
+import { useSessionStore } from './sessionStore';
 
 const makeId = (): string => {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
@@ -20,11 +22,35 @@ const makeId = (): string => {
   return `${Date.now()}-${Math.random().toString(36).substring(2, 10)}`;
 };
 
+// Etiqueta corta de cada característica para salvaciones (español).
+const STAT_LABELS: Record<RollAbility, string> = {
+  str: 'FUE', dex: 'DES', con: 'CON', int: 'INT', wis: 'SAB', cha: 'CAR',
+};
+
 // Nombre "base" de un combatiente (sin el sufijo de copia " a", " b"...).
 const baseName = (name: string): string => name.replace(/\s+[a-z]$/, '').trim();
 // Letra identificadora para copias del mismo monstruo: 0 -> a, 1 -> b, ...
 const copyLetter = (i: number): string =>
   'abcdefghijklmnopqrstuvwxyz'[i % 26] ?? String(i + 1);
+
+/**
+ * Envía la petición de iniciativa al siguiente jugador conectado del encuentro
+ * pendiente. Busca la ficha remota por nombre para obtener su ownerPlayerId
+ * (el id que el jugador usa para reconocer peticiones dirigidas a él).
+ */
+const emitInitiativeRequest = (pen: PendingEncounter): void => {
+  if (!pen.currentName) return;
+  const remotes = useSessionStore.getState().remotePlayers;
+  const rp = remotes.find((r) => r.name === pen.currentName);
+  const pid = (rp?.sheet?.ownerPlayerId as string | undefined) ?? rp?.id;
+  if (!pid) return;
+  useCombatStore.getState().requestRoll({
+    kind: 'initiative',
+    playerId: pid,
+    playerName: pen.currentName,
+    label: 'Iniciativa',
+  });
+};
 
 /**
  * Convierte una criatura persistente del mapa en un combatiente para entrar
@@ -104,6 +130,23 @@ export interface CombatStore extends CombatState {  // Acciones
   setVisionRange: (feet: number) => void;
   /** Cambia la resolución de la cuadrícula (columnas/filas) del mapa. */
   setMapSize: (cols: number, rows: number) => void;
+  /** Activa/desactiva si el party puede ver el mapa. */
+  setMapVisible: (visible: boolean) => void;
+  /** Vacía el chat/lore de la sesión. */
+  clearChat: () => void;
+  /** Envía una petición de tirada a un jugador (se publica en el snapshot). */
+  requestRoll: (request: Omit<RollRequest, 'id' | 'createdAt'>) => void;
+  /** Guarda la respuesta de un jugador, la registra y cierra la petición. */
+  receiveRollResponse: (response: RollResponse) => void;
+  /** Cancela la petición de tirada vigente sin esperar respuesta. */
+  cancelRollRequest: () => void;
+  /**
+   * Cierra el encuentro pendiente de iniciativas: aplica las iniciativas
+   * recibidas (fallback si faltan) y activa el combate con el orden final.
+   */
+  finalizeEncounter: () => void;
+  /** Cancela un encuentro pendiente de iniciativas (no se inicia combate). */
+  cancelPendingEncounter: () => void;
   /** Envía un mensaje de chat/lore: se guarda en el registro y se sincroniza. */
   sendChatMessage: (msg: Omit<ChatMessage, 'id' | 'timestamp'>) => void;
 }
@@ -145,8 +188,12 @@ export const useCombatStore = create<CombatStore>()(
       visionRange: 30,
       mapCols: MAP_COLS,
       mapRows: MAP_ROWS,
+      mapVisible: true,
       chat: [],
       xpAwards: [],
+      rollRequest: null,
+      rollResponses: [],
+      pendingEncounter: null,
 
       initializeCombat: () => {
         set({
@@ -691,6 +738,8 @@ export const useCombatStore = create<CombatStore>()(
           round: 0,
           isActive: false,
           xpAwards: [],
+          pendingEncounter: null,
+          rollRequest: null,
         });
       },
 
@@ -768,7 +817,7 @@ export const useCombatStore = create<CombatStore>()(
       },
 
       startEncounter: (creatureIds, playerIds) => {
-        const { mapCreatures, partyTokens } = get();
+        const { mapCreatures, partyTokens, tiles } = get();
         const selected = mapCreatures.filter((c) => creatureIds.includes(c.id));
         if (selected.length === 0 && playerIds.length === 0) return;
 
@@ -789,7 +838,7 @@ export const useCombatStore = create<CombatStore>()(
             // posición y PG actuales al entrar al encuentro. Los PJ no son
             // criaturas: su posición vive en partyTokens.
             const placed = partyTokens.find((t) => t.playerId === p);
-            const spawn = findSpawnCell(participants, true, get().tiles);
+            const spawn = findSpawnCell(participants, true, tiles);
             participants.push({
               ...c,
               id: makeId(),
@@ -803,8 +852,55 @@ export const useCombatStore = create<CombatStore>()(
           participants.push({ ...creatureToCombatant(c), id: makeId() });
         }
 
-        const sorted = sortByInitiative(participants);
         const newId = makeId();
+
+        // Miembros del party que están conectados (ficha remota publicada) cuyo
+        // nombre coincide con un PJ seleccionado → les pedimos la iniciativa en
+        // cascada. El resto (no conectados) se autotira como respaldo.
+        const remotes = useSessionStore.getState().remotePlayers;
+        const connectedNames: string[] = [];
+        for (const rp of remotes) {
+          if (!rp.sheet) continue;
+          const isActive = (rp.sheet as { active?: unknown }).active !== false;
+          const matched = participants.find(
+            (pt) => pt.type === 'player' && pt.name === rp.name
+          );
+          if (isActive && matched && !connectedNames.includes(matched.name)) {
+            connectedNames.push(matched.name);
+          }
+        }
+
+        if (connectedNames.length > 0) {
+          // Encuentro pendiente: esperamos la iniciativa de los conectados antes
+          // de activar el combate. Los participantes llevan iniciativa provisional.
+          set({
+            id: newId,
+            round: 0,
+            turn: -1,
+            isActive: false,
+            participants: [],
+            pendingEncounter: {
+              id: newId,
+              participants,
+              pendingNames: connectedNames,
+              currentName: connectedNames[0],
+              tiles,
+              mapCreatures: get().mapCreatures,
+              partyTokens: get().partyTokens,
+            },
+            rollRequest: null,
+            encounterCount: (get().encounterCount ?? 0) + 1,
+          });
+          get().addLogEntry({
+            type: 'initiative',
+            message: `🎲 Pidiendo iniciativa a: ${connectedNames.join(', ')}`,
+          });
+          emitInitiativeRequest(useCombatStore.getState().pendingEncounter as PendingEncounter);
+          return;
+        }
+
+        // Sin conectados: inicio inmediato con iniciativas autotiradas.
+        const sorted = sortByInitiative(participants);
         set({
           id: newId,
           round: 1,
@@ -896,6 +992,137 @@ export const useCombatStore = create<CombatStore>()(
           message: `🗣 ${msg.author}: ${msg.text}`,
           combatantId: msg.combatantId,
           details: { author: msg.author, kind: msg.kind },
+        });
+      },
+
+      setMapVisible: (visible) => {
+        set({ mapVisible: visible });
+        get().addLogEntry({
+          type: 'custom',
+          message: visible ? '🗺 Mapa visible para el party' : '🗺 Mapa oculto para el party (el DM está preparando)',
+        });
+      },
+
+      clearChat: () => {
+        const removed = get().chat.length;
+        set({ chat: [] });
+        get().addLogEntry({
+          type: 'custom',
+          message: `🗑 Chat/lore vaciado (${removed} mensaje${removed === 1 ? '' : 's'} eliminado${removed === 1 ? '' : 's'})`,
+        });
+      },
+
+      requestRoll: (request) => {
+        const full: RollRequest = { ...request, id: makeId(), createdAt: Date.now() };
+        set({ rollRequest: full });
+        const ctx = full.label ? ` — ${full.label}` : '';
+        let msg: string;
+        if (full.kind === 'save') {
+          msg = `🎲 Petición de salvación (${STAT_LABELS[full.ability!]}) a ${full.playerName}: DC ${full.dc}${ctx}`;
+        } else if (full.kind === 'initiative') {
+          msg = `🎲 Petición de iniciativa a ${full.playerName}${ctx}`;
+        } else {
+          const opts = (full.skills ?? []).join(', ');
+          msg = `🎲 Petición de habilidad a ${full.playerName}${opts ? ` (elige: ${opts})` : ''}${full.dc ? ` · DC ${full.dc}` : ''}${ctx}`;
+        }
+        get().addLogEntry({ type: 'roll', message: msg });
+      },
+
+      receiveRollResponse: (response) => {
+        const existing = get().rollResponses ?? [];
+        const already = existing.some((r) => r.requestId === response.requestId);
+        if (already) return;
+        // Guarda la respuesta y cierra la petición vigente.
+        set({ rollResponses: [...existing, response], rollRequest: null });
+
+        if (response.kind === 'save') {
+          get().addLogEntry({
+            type: 'roll',
+            message:
+              `🎲 ${response.playerName} (${STAT_LABELS[response.ability!]}) → ${response.breakdown} ` +
+              `${response.success ? '✔ ÉXITO' : '✖ FALLO'} (DC ${response.dc})`,
+          });
+          return;
+        }
+
+        if (response.kind === 'skill') {
+          const sk = response.skill ?? 'habilidad';
+          const total = response.breakdown;
+          const outcome =
+            response.dc !== undefined
+              ? `${response.success ? '✔ ÉXITO' : '✖ FALLO'} (DC ${response.dc})`
+              : `total ${response.result}`;
+          get().addLogEntry({
+            type: 'roll',
+            message: `🎲 ${response.playerName} — ${sk} → ${total} · ${outcome}`,
+          });
+          return;
+        }
+
+        // initiative: aplica el resultado y sigue la cascada o finaliza.
+        if (response.kind === 'initiative') {
+          const pen = get().pendingEncounter;
+          get().addLogEntry({
+            type: 'roll',
+            message: `🎲 ${response.playerName} — ${response.breakdown} → iniciativa ${response.initiative ?? response.result}`,
+          });
+          if (!pen) return;
+          const init = response.initiative ?? response.result;
+          const withRoll = pen.participants.map((p) =>
+            p.type === 'player' && p.name === response.playerName ? { ...p, initiative: init } : p
+          );
+          const nextNames = pen.pendingNames.filter((n) => n !== response.playerName);
+          set({ pendingEncounter: { ...pen, participants: withRoll, pendingNames: nextNames, currentName: nextNames[0] ?? null } });
+          if (nextNames.length === 0) {
+            useCombatStore.getState().finalizeEncounter();
+          } else {
+            emitInitiativeRequest(get().pendingEncounter as PendingEncounter);
+          }
+          return;
+        }
+      },
+
+      cancelRollRequest: () => {
+        const current = get().rollRequest;
+        if (!current) return;
+        set({ rollRequest: null });
+        get().addLogEntry({
+          type: 'roll',
+          message: `✖ Petición de tirada cancelada (${current.playerName})`,
+        });
+      },
+
+      finalizeEncounter: () => {
+        const pen = get().pendingEncounter;
+        if (!pen) return;
+        const sorted = sortByInitiative(pen.participants);
+        const names = sorted.map((c) => `${c.name} (${c.initiative})`);
+        set({
+          id: pen.id,
+          round: 1,
+          turn: -1,
+          isActive: true,
+          participants: sorted,
+          pendingEncounter: null,
+          rollRequest: null,
+          startTime: new Date(),
+          encounterCount: (get().encounterCount ?? 0) + 1,
+          xpAwards: [],
+        });
+        get().addLogEntry({
+          type: 'initiative',
+          message: `¡Encuentro iniciado! Iniciativa: ${names.join(', ')}`,
+        });
+      },
+
+      cancelPendingEncounter: () => {
+        const pen = get().pendingEncounter;
+        if (!pen) return;
+        const names = pen.pendingNames.join(', ');
+        set({ pendingEncounter: null, rollRequest: null });
+        get().addLogEntry({
+          type: 'initiative',
+          message: `✖ Encuentro cancelado (iniciativas pendientes: ${names})`,
         });
       },
     }),

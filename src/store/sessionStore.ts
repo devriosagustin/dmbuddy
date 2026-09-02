@@ -23,6 +23,8 @@ export type SessionStatus = 'idle' | 'connecting' | 'connected' | 'error' | 'loa
 interface SessionStore {
   role: SessionRole;
   code: string | null;
+  /** Id del personaje local que este jugador trae a la sesión (modo player). */
+  activePlayerId: string | null;
   status: SessionStatus;
   error: string | null;
   /** Snapshot del combate (jugador) / estado publicado (DM). */
@@ -37,6 +39,8 @@ interface SessionStore {
   createSession: (code: string) => Promise<boolean>;
   joinSession: (code: string) => Promise<boolean>;
   leaveSession: () => void;
+  /** Elige qué personaje local trae este jugador a la sesión. */
+  setActivePlayer: (playerId: string | null) => void;
   /** Aplica un snapshot remoto recibido (jugador). */
   setRemoteCombat: (payload: CombatPayload | null) => void;
   setRemotePlayers: (players: RemotePlayerSheet[]) => void;
@@ -57,6 +61,7 @@ export const useSessionStore = create<SessionStore>()(
     (set, get) => ({
       role: null,
       code: null,
+      activePlayerId: null,
       status: 'idle',
       error: null,
       remoteCombat: null,
@@ -128,6 +133,7 @@ export const useSessionStore = create<SessionStore>()(
         set({
           role: null,
           code: null,
+          activePlayerId: null,
           status: 'idle',
           error: null,
           remoteCombat: null,
@@ -158,6 +164,7 @@ export const useSessionStore = create<SessionStore>()(
         set({ remoteCombat: payload });
       },
       setRemotePlayers: (players) => set({ remotePlayers: players }),
+      setActivePlayer: (playerId) => set({ activePlayerId: playerId }),
       setError: (message) => set({ error: message }),
 
       restoreSession: () => {
@@ -186,6 +193,7 @@ export const useSessionStore = create<SessionStore>()(
       partialize: (state) => ({
         role: state.role,
         code: state.code,
+        activePlayerId: state.activePlayerId,
         lastXpCombatId: state.lastXpCombatId,
       }),
     },

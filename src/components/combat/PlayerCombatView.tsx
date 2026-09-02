@@ -6,7 +6,7 @@
 // ============================================================
 
 import { useEffect, useRef, useState } from 'react';
-import { Eye, EyeOff, MapPin, Scan, Swords, Radio, Maximize, Minimize, MessageSquare } from 'lucide-react';
+import { Eye, EyeOff, MapPin, Scan, Swords, Radio, Maximize, Minimize, MessageSquare, Dices } from 'lucide-react';
 import { Modal } from '../common/Modal';
 import { useSessionStore } from '../../store/sessionStore';
 import { usePlayerStore } from '../../store/playerStore';
@@ -24,6 +24,7 @@ import { mapCreatureToCombatant } from '../../utils/combatUtils';
 import type { Combatant, MapCreature } from '../../types';
 import { PlayerPartyDetail } from './PlayerPartyDetail';
 import { ChatPanel } from './ChatPanel';
+import { PlayerRollModal } from '../session/PlayerRollModal';
 
 /** Aliados del party: jugadores, rehenes y NPCs aliados/neutrales. */
 const isFriendly = (c: Combatant): boolean =>
@@ -55,10 +56,14 @@ const tokenClass = (c: Combatant): string => {
 export const PlayerCombatView = () => {
   const remoteCombat = useSessionStore((s) => s.remoteCombat);
   const code = useSessionStore((s) => s.code);
+  const role = useSessionStore((s) => s.role);
+  const activePlayerId = useSessionStore((s) => s.activePlayerId);
+  const setActivePlayer = useSessionStore((s) => s.setActivePlayer);
   const localPlayers = usePlayerStore((s) => s.players);
 
   const [selected, setSelected] = useState<Combatant | null>(null);
   const [showChat, setShowChat] = useState(false);
+  const [rollDismissed, setRollDismissed] = useState<string | null>(null);
   const [mapSize, setMapSize] = useState({ w: 0, h: 0 });
   const { isFullscreen, toggle: toggleFullscreen, targetRef: rootRef, overlayClass } = useFullscreen();
   const measureRef = useRef<HTMLDivElement>(null);
@@ -118,6 +123,56 @@ export const PlayerCombatView = () => {
     return () => ro.disconnect();
   }, [mapCols, mapRows]);
 
+  // El jugador debe elegir qué personaje trae a la sesión antes de participar.
+  const activeValid = !!activePlayerId && localPlayers.some((p) => p.id === activePlayerId);
+  const needsPick = role === 'player' && !activeValid;
+
+  // Petición de tirada vigente dirigida a este jugador.
+  const pendingRoll =
+    snapshot?.rollRequest && activeValid && snapshot.rollRequest.playerId === activePlayerId
+      ? snapshot.rollRequest
+      : null;
+  const showRollModal = pendingRoll !== null && rollDismissed !== pendingRoll.id;
+
+  // Si el jugador conectado no ha elegido qué personaje trae, se lo pedimos antes de nada.
+  if (needsPick) {
+    return (
+      <div className="card flex min-h-60 flex-1 flex-col items-center justify-center gap-4 p-8 text-center">
+        <Dices size={28} className="text-dnd-gold" aria-hidden="true" />
+        <h2 className="page-title">¿Qué personaje traes?</h2>
+        {localPlayers.length === 0 ? (
+          <p className="max-w-md text-sm text-dnd-muted">
+            No tienes personajes en tu party local. Créalos en la sección Party para poder jugar en la sesión.
+          </p>
+        ) : (
+          <>
+            <p className="max-w-md text-sm text-dnd-muted">
+              Elegí cuál de tus personajes llevás a esta partida. El DM lo verá y podrá pedirte tiradas.
+            </p>
+            <div className="flex w-full max-w-sm flex-col gap-2">
+              {localPlayers.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => setActivePlayer(p.id)}
+                  className="flex items-center justify-between rounded-lg border border-dnd-leather/30 bg-dnd-leather/5 px-4 py-3 text-left transition-colors hover:border-dnd-gold/60 hover:bg-dnd-leather/10"
+                >
+                  <span>
+                    <span className="block text-sm font-bold text-dnd-text">{p.name}</span>
+                    <span className="block text-xs text-dnd-muted">
+                      {p.class} · Nv. {p.level} · {p.hp}/{p.maxHp} PG
+                    </span>
+                  </span>
+                  <span className="text-xs font-bold text-dnd-gold">Elegir →</span>
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+    );
+  }
+
   if (!snapshot) {
     return (
       <div className="card flex min-h-60 flex-1 flex-col items-center justify-center gap-3 p-8 text-center">
@@ -134,6 +189,37 @@ export const PlayerCombatView = () => {
           <p className="max-w-md text-sm text-dnd-muted">
             Únete a una sesión con el código de tu DM para ver el mapa en tiempo real.
           </p>
+        )}
+      </div>
+    );
+  }
+
+  // El DM tiene el mapa oculto: la party ve una pantalla de espera.
+  if (!snapshot.mapVisible) {
+    return (
+      <div className="card flex min-h-60 flex-1 flex-col items-center justify-center gap-3 p-8 text-center">
+        <span className="flex h-14 w-14 items-center justify-center rounded-full border border-dnd-leather/40 bg-dnd-leather/10 text-3xl">
+          🗺
+        </span>
+        <h2 className="page-title">El DM está preparando el mapa…</h2>
+        <p className="max-w-md text-sm text-dnd-muted">
+          El mapa aparecerá aquí en cuanto el DM lo haga visible. Mientras tanto podés leer el lore en el chat.
+        </p>
+        {(snapshot.chat?.length ?? 0) > 0 && (
+          <button
+            type="button"
+            onClick={() => setShowChat((v) => !v)}
+            aria-expanded={showChat}
+            className="mt-1 inline-flex items-center gap-1.5 rounded-md border border-dnd-leather/40 bg-dnd-leather/10 px-3 py-1.5 text-xs text-dnd-text transition-colors hover:bg-dnd-leather/20"
+          >
+            <MessageSquare size={12} />
+            {showChat ? 'Ocultar chat' : 'Ver chat / lore'}
+          </button>
+        )}
+        {showChat && (
+          <div className="card h-48 w-full max-w-md shrink-0 overflow-hidden p-3 text-left">
+            <ChatPanel messages={snapshot.chat ?? []} readOnly />
+          </div>
         )}
       </div>
     );
@@ -439,6 +525,14 @@ export const PlayerCombatView = () => {
         <div className="card h-48 shrink-0 overflow-hidden p-3">
           <ChatPanel messages={snapshot.chat ?? []} readOnly />
         </div>
+      )}
+
+      {/* Petición de tirada del DM */}
+      {showRollModal && pendingRoll && (
+        <PlayerRollModal
+          request={pendingRoll}
+          onClose={() => setRollDismissed(pendingRoll.id)}
+        />
       )}
 
       <p className="text-[10px] text-dnd-muted">

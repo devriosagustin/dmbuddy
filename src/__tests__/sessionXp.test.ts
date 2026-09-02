@@ -34,6 +34,7 @@ const makeSnapshot = (overrides: Partial<SyncCombatSnapshot> = {}): SyncCombatSn
   tiles: [],
   revealedTileKeys: [],
   revealedEnemyIds: [],
+  mapVisible: true,
   chat: [],
   ...overrides,
 });

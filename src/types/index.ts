@@ -175,7 +175,7 @@ export interface Npc {
 export interface CombatLogEntry {
   id: string;
   timestamp: Date;
-  type: 'initiative' | 'damage' | 'heal' | 'status' | 'death' | 'custom' | 'xp' | 'move' | 'chat';
+  type: 'initiative' | 'damage' | 'heal' | 'status' | 'death' | 'custom' | 'xp' | 'move' | 'chat' | 'roll';
   message: string;
   combatantId?: string;
   details?: unknown;
@@ -211,6 +211,74 @@ export interface XpAward {
   leveledUp: boolean;
   /** Nivel final del personaje tras el reparto. */
   level: number;
+}
+
+/** Abreviatura de característica sobre la que se hace una tirada de salvación. */
+export type RollAbility = 'str' | 'dex' | 'con' | 'int' | 'wis' | 'cha';
+
+/**
+ * Tipo de petición de tirada:
+ * - `save`: tirada de salvación (característica + DC → éxito/fallo).
+ * - `skill`: prueba de habilidad (el DM habilita opciones, el jugador elige
+ *   cuál usar y el bono suma mod + competencia si es competente).
+ * - `initiative`: tirada de iniciativa (d20 + mod de Destreza) para ordenar
+ *   los turnos al iniciar un combate.
+ */
+export type RollKind = 'save' | 'skill' | 'initiative';
+
+/**
+ * Petición de tirada que el DM envía a un jugador. Viaja en el snapshot de
+ * combate para que el jugador la lea en vivo.
+ */
+export interface RollRequest {
+  /** Id único de la petición. */
+  id: string;
+  /** Tipo de tirada (save / skill / initiative). */
+  kind: RollKind;
+  /** Id del personaje (remote sheet) al que va dirigida. */
+  playerId: string;
+  /** Nombre del personaje destinatario. */
+  playerName: string;
+  /** Característica de la salvación (solo kind === 'save'). */
+  ability?: RollAbility;
+  /** Habilidades que el DM habilita (solo kind === 'skill'). */
+  skills?: string[];
+  /** Dificultad (DC) que debe superar (save; opcional en skill). */
+  dc?: number;
+  /** Descripción/contexto de la tirada (p. ej. "Iniciativa", "Trampa"). */
+  label: string;
+  /** timestamp en ms de cuando el DM la creó. */
+  createdAt: number;
+}
+
+/**
+ * Respuesta del jugador a una petición de tirada, publicada en
+ * `sessions/{code}/responses/{requestId}` para que el DM la reciba en vivo.
+ */
+export interface RollResponse {
+  requestId: string;
+  kind: RollKind;
+  playerId: string;
+  playerName: string;
+  /** Tirada del d20 (1-20, sin bonos). */
+  die: number;
+  /** Bono aplicado (mod + competencia según el tipo de tirada). */
+  bonus: number;
+  /** Número final = die + bonus. */
+  result: number;
+  /** Característica usada (solo save). */
+  ability?: RollAbility;
+  /** Habilidad elegida por el jugador (solo skill). */
+  skill?: string;
+  /** Dificultad contra la que se tiró (save; opcional en skill). */
+  dc?: number;
+  /** true si result >= dc (solo cuando hay DC). */
+  success?: boolean;
+  /** Valor final de iniciativa = die + bonus (solo initiative). */
+  initiative?: number;
+  /** Desglose legible ("15 + 2 = 17"). */
+  breakdown: string;
+  createdAt: number;
 }
 
 /**
@@ -294,10 +362,44 @@ export interface CombatState {
   mapCols: number;
   /** Filas de la cuadrícula del mapa (resolución controlada por el DM). */
   mapRows: number;
+  /** Visible para el party: false muestra "El DM está preparando el mapa". */
+  mapVisible: boolean;
   /** Mensajes de chat/lore de la sesión (sincronizados a la party). */
   chat: ChatMessage[];
   /** Reparto de XP del último combate finalizado (sincronizado a la party). */
   xpAwards: XpAward[];
+  /** Petición de tirada vigente enviada a un jugador (null si no hay). */
+  rollRequest?: RollRequest | null;
+  /** Respuestas de tirada recibidas de los jugadores (pendientes de resolver). */
+  rollResponses?: RollResponse[];
+  /**
+   * Encuentro a medio armar mientras esperamos las iniciativas de los
+   * jugadores conectados. No es null solo entre el "Iniciar encuentro" y el
+   * cierre de la cascada; el combate no está activo hasta que se resuelve.
+   */
+  pendingEncounter?: PendingEncounter | null;
+}
+
+/**
+ * Encuentro pendiente de iniciar por la cascada de iniciativas. El DM pide la
+ * iniciativa a los jugadores conectados uno a la vez (vía rollRequest) y se
+ * arma el orden de turnos cuando todos responden (o el DM decide continuar).
+ * Los participantes llevan una iniciativa provisional (autotirada por el DM)
+ * como respaldo por si un jugador no responde.
+ */
+export interface PendingEncounter {
+  /** Id final del encuentro (se usará al cerrar). */
+  id: string;
+  /** Todos los participantes con iniciativa provisional (fallback). */
+  participants: Combatant[];
+  /** Nombres de los miembros del party conectados que aún deben tirar. */
+  pendingNames: string[];
+  /** Nombre del party que vive la petición de iniciativa vigente. */
+  currentName: string | null;
+  /** Mapa del momento en que se pidió la iniciativa. */
+  tiles: MapTile[];
+  mapCreatures: MapCreature[];
+  partyTokens: PartyToken[];
 }
 
 export type TileType = 'wall' | 'door' | 'trap' | 'treasure' | 'investigation';

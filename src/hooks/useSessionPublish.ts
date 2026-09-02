@@ -6,7 +6,7 @@
 import { useEffect, useRef } from 'react';
 import { useCombatStore } from '../store/combatStore';
 import { useSessionStore } from '../store/sessionStore';
-import { buildCombatSnapshot, publishCombat } from '../services/firebaseSync';
+import { buildCombatSnapshot, publishCombat, watchRollResponses } from '../services/firebaseSync';
 
 /**
  * Mantiene sincronizado el estado del combate local (DM) con la sesión
@@ -36,6 +36,8 @@ export const useSessionPublish = () => {
         mapCreatures: s.mapCreatures,
         revealedTileKeys: s.revealedTileKeys,
         revealedEnemyIds: s.revealedEnemyIds,
+        mapVisible: s.mapVisible,
+        rollRequest: s.rollRequest,
         chat: s.chat,
         xpAwards: s.xpAwards,
       });
@@ -66,5 +68,22 @@ export const useSessionPublish = () => {
         timerRef.current = null;
       }
     };
+  }, [role, code, status]);
+
+  // El DM escucha las respuestas de tirada que publican los jugadores y las
+  // aplica localmente (se registran en el log y cierran la petición vigente).
+  useEffect(() => {
+    if (role !== 'dm' || !code || status !== 'connected') return;
+    const unsubscribe = watchRollResponses(code, (responses) => {
+      const combat = useCombatStore.getState();
+      const seen = new Set((combat.rollResponses ?? []).map((r) => r.requestId));
+      for (const response of responses) {
+        if (!seen.has(response.requestId)) {
+          combat.receiveRollResponse(response);
+          seen.add(response.requestId);
+        }
+      }
+    });
+    return unsubscribe;
   }, [role, code, status]);
 };

@@ -40,6 +40,7 @@ const snapshot: SyncCombatSnapshot = {
   tiles: [tile(0, 0, 'wall'), tile(2, 3, 'trap')],
   revealedTileKeys: [tileKey(2, 3)],
   revealedEnemyIds: ['gob'],
+  mapVisible: true,
   chat: [],
 };
 

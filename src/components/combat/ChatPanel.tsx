@@ -7,7 +7,7 @@
 // ============================================================
 
 import { useEffect, useRef, useState } from 'react';
-import { Mic2, Send, Volume2 } from 'lucide-react';
+import { Mic2, Send, Trash2, Volume2 } from 'lucide-react';
 import type { ChatMessage, Combatant } from '../../types';
 
 interface ChatPanelProps {
@@ -19,6 +19,8 @@ interface ChatPanelProps {
   participants?: Combatant[];
   /** Envía un mensaje como el DM (Narrador, NPC o monstruo). */
   onSend?: (msg: { author: string; kind: ChatMessage['kind']; text: string; combatantId?: string }) => void;
+  /** Vacía el chat (solo DM). */
+  onClear?: () => void;
 }
 
 /** Icono de color según el autor (Narrador = DM, aliado, enemigo...). */
@@ -48,7 +50,7 @@ const authorBadge = (kind: ChatMessage['kind']): string => {
   }
 };
 
-export const ChatPanel = ({ messages, readOnly, participants, onSend }: ChatPanelProps) => {
+export const ChatPanel = ({ messages, readOnly, participants, onSend, onClear }: ChatPanelProps) => {
   const [text, setText] = useState('');
   const [who, setWho] = useState<string>('__dm__');
   const listRef = useRef<HTMLDivElement>(null);
@@ -86,9 +88,27 @@ export const ChatPanel = ({ messages, readOnly, participants, onSend }: ChatPane
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-2">
-      <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase text-dnd-muted">
-        <Volume2 size={13} className="text-dnd-gold" aria-hidden="true" />
-        Chat / Lore
+      <div className="flex items-center justify-between gap-1.5 text-[11px] font-bold uppercase text-dnd-muted">
+        <div className="flex items-center gap-1.5">
+          <Volume2 size={13} className="text-dnd-gold" aria-hidden="true" />
+          Chat / Lore
+        </div>
+        {onClear && (
+          <button
+            type="button"
+            onClick={() => {
+              if (window.confirm('¿Vaciar todo el chat/lore? Esta acción no se puede deshacer.')) {
+                onClear();
+              }
+            }}
+            disabled={messages.length === 0}
+            aria-label="Vaciar el chat"
+            title="Vaciar el chat / lore"
+            className="rounded p-1 text-dnd-muted transition-colors hover:bg-dnd-leather/20 hover:text-dnd-gold disabled:opacity-30"
+          >
+            <Trash2 size={13} />
+          </button>
+        )}
       </div>
 
       {/* Lista de mensajes */}

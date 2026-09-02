@@ -17,6 +17,7 @@ const typeIcons: Record<CombatLogEntry['type'], string> = {
   xp: '⭐',
   move: '🚶',
   chat: '🗣',
+  roll: '🎲',
 };
 
 const typeColor: Record<CombatLogEntry['type'], string> = {
@@ -29,6 +30,7 @@ const typeColor: Record<CombatLogEntry['type'], string> = {
   xp: 'text-yellow-300',
   move: 'text-cyan-300',
   chat: 'text-dnd-muted',
+  roll: 'text-violet-300',
 };
 
 /**

@@ -10,7 +10,7 @@
 import { child, get, onValue, ref, set } from 'firebase/database';
 import { db } from './firebase';
 import type { ChatMessage, Combatant, MapTile, MapCreature, PartyToken, XpAward } from '../types';
-import type { RemotePlayerSheet, SessionMeta, SessionSettings, SyncCombatSnapshot } from '../types/session';
+import type { RemotePlayerSheet, SessionMeta, SessionSettings, SyncCombatSnapshot, RollResponsePayload, SyncRollRequest } from '../types/session';
 import { tileKey } from '../types/session';
 
 /** Código normalizado de sesión (mayúsculas, alfanumérico, sin espacios). */
@@ -108,6 +108,29 @@ export const removePlayerSheet = async (code: string, playerId: string): Promise
   await set(child(child(sessionRef(code), 'players'), playerId), null);
 };
 
+// ---------- Respuestas de tirada (jugador → DM) -----------------------------
+
+/** Publica la respuesta de un jugador a una petición de tirada del DM. */
+export const publishRollResponse = async (
+  code: string,
+  response: RollResponsePayload
+): Promise<void> => {
+  await set(child(child(sessionRef(code), 'responses'), response.requestId), sanitize(response));
+};
+
+/** Suscribe al DM a las respuestas de tirada publicadas por los jugadores. */
+export const watchRollResponses = (
+  code: string,
+  cb: (responses: RollResponsePayload[]) => void
+): (() => void) => {
+  const unsub = onValue(child(sessionRef(code), 'responses'), (snap) => {
+    const val = snap.val() as Record<string, RollResponsePayload> | null;
+    const list = val ? Object.values(val) : [];
+    cb(list);
+  });
+  return unsub;
+};
+
 // ---------- Helpers de cortina de guerra (lado jugador) ----------------------
 
 /** Indica si el DM ha revelado la vida de un combatiente. */
@@ -138,6 +161,8 @@ export const buildCombatSnapshot = (
     partyTokens?: PartyToken[];
     revealedTileKeys: string[];
     revealedEnemyIds: string[];
+    mapVisible?: boolean;
+    rollRequest?: SyncRollRequest | null;
     chat: ChatMessage[];
     xpAwards?: XpAward[];
   }
@@ -153,6 +178,8 @@ export const buildCombatSnapshot = (
   partyTokens: state.partyTokens ?? [],
   revealedTileKeys: state.revealedTileKeys ?? [],
   revealedEnemyIds: state.revealedEnemyIds ?? [],
+  mapVisible: state.mapVisible ?? true,
+  rollRequest: state.rollRequest ?? null,
   chat: state.chat ?? [],
   xpAwards: state.xpAwards ?? [],
 });
