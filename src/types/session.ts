@@ -1,0 +1,51 @@
+// ============================================================
+// Tipos para la sincronización de sesiones (Firebase RTDB)
+// ============================================================
+
+import type { Combatant, MapTile } from './index';
+
+/** Snapshot del combate publicado por el DM (formato serializable). */
+export interface SyncCombatSnapshot {
+  id: string;
+  round: number;
+  turn: number;
+  isActive: boolean;
+  encounterCount: number;
+  participants: Combatant[];
+  tiles: MapTile[];
+  /** Claves "x-y" de tiles de trampa/tesoro/investigación reveladas a la party. */
+  revealedTileKeys: string[];
+  /** Ids de enemigos cuya vida es visible a la party. */
+  revealedEnemyIds: string[];
+}
+
+/** Ajustes de la sesión controlados por el DM. */
+export interface SessionSettings {
+  /** Radio de visión (en pies) para la cortina de guerra del jugador. */
+  visionRange: number;
+}
+
+/** Metadatos de la sesión. */
+export interface SessionMeta {
+  dmId: string;
+  createdAt: number;
+  /** Contraseña opcional (validación de conveniencia; la seguridad real van por Security Rules). */
+  password?: string;
+}
+
+/** Ficha de un jugador publicada en la sesión. */
+export interface RemotePlayerSheet {
+  id: string;
+  name: string;
+  updatedAt: number;
+  sheet: Record<string, unknown>;
+}
+
+export type SessionRole = 'dm' | 'player' | null;
+
+export type ConnectionStatus = 'idle' | 'connecting' | 'connected' | 'error';
+
+/**
+ * Convierte un MapTile a su clave "x-y" única usada para revelar tiles.
+ */
+export const tileKey = (x: number, y: number): string => `${x}-${y}`;

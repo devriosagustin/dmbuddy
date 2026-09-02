@@ -3,16 +3,20 @@
 // ============================================================
 
 import type { ReactNode } from 'react';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Outlet, useNavigate } from 'react-router-dom';
-import { Menu, Search } from 'lucide-react';
+import { Crown, Menu, Search, Users } from 'lucide-react';
 import { Sidebar } from './Sidebar';
 import { QuickRoll } from './QuickRoll';
 import { SearchPalette } from '../reference/SearchPalette';
 import { AttributionFooter } from '../reference/AttributionFooter';
+import { SessionModal } from '../session/SessionModal';
 import { useUIStore } from '../../store/uiStore';
 import { useSrdStore } from '../../state/srdStore';
+import { useSessionStore } from '../../store/sessionStore';
 import { fetchSrdOverlays } from '../../services/srdService';
+import { useSessionPublish } from '../../hooks/useSessionPublish';
+import { usePlayerPublish } from '../../hooks/usePlayerPublish';
 
 /**
  * Estructura general de la aplicación.
@@ -21,6 +25,13 @@ export const Layout = () => {
   const { sidebarOpen, toggleSidebar, setIsMobile } = useUIStore();
   const setPaletteOpen = useSrdStore((s) => s.setPaletteOpen);
   const navigate = useNavigate();
+  const [sessionOpen, setSessionOpen] = useState(false);
+  const sessionRole = useSessionStore((s) => s.role);
+  const sessionStatus = useSessionStore((s) => s.status);
+
+  // Publicación en vivo: el DM sube el combate y los jugadores sus fichas.
+  useSessionPublish();
+  usePlayerPublish();
 
   // Detectar dispositivos móviles
   useEffect(() => {
@@ -85,6 +96,30 @@ export const Layout = () => {
             </button>
           </div>
           <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+            {/* Sesión multijugador */}
+            <button
+              onClick={() => setSessionOpen(true)}
+              aria-label={sessionRole ? 'Sesión abierta' : 'Abrir sesión multijugador'}
+              title={sessionRole ? `Sesión ${sessionRole === 'dm' ? 'DM' : 'Jugador'} — gestionar` : 'Sesión multijugador'}
+              className={`flex shrink-0 items-center gap-2 rounded-lg border px-2.5 py-1.5 text-xs transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-dnd-gold ${
+                sessionRole
+                  ? 'border-dnd-gold/60 bg-dnd-gold/10 text-dnd-gold'
+                  : 'border-dnd-leather/50 text-dnd-muted hover:border-dnd-gold/60 hover:text-dnd-text'
+              }`}
+            >
+              {sessionRole === 'dm' ? <Crown size={14} aria-hidden="true" /> : <Users size={14} aria-hidden="true" />}
+              <span className="hidden sm:inline">
+                {sessionRole === 'dm'
+                  ? 'Sesión DM'
+                  : sessionRole === 'player'
+                    ? 'Sesión'
+                    : 'Sesión'}
+              </span>
+              {sessionRole && sessionStatus === 'connected' && (
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" aria-hidden="true" />
+              )}
+            </button>
+
             <button
               onClick={() => setPaletteOpen(true)}
               aria-label="Buscar en el SRD (Ctrl K)"
@@ -113,6 +148,9 @@ export const Layout = () => {
 
       {/* Lanzador rápido de dados (botón flotante) */}
       <QuickRoll />
+
+      {/* Gestión de sesión multijugador */}
+      <SessionModal open={sessionOpen} onClose={() => setSessionOpen(false)} />
     </div>
   );
 };

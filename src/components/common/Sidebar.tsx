@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { useUIStore } from '../../store/uiStore';
 import { useCombatStore } from '../../store/combatStore';
+import { useSessionStore } from '../../store/sessionStore';
 
 const navItems = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true },
@@ -30,12 +31,17 @@ const navItems = [
   { to: '/notes', label: 'Notas', icon: NotebookPen },
 ];
 
+/** En modo jugador solo se muestra el mapa de combate (lectura) y el Party. */
+const playerItems = navItems.filter((item) => item.to === '/combat' || item.to === '/party');
+
 /**
  * Barra lateral de navegación. Colapsable y adaptable a móvil.
  */
 export const Sidebar = () => {
   const { sidebarOpen, toggleSidebar } = useUIStore();
   const combatActive = useCombatStore((s) => s.isActive);
+  const sessionRole = useSessionStore((s) => s.role);
+  const items = sessionRole === 'player' ? playerItems : navItems;
 
   return (
     <aside
@@ -68,7 +74,7 @@ export const Sidebar = () => {
 
       {/* Enlaces de navegación */}
       <nav className="flex-1 space-y-1 overflow-y-auto p-3">
-        {navItems.map(({ to, label, icon: Icon, end }) => (
+        {items.map(({ to, label, icon: Icon, end }) => (
           <NavLink
             key={to}
             to={to}

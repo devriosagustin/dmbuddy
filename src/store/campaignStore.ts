@@ -55,6 +55,9 @@ const captureLive = (): CampaignSnapshot => {
       startTime: c.startTime,
       encounterCount: c.encounterCount,
       tiles: c.tiles,
+      revealedTileKeys: c.revealedTileKeys,
+      revealedEnemyIds: c.revealedEnemyIds,
+      visionRange: c.visionRange,
     },
   };
 };
@@ -73,6 +76,9 @@ const applySnapshot = (snapshot: CampaignSnapshot): void => {
     startTime: toDate(snapshot.combat.startTime),
     encounterCount: snapshot.combat.encounterCount,
     tiles: snapshot.combat.tiles ?? [],
+    revealedTileKeys: snapshot.combat.revealedTileKeys ?? [],
+    revealedEnemyIds: snapshot.combat.revealedEnemyIds ?? [],
+    visionRange: snapshot.combat.visionRange ?? 30,
   });
 };
 

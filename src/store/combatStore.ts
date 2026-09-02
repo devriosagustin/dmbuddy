@@ -7,6 +7,7 @@ import { persist } from 'zustand/middleware';
 import type { CombatState, Combatant, CombatLogEntry, StatusEffect, MapTile, TileType } from '../types';
 import { sortByInitiative } from '../utils/combatUtils';
 import { findSpawnCell, inBounds, MAP_COLS, MAP_ROWS, gridDistanceFeet } from '../utils/mapUtils';
+import { tileKey } from '../types/session';
 
 // Sincroniza los PG finales del combate con el party (sin recarga circular:
 // playerStore no importa combatStore).
@@ -25,7 +26,7 @@ const baseName = (name: string): string => name.replace(/\s+[a-z]$/, '').trim();
 const copyLetter = (i: number): string =>
   'abcdefghijklmnopqrstuvwxyz'[i % 26] ?? String(i + 1);
 
-interface CombatStore extends CombatState {
+export interface CombatStore extends CombatState {
   // Acciones
   initializeCombat: () => void;
   addCombatant: (combatant: Omit<Combatant, 'id' | 'isActive' | 'isDead'>) => boolean;
@@ -55,6 +56,12 @@ interface CombatStore extends CombatState {
   addLogEntry: (entry: Omit<CombatLogEntry, 'id' | 'timestamp'>) => void;
   endCombat: () => void;
   resetCombat: () => void;
+  /** Revela u oculta una casilla (trampa/tesoro/investigación) a la party. */
+  toggleRevealTile: (x: number, y: number) => void;
+  /** Revela u oculta la vida de un enemigo a la party. */
+  toggleRevealEnemy: (id: string) => void;
+  /** Fija el radio de visión (pies) de la cortina de guerra. */
+  setVisionRange: (feet: number) => void;
 }
 
 export const useCombatStore = create<CombatStore>()(
@@ -69,6 +76,9 @@ export const useCombatStore = create<CombatStore>()(
       startTime: new Date(),
       encounterCount: 0,
       tiles: [],
+      revealedTileKeys: [],
+      revealedEnemyIds: [],
+      visionRange: 30,
 
       initializeCombat: () => {
         set({
@@ -551,6 +561,27 @@ export const useCombatStore = create<CombatStore>()(
 
       resetCombat: () => {
         set({ participants: [], combatLog: [], turn: -1, round: 0, isActive: false });
+      },
+
+      toggleRevealTile: (x, y) => {
+        const key = tileKey(x, y);
+        set((state) => ({
+          revealedTileKeys: state.revealedTileKeys.includes(key)
+            ? state.revealedTileKeys.filter((k) => k !== key)
+            : [...state.revealedTileKeys, key],
+        }));
+      },
+
+      toggleRevealEnemy: (id) => {
+        set((state) => ({
+          revealedEnemyIds: state.revealedEnemyIds.includes(id)
+            ? state.revealedEnemyIds.filter((e) => e !== id)
+            : [...state.revealedEnemyIds, id],
+        }));
+      },
+
+      setVisionRange: (feet) => {
+        set({ visionRange: Math.max(5, Math.round(feet)) });
       },
     }),
     {

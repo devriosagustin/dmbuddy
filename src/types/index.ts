@@ -190,6 +190,12 @@ export interface CombatState {
   encounterCount: number;
   /** Tiles en el mapa: muros, trampas, tesoros, investigación. */
   tiles: MapTile[];
+  /** Claves "x-y" de tiles revelados a la party (trampa/tesoro/investigación). */
+  revealedTileKeys: string[];
+  /** Ids de enemigos cuya vida se muestra a la party. */
+  revealedEnemyIds: string[];
+  /** Radio de visión de la cortina de guerra (pies). */
+  visionRange: number;
 }
 
 export type TileType = 'wall' | 'trap' | 'treasure' | 'investigation';

@@ -20,9 +20,11 @@ import { Button } from '../common/Button';
 import { InitiativeOrder } from './InitiativeOrder';
 import { CombatMap } from './CombatMap';
 import { CombatLog } from './CombatLog';
+import { FogOfWarPanel } from './FogOfWarPanel';
 import { AddCombatantModal } from './AddCombatantModal';
 import { CombatantActionsModal } from './CombatantActionsModal';
 import { useCombatStore } from '../../store/combatStore';
+import { useSessionStore } from '../../store/sessionStore';
 import { useLayoutStore } from '../../store/layoutStore';
 import { randomLayout } from '../../utils/layoutPatterns';
 import type { Combatant, TileType } from '../../types';
@@ -31,6 +33,13 @@ import type { Combatant, TileType } from '../../types';
  * Pantalla principal de gestión del combate.
  */
 export const CombatTracker = () => {
+  const sessionRole = useSessionStore((s) => s.role);
+  const revealedTileKeys = useCombatStore((s) => s.revealedTileKeys);
+  const revealedEnemyIds = useCombatStore((s) => s.revealedEnemyIds);
+  const visionRange = useCombatStore((s) => s.visionRange);
+  const toggleRevealTile = useCombatStore((s) => s.toggleRevealTile);
+  const toggleRevealEnemy = useCombatStore((s) => s.toggleRevealEnemy);
+  const setVisionRange = useCombatStore((s) => s.setVisionRange);
   const {
     participants,
     turn,
@@ -352,6 +361,18 @@ return (
           >
             {tileMode ? 'Colocando tiles (clic en el mapa)' : 'Tiles (muros/trampas/tesoros)'}
           </Button>
+          {sessionRole === 'dm' && (
+            <FogOfWarPanel
+              participants={participants}
+              tiles={tiles}
+              visionRange={visionRange}
+              revealedTileKeys={revealedTileKeys}
+              revealedEnemyIds={revealedEnemyIds}
+              onToggleTile={toggleRevealTile}
+              onToggleEnemy={toggleRevealEnemy}
+              onVisionRange={setVisionRange}
+            />
+          )}
           <CombatLog />
         </div>
       </div>

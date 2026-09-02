@@ -3,8 +3,10 @@
 // ============================================================
 
 import { lazy, Suspense } from 'react';
-import { HashRouter, Routes, Route } from 'react-router-dom';
+import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Layout } from './components/common/Layout';
+import { useSessionStore } from './store/sessionStore';
+import { PlayerCombatView } from './components/combat/PlayerCombatView';
 
 // Carga diferida (code splitting) para que cada sección se descargue solo cuando se visita
 const Dashboard = lazy(() => import('./components/dashboard/Dashboard'));
@@ -25,6 +27,22 @@ const PageLoader = () => (
   </div>
 );
 
+/** Enruta /combat según el rol: el jugador ve el mapa read-only en vivo. */
+const CombatRoute = () => {
+  const role = useSessionStore((s) => s.role);
+  return (
+    <Suspense fallback={<PageLoader />}>
+      {role === 'player' ? <PlayerCombatView /> : <CombatTracker />}
+    </Suspense>
+  );
+};
+
+/** Protege rutas de DM: los jugadores son redirigidos a su vista de combate. */
+const DmOnlyRoute = ({ children }: { children: React.ReactNode }) => {
+  const role = useSessionStore((s) => s.role);
+  return role === 'player' ? <Navigate to="/combat" replace /> : <>{children}</>;
+};
+
 /**
  * Aplicación principal con enrutado de las seis secciones.
  * Se usa HashRouter para que funcione en cualquier hosting estático
@@ -39,23 +57,23 @@ export default function App() {
             path="/"
             element={
               <Suspense fallback={<PageLoader />}>
-                <Dashboard />
+                <DmOnlyRoute>
+                  <Dashboard />
+                </DmOnlyRoute>
               </Suspense>
             }
           />
           <Route
             path="/combat"
-            element={
-              <Suspense fallback={<PageLoader />}>
-                <CombatTracker />
-              </Suspense>
-            }
+            element={<CombatRoute />}
           />
           <Route
             path="/monsters"
             element={
               <Suspense fallback={<PageLoader />}>
-                <MonsterManager />
+                <DmOnlyRoute>
+                  <MonsterManager />
+                </DmOnlyRoute>
               </Suspense>
             }
           />
@@ -71,7 +89,9 @@ export default function App() {
             path="/npcs"
             element={
               <Suspense fallback={<PageLoader />}>
-                <NpcManager />
+                <DmOnlyRoute>
+                  <NpcManager />
+                </DmOnlyRoute>
               </Suspense>
             }
           />
@@ -79,7 +99,9 @@ export default function App() {
             path="/reference"
             element={
               <Suspense fallback={<PageLoader />}>
-                <ReferenceLibrary />
+                <DmOnlyRoute>
+                  <ReferenceLibrary />
+                </DmOnlyRoute>
               </Suspense>
             }
           />
@@ -87,7 +109,9 @@ export default function App() {
             path="/dice"
             element={
               <Suspense fallback={<PageLoader />}>
-                <DiceRoller />
+                <DmOnlyRoute>
+                  <DiceRoller />
+                </DmOnlyRoute>
               </Suspense>
             }
           />
@@ -95,11 +119,13 @@ export default function App() {
             path="/notes"
             element={
               <Suspense fallback={<PageLoader />}>
-                <NotesManager />
+                <DmOnlyRoute>
+                  <NotesManager />
+                </DmOnlyRoute>
               </Suspense>
             }
           />
-          <Route path="*" element={<Dashboard />} />
+          <Route path="*" element={<DmOnlyRoute><Dashboard /></DmOnlyRoute>} />
         </Route>
       </Routes>
     </HashRouter>
