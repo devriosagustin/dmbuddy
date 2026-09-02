@@ -15,6 +15,7 @@ import {
   Plus,
   Flag,
   RotateCcw,
+  Trash2,
   Users,
   Skull,
 } from 'lucide-react';
@@ -23,6 +24,7 @@ import { CombatMap } from '../combat/CombatMap';
 import { CombatLog } from '../combat/CombatLog';
 import { ChatPanel } from '../combat/ChatPanel';
 import { CombatantActionsModal } from '../combat/CombatantActionsModal';
+import { PlayerPartyDetail } from '../combat/PlayerPartyDetail';
 import { PlaceCreatureModal } from './PlaceCreatureModal';
 import { StartEncounterModal } from './StartEncounterModal';
 import { CreatureEditorModal } from './CreatureEditorModal';
@@ -31,7 +33,7 @@ import { useLayoutStore } from '../../store/layoutStore';
 import { usePlayerStore } from '../../store/playerStore';
 import { useFullscreen } from '../../hooks/useFullscreen';
 import { randomLayout } from '../../utils/layoutPatterns';
-import { mapCreatureToCombatant } from '../../utils/combatUtils';
+import { mapCreatureToCombatant, playerToCombatant } from '../../utils/combatUtils';
 import type { Combatant, MapCreature, TileType } from '../../types';
 
 /**
@@ -73,6 +75,7 @@ export const MapExplorer = () => {
     partyTokens,
     setPartyToken,
     removePartyToken,
+    clearMap,
   } = useCombatStore();
   const players = usePlayerStore((s) => s.players);
 
@@ -85,6 +88,7 @@ export const MapExplorer = () => {
   const [showStart, setShowStart] = useState(false);
   const [selected, setSelected] = useState<Combatant | null>(null);
   const [editingCreature, setEditingCreature] = useState<MapCreature | null>(null);
+  const [partyDetail, setPartyDetail] = useState<Combatant | null>(null);
 
   const { isFullscreen, toggle: toggleFullscreen, targetRef: mapRef, overlayClass } = useFullscreen();
 
@@ -97,20 +101,11 @@ export const MapExplorer = () => {
       .map((t) => {
         const player = players.find((p) => p.id === t.playerId);
         if (!player) return null;
+        // Ficha ocasional para renderizar/tocar: conserva la posición de la
+        // ficha y lleva todos los datos del PJ (para abrir su detalle completo).
         const c: Combatant = {
+          ...playerToCombatant(player, 0),
           id: `party-${player.id}`,
-          name: player.name,
-          initiative: 0,
-          hp: player.hp,
-          maxHp: player.maxHp,
-          tempHp: 0,
-          armorClass: player.armorClass,
-          type: 'player',
-          isActive: true,
-          statusEffects: [],
-          playerId: player.id,
-          isDead: false,
-          speed: 30,
           x: t.x,
           y: t.y,
         };
@@ -132,13 +127,24 @@ export const MapExplorer = () => {
   };
 
   const handleOpenActions = (combatant: Combatant) => {
-    // En exploración, abrimos el editor de la criatura del mapa (los PJ del
-    // party no se editan como criaturas). En encuentro, el modal de acciones.
+    // En exploración, abrimos el editor de la criatura del mapa o el detalle
+    // completo de un miembro del party (su ficha). En encuentro, el modal de
+    // acciones de combate.
     if (isActive) {
       setSelected(combatant);
+    } else if (combatant.id.startsWith('party-')) {
+      setPartyDetail(combatant);
     } else {
       const creature = mapCreatures.find((c) => c.id === combatant.id);
       if (creature) setEditingCreature(creature);
+    }
+  };
+
+  const handleClearMap = () => {
+    const total = mapCreatures.length + partyTokens.length;
+    if (total === 0) return;
+    if (window.confirm(`¿Vaciar el mapa de ${total} ficha${total !== 1 ? 's' : ''} (criaturas y party)?`)) {
+      clearMap();
     }
   };
 
@@ -306,6 +312,17 @@ export const MapExplorer = () => {
               <Button variant="secondary" onClick={() => setShowAdd(true)} icon={<Plus size={16} />}>
                 Añadir criatura
               </Button>
+              {(mapCreatures.length > 0 || partyTokens.length > 0) && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleClearMap}
+                  icon={<Trash2 size={15} />}
+                  aria-label="Vaciar el mapa de criaturas y fichas del party"
+                >
+                  <span className="hidden sm:inline">Limpiar</span>
+                </Button>
+              )}
             </>
           )}
         </div>
@@ -451,6 +468,7 @@ export const MapExplorer = () => {
       <StartEncounterModal open={showStart} onClose={() => setShowStart(false)} />
       <CreatureEditorModal creature={editingCreature} onClose={() => setEditingCreature(null)} />
       <CombatantActionsModal key={selected?.id ?? 'none'} combatant={selected} onClose={() => setSelected(null)} />
+      <PlayerPartyDetail combatant={partyDetail} onClose={() => setPartyDetail(null)} />
     </div>
   );
 };

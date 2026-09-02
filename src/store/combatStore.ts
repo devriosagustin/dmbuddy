@@ -92,6 +92,8 @@ export interface CombatStore extends CombatState {  // Acciones
   setPartyToken: (playerId: string, x: number, y: number) => void;
   /** Retira la ficha de un miembro del party del mapa. */
   removePartyToken: (playerId: string) => void;
+  /** Vacía el mapa de criaturas y fichas del party (lo deja limpio). */
+  clearMap: () => void;
   /** Inicia un encuentro con las criaturas indicadas + el party indicado. */
   startEncounter: (creatureIds: string[], playerIds: string[]) => void;
   /** Revela u oculta una casilla (trampa/tesoro/investigación) a la party. */
@@ -749,6 +751,18 @@ export const useCombatStore = create<CombatStore>()(
           get().addLogEntry({
             type: 'custom',
             message: `🗑 ${player?.name ?? 'Un miembro del party'} retirado del mapa`,
+          });
+        }
+      },
+
+      clearMap: () => {
+        const { mapCreatures, partyTokens } = get();
+        set({ mapCreatures: [], partyTokens: [] });
+        const count = mapCreatures.length + partyTokens.length;
+        if (count > 0) {
+          get().addLogEntry({
+            type: 'custom',
+            message: `🧹 Mapa limpiado: se retiraron ${count} ficha${count !== 1 ? 's' : ''} (criaturas y party)`,
           });
         }
       },

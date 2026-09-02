@@ -18,6 +18,7 @@ beforeEach(() => {
     turn: 0,
     encounterCount: 0,
     mapCreatures: [],
+    partyTokens: [],
   });
 });
 
@@ -437,6 +438,35 @@ describe('Combat Store', () => {
     expect(s.partyTokens.some((t) => t.playerId === player.id)).toBe(true);
     expect(s.mapCreatures.some((c) => c.name === player.name)).toBe(false);
     expect(s.partyTokens.length).toBe(1);
+  });
+
+  it('vacía el mapa de criaturas y fichas del party con clearMap', () => {
+    usePlayerStore.setState({ players: [] });
+    const player = usePlayerStore.getState().addPlayer(makePlayer());
+    const { addMapCreature, setPartyToken, clearMap } = useCombatStore.getState();
+    addMapCreature({
+      name: 'Goblin',
+      kind: 'monster',
+      hp: 7,
+      maxHp: 7,
+      tempHp: 0,
+      armorClass: 15,
+      speed: 30,
+      x: 2,
+      y: 2,
+      statusEffects: [],
+      isDead: false,
+    });
+    setPartyToken(player.id, 5, 5);
+
+    let s = useCombatStore.getState();
+    expect(s.mapCreatures.length).toBe(1);
+    expect(s.partyTokens.length).toBe(1);
+
+    clearMap();
+    s = useCombatStore.getState();
+    expect(s.mapCreatures.length).toBe(0);
+    expect(s.partyTokens.length).toBe(0);
   });
 });
 
