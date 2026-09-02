@@ -78,9 +78,11 @@ describe('mapUtils geometría', () => {
     expect(trueDistanceFeet({ x: 0, y: 0 }, { x: 3, y: 4 })).toBeCloseTo(25);
   });
 
-  it('cellsInSphere rellena un círculo Chebyshev dentro de la cuadrícula', () => {
+  it('cellsInSphere rellena un círculo (radio euclídeo) dentro de la cuadrícula', () => {
     const cells = cellsInSphere(10, 10, 10); // radio 2 casillas
-    expect(cells.length).toBe(25); // 5x5
+    // Círculo real (x²+y² ≤ 4): centro + 4 ortogonal + 4 diagonal + 4 a dist. 2
+    // = 13. Las casillas (±2,±1) y (±2,±2) quedan a √5≈2.24 y √8≈2.83 > 2.
+    expect(cells.length).toBe(13);
     expect(cells.every((c) => inBounds(c.x, c.y))).toBe(true);
   });
 

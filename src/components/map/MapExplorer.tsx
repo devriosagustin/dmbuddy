@@ -460,7 +460,12 @@ export const MapExplorer = () => {
             tileType={tileType}
             onTileTypeChange={setTileType}
             tileMode={tileMode}
-            onToggleTileMode={() => setTileMode((v) => !v)}
+            onToggleTileMode={() => {
+              setTileMode((v) => !v);
+              // Al entrar en modo Tiles se deselecciona la ficha (quita el
+              // resaltado de movimiento y las áreas de medir/alcance).
+              setSelectedTokenId(null);
+            }}
             onToggleTile={toggleTile}
             onClearTiles={clearTiles}
             savedLayouts={savedLayouts}

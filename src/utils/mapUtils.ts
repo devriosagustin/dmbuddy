@@ -112,7 +112,9 @@ export const cellsInSphere = (
   const out: MapCell[] = [];
   for (let y = Math.max(0, cy - r); y <= Math.min(activeRows - 1, cy + r); y++) {
     for (let x = Math.max(0, cx - r); x <= Math.min(activeCols - 1, cx + r); x++) {
-      if (Math.max(Math.abs(x - cx), Math.abs(y - cy)) > r) continue;
+      // Distancia euclídea real para formar un círculo (no un cuadrado):
+      // así las diagonales no se estiran más allá del radio en pies.
+      if (Math.hypot(x - cx, y - cy) > r) continue;
       if (isBlocked(tiles, x, y)) continue;
       if (!hasLineOfSight(cx, cy, x, y, tiles)) continue;
       out.push({ x, y });

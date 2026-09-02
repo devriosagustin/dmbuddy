@@ -162,6 +162,8 @@ export const CombatMap = ({ participants, activeId, nextId, selectedId, tiles, t
   const selectMode = (next: Mode) => {
     setMode(next);
     clearTool();
+    // Al elegir una herramienta (mover/medir/área) se apaga el modo Tiles.
+    if (tileMode) onToggleTileMode();
   };
 
   // --- Fichas bajo el ratón -----------------------------------------------
@@ -544,7 +546,11 @@ export const CombatMap = ({ participants, activeId, nextId, selectedId, tiles, t
           )}
         </div>
 
-        {mode === 'range' && (
+      </div>
+
+      {/* Sub-barra de herramientas de alcance/área (en la línea de abajo de la barra principal) */}
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
+        {mode === 'range' && !tileMode && (
           <div className="flex items-center gap-1">
             <span className="whitespace-nowrap text-[11px] text-dnd-muted">Radio</span>
             <select
@@ -561,7 +567,7 @@ export const CombatMap = ({ participants, activeId, nextId, selectedId, tiles, t
           </div>
         )}
 
-        {mode === 'aoe' && (
+        {mode === 'aoe' && !tileMode && (
           <div className="flex flex-wrap items-center gap-2">
             <div className="flex items-center gap-1" role="group" aria-label="Forma del área">
               {(
@@ -599,18 +605,17 @@ export const CombatMap = ({ participants, activeId, nextId, selectedId, tiles, t
             </select>
           </div>
         )}
-
       </div>
 
       {/* Barra de estado (a ancho completo, nunca se corta) */}
       <div className="flex min-h-4 items-center gap-2 text-[11px] font-bold">
         {measureDistance !== null && <span className="text-dnd-gold">Distancia: {measureDistance} pies</span>}
-        {mode === 'range' && rangeSource && (
+        {mode === 'range' && !tileMode && rangeSource && (
           <span className="text-sky-300">
             Alcance: {rangeFeet} pies · {inRangeCount} fichas dentro
           </span>
         )}
-        {mode === 'aoe' && aoeSource && (
+        {mode === 'aoe' && !tileMode && aoeSource && (
           <span className="text-violet-300">
             {aoeShape === 'sphere' ? 'Radio' : aoeShape === 'cone' ? 'Cono' : 'Línea'}: {aoeFeet} pies ·{' '}
             {inAoeCount} fichas afectadas
@@ -707,7 +712,7 @@ export const CombatMap = ({ participants, activeId, nextId, selectedId, tiles, t
         )}
 
         {/* Movimientos posibles del combatiente seleccionado (según su velocidad) */}
-        {moveCells.length > 0 && (
+        {!tileMode && moveCells.length > 0 && (
           <div className="pointer-events-none absolute inset-0 grid" style={{ gridTemplateColumns: `repeat(${cols}, 1fr)`, gridAutoRows: '1fr' }} aria-hidden="true">
             {Array.from({ length: cols * rows }, (_, i) => {
               const x = i % cols;
@@ -719,7 +724,7 @@ export const CombatMap = ({ participants, activeId, nextId, selectedId, tiles, t
         )}
 
         {/* Capa de áreas: alcance y áreas de efecto */}
-        {mode === 'range' && rangeCells.length > 0 && (
+        {mode === 'range' && !tileMode && rangeCells.length > 0 && (
           <div className="pointer-events-none absolute inset-0 grid" style={{ gridTemplateColumns: `repeat(${cols}, 1fr)`, gridAutoRows: '1fr' }} aria-hidden="true">
             {Array.from({ length: cols * rows }, (_, i) => {
               const x = i % cols;
@@ -730,7 +735,7 @@ export const CombatMap = ({ participants, activeId, nextId, selectedId, tiles, t
           </div>
         )}
 
-        {mode === 'aoe' && aoeCells.length > 0 && (
+        {mode === 'aoe' && !tileMode && aoeCells.length > 0 && (
           <div className="pointer-events-none absolute inset-0 grid" style={{ gridTemplateColumns: `repeat(${cols}, 1fr)`, gridAutoRows: '1fr' }} aria-hidden="true">
             {Array.from({ length: cols * rows }, (_, i) => {
               const x = i % cols;
