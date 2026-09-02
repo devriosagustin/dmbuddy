@@ -225,26 +225,27 @@ export const PlayerCombatView = () => {
     );
   }
 
-  // --- Cortina de guerra (solo en combate activo) -------------------------
-  const friendlies = inCombat ? tokens.filter(isFriendly) : [];
+  // --- Cortina de guerra (siempre, en combate y en exploración) ------------
+  // Aliados del party que comparten visión: en combate, los participantes
+  // aliados; en exploración, las fichas del party (y NPCs aliados/neutros).
+  const friendlies = tokens.filter(isFriendly);
 
-  const visibleTokens = inCombat
-    ? tokens.filter((c) => {
-        if (isFriendly(c)) return true;
-        // Enemigo: visible si está dentro del radio de visión de algún aliado
-        // Y con línea de visión no bloqueada (muros o puertas cerradas).
-        if (c.x === undefined || c.y === undefined) return false;
-        const cx = c.x;
-        const cy = c.y;
-        return friendlies.some((f) => {
-          const fx = f.x;
-          const fy = f.y;
-          if (fx === undefined || fy === undefined) return false;
-          if (gridDistanceFeet({ x: fx, y: fy }, { x: cx, y: cy }) > visionRange) return false;
-          return hasLineOfSight(fx, fy, cx, cy, tiles);
-        });
-      })
-    : tokens;
+  // Enemigos visibles: dentro del radio de visión de algún aliado Y con línea
+  // de visión no bloqueada (muros o puertas cerradas). El fog of war se aplica
+  // siempre, incluso sin combate activo; los del party siempre son visibles.
+  const visibleTokens = tokens.filter((c) => {
+    if (isFriendly(c)) return true;
+    if (c.x === undefined || c.y === undefined) return false;
+    const cx = c.x;
+    const cy = c.y;
+    return friendlies.some((f) => {
+      const fx = f.x;
+      const fy = f.y;
+      if (fx === undefined || fy === undefined) return false;
+      if (gridDistanceFeet({ x: fx, y: fy }, { x: cx, y: cy }) > visionRange) return false;
+      return hasLineOfSight(fx, fy, cx, cy, tiles);
+    });
+  });
 
   // Tiles visibles: muros y puertas siempre; trampa/tesoro/investigación solo si revelados.
   const visibleTiles = tiles.filter((t) => {
@@ -324,7 +325,7 @@ export const PlayerCombatView = () => {
             <span className="flex items-center gap-2 text-dnd-muted">
               <MapPin size={14} className="text-dnd-gold" />
               <span className="font-bold uppercase tracking-wide text-dnd-text">Exploración</span>
-              {tokens.length > 0 && <span>· {tokens.length} criatura(s) en el mapa</span>}
+              {visibleTokens.length > 0 && <span>· {visibleTokens.length} ficha(s) a la vista</span>}
             </span>
           )}
         </div>
@@ -539,7 +540,7 @@ export const PlayerCombatView = () => {
         {inCombat
           ? 'Vista de jugador: solo ves lo que tu party puede percibir. Los aliados comparten su visión (radio ' +
             `${visionRange} pies), pero los muros y las puertas cerradas bloquean la línea de vista. 🔒 Puerta cerrada · 🚪 Puerta abierta.`
-          : 'Estás en modo exploración: el DM está posicionando criaturas en el mapa. Cuando inicie el combate, entrará en juego la cortina de guerra. 🔒 Puerta cerrada · 🚪 Puerta abierta.'}
+          : 'Estás en modo exploración. Tu party siempre ve los aliados en el mapa, pero los enemigos solo aparecen cuando están en el campo de visión de algún personaje del party (respetando el fog of war). 🔒 Puerta cerrada · 🚪 Puerta abierta.'}
       </p>
     </div>
   );
