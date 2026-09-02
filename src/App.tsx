@@ -9,7 +9,6 @@ import { useSessionStore } from './store/sessionStore';
 import { PlayerCombatView } from './components/combat/PlayerCombatView';
 
 // Carga diferida (code splitting) para que cada sección se descargue solo cuando se visita
-const Dashboard = lazy(() => import('./components/dashboard/Dashboard'));
 const CombatTracker = lazy(() => import('./components/combat/CombatTracker'));
 const MonsterManager = lazy(() => import('./components/monsters/MonsterManager'));
 const ReferenceLibrary = lazy(() => import('./components/reference/ReferenceLibrary'));
@@ -55,13 +54,7 @@ export default function App() {
         <Route element={<Layout />}>
           <Route
             path="/"
-            element={
-              <Suspense fallback={<PageLoader />}>
-                <DmOnlyRoute>
-                  <Dashboard />
-                </DmOnlyRoute>
-              </Suspense>
-            }
+            element={<Navigate to="/combat" replace />}
           />
           <Route
             path="/combat"
@@ -125,7 +118,7 @@ export default function App() {
               </Suspense>
             }
           />
-          <Route path="*" element={<DmOnlyRoute><Dashboard /></DmOnlyRoute>} />
+          <Route path="*" element={<Navigate to="/combat" replace />} />
         </Route>
       </Routes>
     </HashRouter>

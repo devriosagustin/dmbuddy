@@ -94,7 +94,7 @@ export const Layout = () => {
               <Menu size={20} />
             </button>
             <button
-              onClick={() => navigate('/')}
+              onClick={() => navigate('/combat')}
               className="shrink-0 truncate font-fantasy text-base font-bold text-dnd-gold focus:outline-none focus-visible:ring-2 focus-visible:ring-dnd-gold rounded sm:text-lg"
             >
               DMBuddy

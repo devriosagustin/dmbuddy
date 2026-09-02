@@ -33,10 +33,11 @@ const typeColor: Record<CombatLogEntry['type'], string> = {
 
 /**
  * Registro cronológico de eventos del combate.
+ * `defaultExpanded` fuerza la lista abierta desde el inicio (usado en Registro y Notas).
  */
-export const CombatLog = () => {
+export const CombatLog = ({ defaultExpanded = false }: { defaultExpanded?: boolean }) => {
   const combatLog = useCombatStore((s) => s.combatLog);
-  const [showLog, setShowLog] = useState(false);
+  const [showLog, setShowLog] = useState(defaultExpanded);
   const listRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll dentro del propio log: bajamos al fondo siempre que llegue

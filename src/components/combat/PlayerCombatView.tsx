@@ -118,7 +118,6 @@ export const PlayerCombatView = () => {
 
   // --- Cortina de guerra ------------------------------------------------
   const friendlies = participants.filter(isFriendly);
-  const hiddenHostiles = participants.filter((c) => isHiddenHostile(c) || (c.type === 'npc' && c.npcRole === 'enemy'));
 
   const visibleTokens = participants.filter((c) => {
     if (isFriendly(c)) return true;
@@ -142,9 +141,14 @@ export const PlayerCombatView = () => {
     return isTileRevealed(snapshot, t.x, t.y);
   });
 
-  const hostileHiddenCount = hiddenHostiles.filter((h) => !visibleTokens.includes(h)).length;
   const revealedCount = (snapshot.revealedEnemyIds ?? []).length;
   const revealedTilesCount = (snapshot.revealedTileKeys ?? []).length;
+
+  // Nombre del combatiente al que le toca el turno: oculto si es un enemigo
+  // que tu party no ve todavía.
+  const turnCombatant = snapshot.turn >= 0 ? participants[snapshot.turn] : undefined;
+  const turnNameVisible =
+    !turnCombatant || isFriendly(turnCombatant) || visibleTokens.includes(turnCombatant);
 
   const cellColPct = 100 / mapCols;
   const cellRowPct = 100 / mapRows;
@@ -161,7 +165,9 @@ export const PlayerCombatView = () => {
             <span className="flex items-center gap-1 text-dnd-muted">
               <MapPin size={13} className="text-dnd-gold" />
               Turno de{' '}
-              <span className="font-bold text-dnd-text">{participants[snapshot.turn]?.name}</span>
+              <span className="font-bold text-dnd-text">
+                {turnNameVisible ? participants[snapshot.turn]?.name : '??????'}
+              </span>
             </span>
           )}
         </div>
@@ -169,11 +175,6 @@ export const PlayerCombatView = () => {
           <span className="flex items-center gap-1.5">
             <Scan size={12} className="text-sky-400" /> Visión: {visionRange} pies
           </span>
-          {hostileHiddenCount > 0 && (
-            <span className="flex items-center gap-1.5">
-              <EyeOff size={12} /> {hostileHiddenCount} fuera de tu visión
-            </span>
-          )}
           {revealedCount > 0 && (
             <span className="flex items-center gap-1.5">
               <Eye size={12} className="text-emerald-400" /> {revealedCount} enemigo(s) con vida visible

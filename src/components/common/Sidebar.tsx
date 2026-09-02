@@ -5,7 +5,6 @@
 import { NavLink } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
-  LayoutDashboard,
   Swords,
   Skull,
   BookOpen,
@@ -21,14 +20,13 @@ import { useCombatStore } from '../../store/combatStore';
 import { useSessionStore } from '../../store/sessionStore';
 
 const navItems = [
-  { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true },
   { to: '/combat', label: 'Combate', icon: Swords },
   { to: '/monsters', label: 'Monstruos', icon: Skull },
   { to: '/party', label: 'Party', icon: Users },
   { to: '/npcs', label: 'NPC', icon: UserRound },
   { to: '/reference', label: 'Biblioteca', icon: BookOpen },
   { to: '/dice', label: 'Dados', icon: Dices },
-  { to: '/notes', label: 'Notas', icon: NotebookPen },
+  { to: '/notes', label: 'Registro y Notas', icon: NotebookPen },
 ];
 
 /** En modo jugador solo se muestra el mapa de combate (lectura) y el Party. */
@@ -74,11 +72,10 @@ export const Sidebar = () => {
 
       {/* Enlaces de navegación */}
       <nav className="flex-1 space-y-1 overflow-y-auto p-3">
-        {items.map(({ to, label, icon: Icon, end }) => (
+        {items.map(({ to, label, icon: Icon }) => (
           <NavLink
             key={to}
             to={to}
-            end={end}
             className={({ isActive }) =>
               `group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-bold transition-colors ${
                 isActive

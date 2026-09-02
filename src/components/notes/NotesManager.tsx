@@ -9,6 +9,7 @@ import {
   NotebookPen,
   Plus,
   Search,
+  ScrollText,
   Star,
   Trash2,
   Download,
@@ -20,6 +21,7 @@ import { Button } from '../common/Button';
 import { NOTE_CATEGORIES, useNoteStore } from '../../store/noteStore';
 import type { Note, NoteCategory } from '../../types';
 import { MarkdownPreview } from './MarkdownPreview';
+import { CombatLog } from '../combat/CombatLog';
 
 const CATEGORY_ICONS: Record<NoteCategory, string> = {
   Campaign: '📜',
@@ -43,6 +45,7 @@ export const NotesManager = () => {
 
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState<'all' | NoteCategory>('all');
+  const [tab, setTab] = useState<'notas' | 'registro'>('notas');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [draftTitle, setDraftTitle] = useState('');
   const [draftContent, setDraftContent] = useState('');
@@ -124,30 +127,57 @@ const selectClass = 'select';
       <div className="page-header">
         <div>
           <h2 className="page-title flex items-center gap-2">
-            <NotebookPen size={22} aria-hidden="true" /> Notas del DM
+            <NotebookPen size={22} aria-hidden="true" /> Registro y Notas
           </h2>
-          <p className="text-sm text-dnd-muted">{notes.length} notas · editor Markdown</p>
+          <p className="text-sm text-dnd-muted">
+            {notes.length} notas · editor Markdown · historial del registro del combate
+          </p>
         </div>
-        <div className="page-actions">
-          <Button variant="ghost" size="sm" icon={<Download size={15} />} onClick={handleExport}>
-            Exportar
-          </Button>
-          <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-dnd-leather/70 px-2.5 py-1.5 text-xs font-bold text-dnd-text transition-colors hover:bg-dnd-leather/30">
-            <Upload size={15} aria-hidden="true" />
-            Importar
-            <input
-              type="file"
-              accept="application/json"
-              className="sr-only"
-              onChange={(e) => handleImport(e.target.files?.[0] ?? null)}
-            />
-          </label>
-          <Button variant="primary" size="sm" icon={<Plus size={15} />} onClick={() => createNote()}>
-            Nueva nota
-          </Button>
-        </div>
+        {tab === 'notas' && (
+          <div className="page-actions">
+            <Button variant="ghost" size="sm" icon={<Download size={15} />} onClick={handleExport}>
+              Exportar
+            </Button>
+            <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-dnd-leather/70 px-2.5 py-1.5 text-xs font-bold text-dnd-text transition-colors hover:bg-dnd-leather/30">
+              <Upload size={15} aria-hidden="true" />
+              Importar
+              <input
+                type="file"
+                accept="application/json"
+                className="sr-only"
+                onChange={(e) => handleImport(e.target.files?.[0] ?? null)}
+              />
+            </label>
+            <Button variant="primary" size="sm" icon={<Plus size={15} />} onClick={() => createNote()}>
+              Nueva nota
+            </Button>
+          </div>
+        )}
       </div>
 
+      {/* Pestañas: Notas y Registro */}
+      <div className="flex w-fit gap-1 rounded-lg border border-dnd-leather/40 bg-dnd-ink/40 p-1" role="tablist" aria-label="Registro y notas">
+        <button
+          role="tab"
+          aria-selected={tab === 'notas'}
+          onClick={() => setTab('notas')}
+          className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition-colors ${tab === 'notas' ? 'bg-dnd-gold text-dnd-ink' : 'text-dnd-muted hover:text-dnd-text'}`}
+        >
+          <NotebookPen size={15} aria-hidden="true" /> Notas
+        </button>
+        <button
+          role="tab"
+          aria-selected={tab === 'registro'}
+          onClick={() => setTab('registro')}
+          className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition-colors ${tab === 'registro' ? 'bg-dnd-gold text-dnd-ink' : 'text-dnd-muted hover:text-dnd-text'}`}
+        >
+          <ScrollText size={15} aria-hidden="true" /> Registro
+        </button>
+      </div>
+
+      {tab === 'registro' ? (
+        <CombatLog defaultExpanded />
+      ) : (
       <div className="grid gap-4 lg:grid-cols-[320px_1fr]">
         {/* Lista de notas */}
         <div className="space-y-3">
@@ -313,6 +343,7 @@ const selectClass = 'select';
           )}
         </div>
       </div>
+      )}
     </div>
   );
 };
