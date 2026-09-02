@@ -159,6 +159,7 @@ export const buildCombatSnapshot = (
     tiles: MapTile[];
     mapCreatures?: MapCreature[];
     partyTokens?: PartyToken[];
+    partyCombatants?: Combatant[];
     revealedTileKeys: string[];
     revealedEnemyIds: string[];
     mapVisible?: boolean;
@@ -176,6 +177,7 @@ export const buildCombatSnapshot = (
   tiles: state.tiles,
   mapCreatures: state.mapCreatures ?? [],
   partyTokens: state.partyTokens ?? [],
+  partyCombatants: state.partyCombatants ?? [],
   revealedTileKeys: state.revealedTileKeys ?? [],
   revealedEnemyIds: state.revealedEnemyIds ?? [],
   mapVisible: state.mapVisible ?? true,

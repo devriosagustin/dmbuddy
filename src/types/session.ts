@@ -17,6 +17,8 @@ export interface SyncCombatSnapshot {
   mapCreatures?: MapCreature[];
   /** Posiciones de los miembros del party en el mapa (no son criaturas). */
   partyTokens?: PartyToken[];
+  /** Miembros del party del DM como combatientes listos para renderizar (siempre visibles). */
+  partyCombatants?: Combatant[];
   /** Claves "x-y" de tiles de trampa/tesoro/investigación reveladas a la party. */
   revealedTileKeys: string[];
   /** Ids de enemigos cuya vida es visible a la party. */

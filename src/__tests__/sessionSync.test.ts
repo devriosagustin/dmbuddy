@@ -132,4 +132,46 @@ describe('cortina de guerra (revelación)', () => {
     expect(out.mapCreatures![0].name).toBe('Orco');
     expect(out.mapCreatures![0].x).toBe(3);
   });
+
+  it('incluye partyCombatants en el snapshot (miembros del party del DM)', () => {
+    const party: Combatant = {
+      ...combatant('party-1', 'player'),
+      id: 'party-1',
+      x: 5,
+      y: 2,
+    };
+    const out = buildCombatSnapshot({
+      id: 'c1',
+      round: 0,
+      turn: -1,
+      isActive: false,
+      encounterCount: 0,
+      participants: [],
+      tiles: [],
+      partyCombatants: [party],
+      revealedTileKeys: [],
+      revealedEnemyIds: [],
+      chat: [],
+    });
+    expect(out.partyCombatants).toHaveLength(1);
+    expect(out.partyCombatants![0].id).toBe('party-1');
+    expect(out.partyCombatants![0].x).toBe(5);
+    expect(out.partyCombatants![0].type).toBe('player');
+  });
+
+  it('partyCombatants ausente se normaliza a lista vacía', () => {
+    const out = buildCombatSnapshot({
+      id: 'c1',
+      round: 0,
+      turn: -1,
+      isActive: false,
+      encounterCount: 0,
+      participants: [],
+      tiles: [],
+      revealedTileKeys: [],
+      revealedEnemyIds: [],
+      chat: [],
+    });
+    expect(out.partyCombatants).toEqual([]);
+  });
 });

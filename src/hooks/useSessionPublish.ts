@@ -5,8 +5,11 @@
 
 import { useEffect, useRef } from 'react';
 import { useCombatStore } from '../store/combatStore';
+import { usePlayerStore } from '../store/playerStore';
 import { useSessionStore } from '../store/sessionStore';
 import { buildCombatSnapshot, publishCombat, watchRollResponses } from '../services/firebaseSync';
+import { playerToCombatant } from '../utils/combatUtils';
+import type { Combatant } from '../types';
 
 /**
  * Mantiene sincronizado el estado del combate local (DM) con la sesión
@@ -25,6 +28,20 @@ export const useSessionPublish = () => {
 
     const publishNow = () => {
       const s = useCombatStore.getState();
+      // Miembros del party del DM, convertidos a combatientes con su posición
+      // en el mapa para que los jugadores siempre los vean (exploración).
+      const partyCombatants: Combatant[] = s.partyTokens
+        .map((t) => {
+          const player = usePlayerStore.getState().players.find((p) => p.id === t.playerId);
+          if (!player) return null;
+          return {
+            ...playerToCombatant(player, 0),
+            id: `party-${player.id}`,
+            x: t.x,
+            y: t.y,
+          } as Combatant;
+        })
+        .filter((c): c is Combatant => c !== null);
       const snapshot = buildCombatSnapshot({
         id: s.id,
         round: s.round,
@@ -34,6 +51,7 @@ export const useSessionPublish = () => {
         participants: s.participants,
         tiles: s.tiles,
         mapCreatures: s.mapCreatures,
+        partyCombatants,
         revealedTileKeys: s.revealedTileKeys,
         revealedEnemyIds: s.revealedEnemyIds,
         mapVisible: s.mapVisible,
