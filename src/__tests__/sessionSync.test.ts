@@ -40,6 +40,7 @@ const snapshot: SyncCombatSnapshot = {
   tiles: [tile(0, 0, 'wall'), tile(2, 3, 'trap')],
   revealedTileKeys: [tileKey(2, 3)],
   revealedEnemyIds: ['gob'],
+  chat: [],
 };
 
 describe('buildCombatSnapshot', () => {
@@ -54,6 +55,7 @@ describe('buildCombatSnapshot', () => {
       tiles: [tile(0, 0, 'wall')],
       revealedTileKeys: [],
       revealedEnemyIds: [],
+      chat: [],
     });
     expect(out.id).toBe('c1');
     expect(out.round).toBe(2);
@@ -90,6 +92,7 @@ describe('cortina de guerra (revelación)', () => {
       tiles: [],
       revealedTileKeys: undefined as unknown as string[],
       revealedEnemyIds: undefined as unknown as string[],
+      chat: [],
     });
     expect(out.revealedEnemyIds).toEqual([]);
     expect(out.revealedTileKeys).toEqual([]);

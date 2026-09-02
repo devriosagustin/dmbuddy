@@ -125,7 +125,7 @@ export const npcToCombatant = (
  */
 export const playerToCombatant = (
   player: Pick<Player, 'id' | 'name' | 'hp' | 'maxHp' | 'armorClass'> &
-    Partial<Pick<Player, 'proficiencyBonus' | 'stats' | 'weaponIds' | 'cantrips' | 'spells' | 'class' | 'feats'>>,
+    Partial<Pick<Player, 'proficiencyBonus' | 'stats' | 'weaponIds' | 'cantrips' | 'spells' | 'class' | 'feats' | 'skills'>>,
   initiative: number
 ): Omit<Combatant, 'id'> => {
   return {
@@ -146,6 +146,7 @@ export const playerToCombatant = (
     playerSpells: player.spells,
     playerSaves: classSaves(player.class),
     playerFeats: player.feats,
+    playerSkills: player.skills,
     isDead: false,
     speed: 30,
   };

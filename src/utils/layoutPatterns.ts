@@ -2,7 +2,7 @@
 // Patrones y generador de layouts de mapa (barreras)
 // ============================================================
 
-import { MAP_COLS, MAP_ROWS } from './mapUtils';
+import { activeCols, activeRows } from './mapUtils';
 
 export interface MapLayout {
   id: string;
@@ -73,7 +73,7 @@ function corridor(x0: number, y0: number, x1: number, y1: number): { x: number; 
 }
 
 const inMap = (c: { x: number; y: number }) =>
-  c.x >= 0 && c.x < MAP_COLS && c.y >= 0 && c.y < MAP_ROWS;
+  c.x >= 0 && c.x < activeCols && c.y >= 0 && c.y < activeRows;
 
 const dedupe = (list: { x: number; y: number }[]): { x: number; y: number }[] => {
   const seen = new Set<string>();
@@ -106,8 +106,8 @@ function arena(): { x: number; y: number }[] {
 function dungeon(): { x: number; y: number }[] {
   const out: { x: number; y: number }[] = [];
   // Pilares en una cuadrícula.
-  for (let x = 3; x < MAP_COLS - 2; x += 4) {
-    for (let y = 2; y < MAP_ROWS - 2; y += 3) {
+  for (let x = 3; x < activeCols - 2; x += 4) {
+    for (let y = 2; y < activeRows - 2; y += 3) {
       out.push(cell(x, y));
     }
   }
@@ -134,13 +134,13 @@ function maze(): { x: number; y: number }[] {
   const out: { x: number; y: number }[] = [];
   const gapCols = [3, 8, 13, 18, 23];
   const gapRows = [3, 6, 9, 12];
-  for (let x = 2; x < MAP_COLS - 1; x += 2) {
-    for (let y = 0; y < MAP_ROWS; y++) {
+  for (let x = 2; x < activeCols - 1; x += 2) {
+    for (let y = 0; y < activeRows; y++) {
       if (!gapRows.includes(y)) out.push(cell(x, y));
     }
   }
-  for (let y = 2; y < MAP_ROWS - 1; y += 2) {
-    for (let x = 0; x < MAP_COLS; x += 1) {
+  for (let y = 2; y < activeRows - 1; y += 2) {
+    for (let x = 0; x < activeCols; x += 1) {
       if (!gapCols.includes(x)) out.push(cell(x, y));
     }
   }
@@ -149,14 +149,14 @@ function maze(): { x: number; y: number }[] {
 
 // Columnas/pilares aleatorios dentro de un perímetro.
 function pillars(): { x: number; y: number }[] {
-  const out = rect(1, 1, MAP_COLS - 2, MAP_ROWS - 2, true);
+  const out = rect(1, 1, activeCols - 2, activeRows - 2, true);
   const count = 8;
   let placed = 0;
   let guard = 0;
   while (placed < count && guard < 2000) {
     guard++;
-    const x = 3 + Math.floor(Math.random() * (MAP_COLS - 6));
-    const y = 3 + Math.floor(Math.random() * (MAP_ROWS - 6));
+    const x = 3 + Math.floor(Math.random() * (activeCols - 6));
+    const y = 3 + Math.floor(Math.random() * (activeRows - 6));
     if (out.some((b) => b.x === x && b.y === y)) continue;
     // Evita pilares demasiado juntos.
     const tooClose = out.some((b) => Math.abs(b.x - x) <= 2 && Math.abs(b.y - y) <= 2);
@@ -170,12 +170,12 @@ function pillars(): { x: number; y: number }[] {
 // División del mapa en cuadrantes con muros en cruz.
 function cross(): { x: number; y: number }[] {
   const out: { x: number; y: number }[] = [];
-  for (let y = 0; y < MAP_ROWS; y++) {
+  for (let y = 0; y < activeRows; y++) {
     if (y < 6 || y > 9) out.push(cell(13, y));
     if (y < 6 || y > 9) out.push(cell(14, y));
     if (y >= 7 && y <= 8) out.push(cell(13, y));
   }
-  for (let x = 0; x < MAP_COLS; x++) {
+  for (let x = 0; x < activeCols; x++) {
     if (x < 11 || x > 16) out.push(cell(x, 7));
     if (x < 11 || x > 16) out.push(cell(x, 8));
     if (x >= 13 && x <= 14) out.push(cell(x, 7));

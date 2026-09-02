@@ -9,7 +9,7 @@
 
 import { child, get, onValue, ref, set } from 'firebase/database';
 import { db } from './firebase';
-import type { Combatant, MapTile } from '../types';
+import type { ChatMessage, Combatant, MapTile } from '../types';
 import type { RemotePlayerSheet, SessionMeta, SessionSettings, SyncCombatSnapshot } from '../types/session';
 import { tileKey } from '../types/session';
 
@@ -63,7 +63,7 @@ export const watchCombat = (code: string, cb: (payload: CombatPayload | null) =>
   let latestSnapshot: SyncCombatSnapshot | null = null;
   let latestSettings: SessionSettings | null = null;
   const emit = () => {
-    if (latestSnapshot) cb({ snapshot: latestSnapshot, settings: latestSettings ?? { visionRange: 30 } });
+    if (latestSnapshot) cb({ snapshot: latestSnapshot, settings: latestSettings ?? { visionRange: 30, mapCols: 28, mapRows: 16 } });
     else cb(null);
   };
   const offCombat = onValue(child(sessionRef(code), 'combat'), (snap) => {
@@ -136,6 +136,7 @@ export const buildCombatSnapshot = (
     tiles: MapTile[];
     revealedTileKeys: string[];
     revealedEnemyIds: string[];
+    chat: ChatMessage[];
   }
 ): SyncCombatSnapshot => ({
   id: state.id,
@@ -147,6 +148,7 @@ export const buildCombatSnapshot = (
   tiles: state.tiles,
   revealedTileKeys: state.revealedTileKeys ?? [],
   revealedEnemyIds: state.revealedEnemyIds ?? [],
+  chat: state.chat ?? [],
 });
 
-export type { RemotePlayerSheet, Combatant, MapTile };
+export type { RemotePlayerSheet, Combatant, MapTile, ChatMessage };

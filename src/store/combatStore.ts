@@ -4,9 +4,9 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { CombatState, Combatant, CombatLogEntry, StatusEffect, MapTile, TileType } from '../types';
+import type { CombatState, Combatant, CombatLogEntry, StatusEffect, MapTile, TileType, ChatMessage } from '../types';
 import { sortByInitiative } from '../utils/combatUtils';
-import { findSpawnCell, inBounds, MAP_COLS, MAP_ROWS, gridDistanceFeet, isBlocked } from '../utils/mapUtils';
+import { findSpawnCell, inBounds, gridDistanceFeet, isBlocked, setActiveMapSize, MAP_COLS, MAP_ROWS } from '../utils/mapUtils';
 import { tileKey } from '../types/session';
 
 // Sincroniza los PG finales del combate con el party (sin recarga circular:
@@ -62,6 +62,10 @@ export interface CombatStore extends CombatState {
   toggleRevealEnemy: (id: string) => void;
   /** Fija el radio de visión (pies) de la cortina de guerra. */
   setVisionRange: (feet: number) => void;
+  /** Cambia la resolución de la cuadrícula (columnas/filas) del mapa. */
+  setMapSize: (cols: number, rows: number) => void;
+  /** Envía un mensaje de chat/lore: se guarda en el registro y se sincroniza. */
+  sendChatMessage: (msg: Omit<ChatMessage, 'id' | 'timestamp'>) => void;
 }
 
 export const useCombatStore = create<CombatStore>()(
@@ -79,6 +83,9 @@ export const useCombatStore = create<CombatStore>()(
       revealedTileKeys: [],
       revealedEnemyIds: [],
       visionRange: 30,
+      mapCols: MAP_COLS,
+      mapRows: MAP_ROWS,
+      chat: [],
 
       initializeCombat: () => {
         set({
@@ -361,14 +368,14 @@ export const useCombatStore = create<CombatStore>()(
       },
 
       moveCombatant: (id, x, y) => {
-        const { participants, tiles } = get();
+        const { participants, tiles, mapCols, mapRows } = get();
         const combatant = participants.find((p) => p.id === id);
         if (!combatant) return;
         const cx = Math.floor(x);
         const cy = Math.floor(y);
         const clamped = inBounds(cx, cy)
           ? { x: cx, y: cy }
-          : { x: Math.max(0, Math.min(MAP_COLS - 1, cx)), y: Math.max(0, Math.min(MAP_ROWS - 1, cy)) };
+          : { x: Math.max(0, Math.min(mapCols - 1, cx)), y: Math.max(0, Math.min(mapRows - 1, cy)) };
         if (combatant.x === clamped.x && combatant.y === clamped.y) return;
         // Bloquear movimiento si hay un muro o una puerta cerrada en el destino.
         if (isBlocked(tiles, clamped.x, clamped.y)) return;
@@ -590,6 +597,43 @@ export const useCombatStore = create<CombatStore>()(
       setVisionRange: (feet) => {
         set({ visionRange: Math.max(5, Math.round(feet)) });
       },
+
+      setMapSize: (cols, rows) => {
+        const { participants, tiles, mapCols, mapRows } = get();
+        const nCols = Math.max(8, Math.round(cols));
+        const nRows = Math.max(8, Math.round(rows));
+        if (nCols === mapCols && nRows === mapRows) return;
+        // Fija primero las dims activas para que inBounds use la nueva cuadrícula.
+        setActiveMapSize(nCols, nRows);
+        // Recorta tiles y ficha s fuera de los nuevos límites.
+        const inBoundsTiles = tiles.filter((t) => inBounds(t.x, t.y));
+        const clampedParticipants = participants.map((p) => ({
+          ...p,
+          x: p.x === undefined ? p.x : Math.min(nCols - 1, p.x),
+          y: p.y === undefined ? p.y : Math.min(nRows - 1, p.y),
+        }));
+        set({ mapCols: nCols, mapRows: nRows, tiles: inBoundsTiles, participants: clampedParticipants });
+        get().addLogEntry({
+          type: 'custom',
+          message: `🗺 Mapa cambiado a ${nCols}×${nRows} (${nCols * 5}×${nRows * 5} pies)`,
+        });
+      },
+
+      sendChatMessage: (msg) => {
+        const { chat } = get();
+        const full: ChatMessage = {
+          ...msg,
+          id: makeId(),
+          timestamp: Date.now(),
+        };
+        set({ chat: [...chat, full].slice(-200) });
+        get().addLogEntry({
+          type: 'chat',
+          message: `🗣 ${msg.author}: ${msg.text}`,
+          combatantId: msg.combatantId,
+          details: { author: msg.author, kind: msg.kind },
+        });
+      },
     }),
     {
       name: 'combat-storage',
@@ -609,6 +653,12 @@ export const useCombatStore = create<CombatStore>()(
             return p;
           }),
         } as unknown as CombatStore;
+      },
+      // Al rehidratar, resincroniza las dimensiones activas con las guardadas.
+      onRehydrateStorage: () => (state) => {
+        if (state) {
+          setActiveMapSize(state.mapCols ?? MAP_COLS, state.mapRows ?? MAP_ROWS);
+        }
       },
     }
   )

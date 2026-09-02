@@ -4,7 +4,7 @@
 
 import { useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import { BookOpen, Download, Edit, Swords, Trash2 } from 'lucide-react';
+import { Download, Edit, Swords, Trash2 } from 'lucide-react';
 import type { Player } from '../../types';
 import { HealthBar } from '../common/HealthBar';
 import { abilityModifier } from '../../utils/diceUtils';
@@ -15,10 +15,10 @@ import { srdSpellByTitle, srdWeaponById, srdFeatByTitle } from '../../data/srd20
 import { weaponAttackBonus, weaponDamageFormula } from '../../utils/weaponUtils';
 import { SrdDetailPanel } from '../reference/SrdDetailPanel';
 import { STAT_LABELS } from '../../types';
-import type { Spell } from '../../types';
 import { skillBonus } from '../../utils/skills';
 import { SpellSlotsPanel } from './SpellSlotsPanel';
 import { XpBar } from './XpBar';
+import { SpellChip, FeatChip } from './srdChips';
 
 interface PlayerCardProps {
   player: Player;
@@ -261,29 +261,3 @@ export const PlayerCard = ({ player, onEdit, onRemove }: PlayerCardProps) => {
     </motion.article>
   );
 };
-
-/** Chip clicable de un conjuro: abre el detalle del SRD 5.2. */
-const SpellChip = ({ spell, onOpen }: { spell: Spell; onOpen: (name: string) => void }) => (
-  <button
-    onClick={() => onOpen(spell.name)}
-    title={`Ver detalle de ${spell.name}`}
-    aria-label={`Ver detalle de ${spell.name}`}
-    className="inline-flex max-w-full items-center gap-1 rounded-full border border-dnd-gold/30 bg-dnd-gold/10 px-2 py-0.5 text-[10px] text-dnd-text transition-colors hover:border-dnd-gold/60 hover:bg-dnd-gold/20"
-  >
-    <BookOpen size={10} className="shrink-0 text-dnd-gold" aria-hidden="true" />
-    <span className="truncate">{spell.name}</span>
-  </button>
-);
-
-/** Chip clicable de una dote: abre su texto completo del SRD 5.2 (o el título si no tiene ficha). */
-const FeatChip = ({ title, onOpen }: { title: string; onOpen: (title: string) => void }) => (
-  <button
-    onClick={() => onOpen(title)}
-    title={`Ver detalle de ${title}`}
-    aria-label={`Ver detalle de ${title}`}
-    className="inline-flex max-w-full items-center gap-1 rounded-full border border-dnd-gold/30 bg-dnd-gold/10 px-2 py-0.5 text-[10px] text-dnd-text transition-colors hover:border-dnd-gold/60 hover:bg-dnd-gold/20"
-  >
-    <BookOpen size={10} className="shrink-0 text-dnd-gold" aria-hidden="true" />
-    <span className="truncate">{title}</span>
-  </button>
-);

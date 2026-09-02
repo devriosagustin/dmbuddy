@@ -2,7 +2,7 @@
 // Tipos para la sincronización de sesiones (Firebase RTDB)
 // ============================================================
 
-import type { Combatant, MapTile } from './index';
+import type { ChatMessage, Combatant, MapTile } from './index';
 
 /** Snapshot del combate publicado por el DM (formato serializable). */
 export interface SyncCombatSnapshot {
@@ -17,12 +17,18 @@ export interface SyncCombatSnapshot {
   revealedTileKeys: string[];
   /** Ids de enemigos cuya vida es visible a la party. */
   revealedEnemyIds: string[];
+  /** Mensajes de chat/lore del DM (Narrador, NPC o monstruo). */
+  chat: ChatMessage[];
 }
 
 /** Ajustes de la sesión controlados por el DM. */
 export interface SessionSettings {
   /** Radio de visión (en pies) para la cortina de guerra del jugador. */
   visionRange: number;
+  /** Columnas de la cuadrícula del mapa (resolución). */
+  mapCols: number;
+  /** Filas de la cuadrícula del mapa (resolución). */
+  mapRows: number;
 }
 
 /** Metadatos de la sesión. */

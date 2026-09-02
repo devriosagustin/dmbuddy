@@ -27,6 +27,7 @@ import { useCombatStore } from '../../store/combatStore';
 import { useSessionStore } from '../../store/sessionStore';
 import { useLayoutStore } from '../../store/layoutStore';
 import { randomLayout } from '../../utils/layoutPatterns';
+import { ChatPanel } from './ChatPanel';
 import type { Combatant, TileType } from '../../types';
 
 /**
@@ -58,6 +59,11 @@ export const CombatTracker = () => {
     endCombat,
     encounterCount,
     tiles,
+    mapCols,
+    mapRows,
+    setMapSize,
+    chat,
+    sendChatMessage,
   } = useCombatStore();
 
   const { savedLayouts, saveLayout, savedLayout: getSavedLayout, deleteLayout, exportLayouts, importLayouts } = useLayoutStore();
@@ -344,6 +350,9 @@ return (
               onSelect={setSelectedTokenId}
               onOpenActions={setSelected}
               onMove={moveCombatant}
+              cols={mapCols ?? 28}
+              rows={mapRows ?? 16}
+              onMapSizeChange={setMapSize}
             />
           )}
         </div>
@@ -373,6 +382,13 @@ return (
               onVisionRange={setVisionRange}
             />
           )}
+          <div className="flex h-56 min-h-0 shrink-0 flex-col">
+            <ChatPanel
+              messages={chat ?? []}
+              participants={participants}
+              onSend={sendChatMessage}
+            />
+          </div>
           <CombatLog />
         </div>
       </div>

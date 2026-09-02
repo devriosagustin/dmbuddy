@@ -10,9 +10,6 @@ import type { Combatant, MapTile, TileType } from '../../types';
 import type { MapCell } from '../../utils/mapUtils';
 import type { MapLayout } from '../../utils/layoutPatterns';
 import {
-  MAP_COLS,
-  MAP_ROWS,
-  inBounds,
   isOccupied,
   isBlocked,
   hasTile,
@@ -21,6 +18,7 @@ import {
   cellsInSphere,
   gridDistanceFeet,
 } from '../../utils/mapUtils';
+import { MAP_SIZE_PRESETS, presetForSize } from '../../utils/mapSize';
 import { hpRatio, hpBarColorClass } from '../../utils/combatUtils';
 
 type Mode = 'move' | 'measure' | 'range' | 'aoe';
@@ -67,6 +65,11 @@ interface CombatMapProps {
   onMove: (id: string, x: number, y: number) => void;
   /** Selecciona (o deselecciona con null) una ficha en el mapa. */
   onSelect: (id: string | null) => void;
+  /** Dimensiones actuales de la cuadrícula (resolución). */
+  cols: number;
+  rows: number;
+  /** Cambia la resolución de la cuadrícula. */
+  onMapSizeChange: (cols: number, rows: number) => void;
 }
 
 interface DragState {
@@ -75,13 +78,13 @@ interface DragState {
   startY: number;
   moved: boolean;
 }
-const cellFromPointer = (e: React.PointerEvent, gridRect: DOMRect): MapCell | null => {
+const cellFromPointer = (e: React.PointerEvent, gridRect: DOMRect, cols: number, rows: number): MapCell | null => {
   if (gridRect.width <= 0 || gridRect.height <= 0) return null;
-  const cellW = gridRect.width / MAP_COLS;
-  const cellH = gridRect.height / MAP_ROWS;
+  const cellW = gridRect.width / cols;
+  const cellH = gridRect.height / rows;
   const x = Math.floor((e.clientX - gridRect.left) / cellW);
   const y = Math.floor((e.clientY - gridRect.top) / cellH);
-  if (!inBounds(x, y)) return null;
+  if (x < 0 || x >= cols || y < 0 || y >= rows) return null;
   return { x, y };
 };
 
@@ -90,7 +93,7 @@ const SAME = <T,>(a: T, b: T) => JSON.stringify(a) === JSON.stringify(b);
 const RANGE_PRESETS = [5, 10, 15, 30, 60, 90, 120];
 const AOE_PRESETS = [5, 10, 15, 20, 30, 60];
 
-export const CombatMap = ({ participants, activeId, nextId, selectedId, tiles, tileType, onTileTypeChange, tileMode, onToggleTileMode, onToggleTile, onClearTiles, onExportLayouts, onImportLayouts, savedLayouts, onSaveLayout, onLoadLayout, onDeleteLayout, onRandomLayout, onOpenActions, onMove, onSelect }: CombatMapProps) => {
+export const CombatMap = ({ participants, activeId, nextId, selectedId, tiles, tileType, onTileTypeChange, tileMode, onToggleTileMode, onToggleTile, onClearTiles, onExportLayouts, onImportLayouts, savedLayouts, onSaveLayout, onLoadLayout, onDeleteLayout, onRandomLayout, onOpenActions, onMove, onSelect, cols, rows, onMapSizeChange }: CombatMapProps) => {
   const gridRef = useRef<HTMLDivElement>(null);
   const [mode, setMode] = useState<Mode>('move');
   const [drag, setDrag] = useState<DragState | null>(null);
@@ -122,12 +125,12 @@ export const CombatMap = ({ participants, activeId, nextId, selectedId, tiles, t
     const ro = new ResizeObserver((entries) => {
       const { width, height } = entries[0].contentRect;
       // Celda cuadrada que quepa tanto por ancho como por alto.
-      const cellSize = Math.max(1, Math.floor(Math.min(width / MAP_COLS, height / MAP_ROWS)));
-      setMapSize({ w: cellSize * MAP_COLS, h: cellSize * MAP_ROWS });
+      const cellSize = Math.max(1, Math.floor(Math.min(width / cols, height / rows)));
+      setMapSize({ w: cellSize * cols, h: cellSize * rows });
     });
     ro.observe(el);
     return () => ro.disconnect();
-  }, []);
+  }, [cols, rows]);
 
   const rangeSource = useMemo(
     () => participants.find((p) => p.id === rangeSourceId) ?? null,
@@ -196,7 +199,7 @@ export const CombatMap = ({ participants, activeId, nextId, selectedId, tiles, t
   const handleMove = (e: React.PointerEvent) => {
     if (!gridRef.current) return;
     const rect = gridRef.current.getBoundingClientRect();
-    const cell = cellFromPointer(e, rect);
+    const cell = cellFromPointer(e, rect, cols, rows);
     setHover(cell);
     if (!drag) return;
     const distance = Math.hypot(e.clientX - drag.startX, e.clientY - drag.startY);
@@ -274,8 +277,8 @@ export const CombatMap = ({ participants, activeId, nextId, selectedId, tiles, t
   const isInRange = (x: number, y: number) => rangeCells.some((c) => c.x === x && c.y === y);
   const isInAoe = (x: number, y: number) => aoeCells.some((c) => c.x === x && c.y === y);
 
-  const cellColPct = 100 / MAP_COLS;
-  const cellRowPct = 100 / MAP_ROWS;
+  const cellColPct = 100 / cols;
+  const cellRowPct = 100 / rows;
 
   const modeButton = (m: Mode, label: string) => (
     <button
@@ -352,6 +355,23 @@ export const CombatMap = ({ participants, activeId, nextId, selectedId, tiles, t
           >
             🗺 Mapas
           </button>
+          <select
+            value={presetForSize(cols, rows)?.id ?? 'custom'}
+            onChange={(e) => {
+              const preset = MAP_SIZE_PRESETS.find((p) => p.id === e.target.value);
+              if (preset) onMapSizeChange(preset.cols, preset.rows);
+            }}
+            aria-label="Resolución del mapa"
+            title="Resolución de la cuadrícula (columnas × filas)"
+            className="input h-8 shrink-0 px-2 py-0 text-xs"
+            style={{ width: '9.5rem' }}
+          >
+            {MAP_SIZE_PRESETS.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.label} · {p.cols * 5}×{p.rows * 5} pies
+              </option>
+            ))}
+          </select>
           {layoutsOpen && (
             <div className="absolute left-0 top-full z-50 mt-1 w-80 max-w-[90vw] rounded-dnd-lg border border-dnd-leather/40 bg-dnd-ink p-4 shadow-xl">
               <div className="mb-3 flex flex-col gap-1.5">
@@ -537,7 +557,7 @@ export const CombatMap = ({ participants, activeId, nextId, selectedId, tiles, t
           onPointerUp={handleUp}
           onPointerDown={(e) => {
             if (e.button !== 0) return;
-            const cell = gridRef.current && cellFromPointer(e, gridRef.current.getBoundingClientRect());
+            const cell = gridRef.current && cellFromPointer(e, gridRef.current.getBoundingClientRect(), cols, rows);
             if (cell) handleEmptyDown(e, cell);
           }}
           className="relative overflow-hidden rounded-dnd-lg border border-dnd-leather/40 bg-dnd-ink/40"
@@ -552,22 +572,22 @@ export const CombatMap = ({ participants, activeId, nextId, selectedId, tiles, t
         {/* Casillas de fondo con mayor contraste */}
         <div
           className="absolute inset-0 grid"
-          style={{ gridTemplateColumns: `repeat(${MAP_COLS}, 1fr)`, gridAutoRows: '1fr' }}
+          style={{ gridTemplateColumns: `repeat(${cols}, 1fr)`, gridAutoRows: '1fr' }}
           aria-hidden="true"
         >
-          {Array.from({ length: MAP_COLS * MAP_ROWS }, (_, i) => {
-            const x = i % MAP_COLS;
-            const y = Math.floor(i / MAP_COLS);
+          {Array.from({ length: cols * rows }, (_, i) => {
+            const x = i % cols;
+            const y = Math.floor(i / cols);
             return <div key={i} className={`${cellClass(x, y)} border-r border-b border-dnd-ink/70`} />;
           })}
         </div>
 
         {/* Tiles (muros, trampas, tesoros, investigación) */}
         {tiles.length > 0 && (
-          <div className="pointer-events-none absolute inset-0 grid" style={{ gridTemplateColumns: `repeat(${MAP_COLS}, 1fr)`, gridAutoRows: '1fr' }} aria-hidden="true">
-            {Array.from({ length: MAP_COLS * MAP_ROWS }, (_, i) => {
-              const x = i % MAP_COLS;
-              const y = Math.floor(i / MAP_COLS);
+          <div className="pointer-events-none absolute inset-0 grid" style={{ gridTemplateColumns: `repeat(${cols}, 1fr)`, gridAutoRows: '1fr' }} aria-hidden="true">
+            {Array.from({ length: cols * rows }, (_, i) => {
+              const x = i % cols;
+              const y = Math.floor(i / cols);
               const tile = tiles.find((t) => t.x === x && t.y === y);
               if (!tile) return <div key={i} />;
               // Estilos por tipo de tile.
@@ -611,10 +631,10 @@ export const CombatMap = ({ participants, activeId, nextId, selectedId, tiles, t
 
         {/* Movimientos posibles del combatiente seleccionado (según su velocidad) */}
         {moveCells.length > 0 && (
-          <div className="pointer-events-none absolute inset-0 grid" style={{ gridTemplateColumns: `repeat(${MAP_COLS}, 1fr)`, gridAutoRows: '1fr' }} aria-hidden="true">
-            {Array.from({ length: MAP_COLS * MAP_ROWS }, (_, i) => {
-              const x = i % MAP_COLS;
-              const y = Math.floor(i / MAP_COLS);
+          <div className="pointer-events-none absolute inset-0 grid" style={{ gridTemplateColumns: `repeat(${cols}, 1fr)`, gridAutoRows: '1fr' }} aria-hidden="true">
+            {Array.from({ length: cols * rows }, (_, i) => {
+              const x = i % cols;
+              const y = Math.floor(i / cols);
               if (!moveCells.some((c) => c.x === x && c.y === y)) return <div key={i} />;
               return <div key={i} className="bg-green-700/15 ring-1 ring-inset ring-green-700/30" />;
             })}
@@ -623,10 +643,10 @@ export const CombatMap = ({ participants, activeId, nextId, selectedId, tiles, t
 
         {/* Capa de áreas: alcance y áreas de efecto */}
         {mode === 'range' && rangeCells.length > 0 && (
-          <div className="pointer-events-none absolute inset-0 grid" style={{ gridTemplateColumns: `repeat(${MAP_COLS}, 1fr)`, gridAutoRows: '1fr' }} aria-hidden="true">
-            {Array.from({ length: MAP_COLS * MAP_ROWS }, (_, i) => {
-              const x = i % MAP_COLS;
-              const y = Math.floor(i / MAP_COLS);
+          <div className="pointer-events-none absolute inset-0 grid" style={{ gridTemplateColumns: `repeat(${cols}, 1fr)`, gridAutoRows: '1fr' }} aria-hidden="true">
+            {Array.from({ length: cols * rows }, (_, i) => {
+              const x = i % cols;
+              const y = Math.floor(i / cols);
               if (!isInRange(x, y)) return <div key={i} />;
               return <div key={i} className="bg-sky-500/[0.22] ring-1 ring-inset ring-sky-400/60" />;
             })}
@@ -634,10 +654,10 @@ export const CombatMap = ({ participants, activeId, nextId, selectedId, tiles, t
         )}
 
         {mode === 'aoe' && aoeCells.length > 0 && (
-          <div className="pointer-events-none absolute inset-0 grid" style={{ gridTemplateColumns: `repeat(${MAP_COLS}, 1fr)`, gridAutoRows: '1fr' }} aria-hidden="true">
-            {Array.from({ length: MAP_COLS * MAP_ROWS }, (_, i) => {
-              const x = i % MAP_COLS;
-              const y = Math.floor(i / MAP_COLS);
+          <div className="pointer-events-none absolute inset-0 grid" style={{ gridTemplateColumns: `repeat(${cols}, 1fr)`, gridAutoRows: '1fr' }} aria-hidden="true">
+            {Array.from({ length: cols * rows }, (_, i) => {
+              const x = i % cols;
+              const y = Math.floor(i / cols);
               if (!isInAoe(x, y)) return <div key={i} />;
               return <div key={i} className="bg-violet-500/[0.25] ring-1 ring-inset ring-violet-400/70" />;
             })}

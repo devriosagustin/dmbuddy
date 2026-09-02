@@ -6,7 +6,7 @@
 // ============================================================
 
 import { useEffect, useRef, useState } from 'react';
-import { Eye, EyeOff, MapPin, Scan, Swords, Radio, Maximize, Minimize } from 'lucide-react';
+import { Eye, EyeOff, MapPin, Scan, Swords, Radio, Maximize, Minimize, MessageSquare } from 'lucide-react';
 import { Modal } from '../common/Modal';
 import { useSessionStore } from '../../store/sessionStore';
 import {
@@ -17,10 +17,10 @@ import {
   gridDistanceFeet,
   hasTile,
   hasLineOfSight,
-  MAP_COLS,
-  MAP_ROWS,
 } from '../../utils/mapUtils';
 import type { Combatant } from '../../types';
+import { PlayerPartyDetail } from './PlayerPartyDetail';
+import { ChatPanel } from './ChatPanel';
 
 /** Aliados del party: jugadores, rehenes y NPCs aliados/neutrales. */
 const isFriendly = (c: Combatant): boolean =>
@@ -55,9 +55,17 @@ export const PlayerCombatView = () => {
 
   const [selected, setSelected] = useState<Combatant | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [showChat, setShowChat] = useState(false);
   const [mapSize, setMapSize] = useState({ w: 0, h: 0 });
   const rootRef = useRef<HTMLDivElement>(null);
   const measureRef = useRef<HTMLDivElement>(null);
+
+  const snapshot = remoteCombat?.snapshot ?? null;
+  const visionRange = remoteCombat?.settings?.visionRange ?? 30;
+  const mapCols = remoteCombat?.settings?.mapCols ?? 28;
+  const mapRows = remoteCombat?.settings?.mapRows ?? 16;
+  const participants = snapshot?.participants ?? [];
+  const tiles = snapshot?.tiles ?? [];
 
   // Dimensionado del mapa: celdas cuadradas que quepan en el área disponible.
   useEffect(() => {
@@ -65,12 +73,12 @@ export const PlayerCombatView = () => {
     if (!el) return;
     const ro = new ResizeObserver((entries) => {
       const { width, height } = entries[0].contentRect;
-      const cellSize = Math.max(1, Math.floor(Math.min(width / MAP_COLS, height / MAP_ROWS)));
-      setMapSize({ w: cellSize * MAP_COLS, h: cellSize * MAP_ROWS });
+      const cellSize = Math.max(1, Math.floor(Math.min(width / mapCols, height / mapRows)));
+      setMapSize({ w: cellSize * mapCols, h: cellSize * mapRows });
     });
     ro.observe(el);
     return () => ro.disconnect();
-  }, []);
+  }, [mapCols, mapRows]);
 
   // Estado de pantalla completa (botón de la cabecera).
   useEffect(() => {
@@ -86,11 +94,6 @@ export const PlayerCombatView = () => {
       void rootRef.current?.requestFullscreen?.();
     }
   };
-
-  const snapshot = remoteCombat?.snapshot ?? null;
-  const visionRange = remoteCombat?.settings?.visionRange ?? 30;
-  const participants = snapshot?.participants ?? [];
-  const tiles = snapshot?.tiles ?? [];
 
   if (!snapshot || !snapshot.isActive) {
     return (
@@ -143,8 +146,8 @@ export const PlayerCombatView = () => {
   const revealedCount = (snapshot.revealedEnemyIds ?? []).length;
   const revealedTilesCount = (snapshot.revealedTileKeys ?? []).length;
 
-  const cellColPct = 100 / MAP_COLS;
-  const cellRowPct = 100 / MAP_ROWS;
+  const cellColPct = 100 / mapCols;
+  const cellRowPct = 100 / mapRows;
 
   return (
     <div ref={rootRef} className="flex h-full min-h-0 flex-col gap-3">
@@ -190,6 +193,20 @@ export const PlayerCombatView = () => {
             {isFullscreen ? <Minimize size={12} /> : <Maximize size={12} />}
             {isFullscreen ? 'Salir' : 'Pantalla completa'}
           </button>
+          <button
+            type="button"
+            onClick={() => setShowChat((v) => !v)}
+            aria-expanded={showChat}
+            className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 font-bold transition-colors ${
+              showChat
+                ? 'bg-dnd-gold text-dnd-ink'
+                : 'bg-dnd-leather/30 text-dnd-muted hover:text-dnd-text'
+            }`}
+            title="Chat / lore del DM"
+          >
+            <MessageSquare size={12} />
+            Chat {(snapshot.chat ?? []).length > 0 && `(${(snapshot.chat ?? []).length})`}
+          </button>
         </div>
       </div>
 
@@ -202,20 +219,20 @@ export const PlayerCombatView = () => {
           role="img"
         >
           {/* Fondo */}
-          <div className="absolute inset-0 grid" style={{ gridTemplateColumns: `repeat(${MAP_COLS}, 1fr)`, gridAutoRows: '1fr' }} aria-hidden="true">
-            {Array.from({ length: MAP_COLS * MAP_ROWS }, (_, i) => {
-              const x = i % MAP_COLS;
-              const y = Math.floor(i / MAP_COLS);
+          <div className="absolute inset-0 grid" style={{ gridTemplateColumns: `repeat(${mapCols}, 1fr)`, gridAutoRows: '1fr' }} aria-hidden="true">
+            {Array.from({ length: mapCols * mapRows }, (_, i) => {
+              const x = i % mapCols;
+              const y = Math.floor(i / mapCols);
               return <div key={i} className={`${cellClass(x, y)} border-r border-b border-dnd-ink/70`} />;
             })}
           </div>
 
           {/* Tiles visibles */}
           {visibleTiles.length > 0 && (
-            <div className="pointer-events-none absolute inset-0 grid" style={{ gridTemplateColumns: `repeat(${MAP_COLS}, 1fr)`, gridAutoRows: '1fr' }} aria-hidden="true">
-              {Array.from({ length: MAP_COLS * MAP_ROWS }, (_, i) => {
-                const x = i % MAP_COLS;
-                const y = Math.floor(i / MAP_COLS);
+            <div className="pointer-events-none absolute inset-0 grid" style={{ gridTemplateColumns: `repeat(${mapCols}, 1fr)`, gridAutoRows: '1fr' }} aria-hidden="true">
+              {Array.from({ length: mapCols * mapRows }, (_, i) => {
+                const x = i % mapCols;
+                const y = Math.floor(i / mapCols);
                 const tile = visibleTiles.find((t) => t.x === x && t.y === y);
                 if (!tile) return <div key={i} />;
                 let baseClass = '';
@@ -288,51 +305,65 @@ export const PlayerCombatView = () => {
         </div>
       </div>
 
-      {/* Detalle de ficha seleccionada */}
-      <Modal
-        open={selected !== null}
-        onClose={() => setSelected(null)}
-        title={selected?.name ?? ''}
-        subtitle={selected ? (isFriendly(selected) ? 'Aliado del party' : isHiddenHostile(selected) ? 'Enemigo en tu visión' : 'Personaje') : undefined}
-        maxWidth="sm"
-      >
-        {selected && (
-          <div className="flex flex-col gap-3">
-            {(isHiddenHostile(selected) && !isEnemyRevealed(snapshot, selected.id)) ? (
-              <div className="flex items-center gap-2 rounded-lg border border-dnd-leather/30 bg-dnd-leather/5 px-3 py-2 text-sm text-dnd-muted">
-                <EyeOff size={16} className="text-amber-400" />
-                El DM aún no revela su estado. Su vida aparece como «??? » hasta que lo revele.
-              </div>
-            ) : (
-              <div className="rounded-lg border border-dnd-leather/30 bg-dnd-leather/5 px-3 py-2 text-sm">
-                <p className="flex items-center justify-between">
-                  <span className="text-dnd-muted">PG</span>
-                  <span className="font-bold text-dnd-text">
-                    {isFriendly(selected) || isEnemyRevealed(snapshot, selected.id)
-                      ? `${selected.hp}/${selected.maxHp}`
-                      : '??? '}
-                  </span>
-                </p>
-                {selected.armorClass > 0 && (
-                  <p className="mt-1 flex items-center justify-between">
-                    <span className="text-dnd-muted">CA</span>
-                    <span className="font-bold text-dnd-text">{selected.armorClass}</span>
+      {/* Detalle de ficha seleccionada: ficha completa para el party, resumen para el resto */}
+      {selected?.type === 'player' ? (
+        <PlayerPartyDetail
+          combatant={selected}
+          onClose={() => setSelected(null)}
+        />
+      ) : (
+        <Modal
+          open={selected !== null}
+          onClose={() => setSelected(null)}
+          title={selected?.name ?? ''}
+          subtitle={selected ? (isFriendly(selected) ? 'Aliado del party' : isHiddenHostile(selected) ? 'Enemigo en tu visión' : 'Personaje') : undefined}
+          maxWidth="sm"
+        >
+          {selected && (
+            <div className="flex flex-col gap-3">
+              {(isHiddenHostile(selected) && !isEnemyRevealed(snapshot, selected.id)) ? (
+                <div className="flex items-center gap-2 rounded-lg border border-dnd-leather/30 bg-dnd-leather/5 px-3 py-2 text-sm text-dnd-muted">
+                  <EyeOff size={16} className="text-amber-400" />
+                  El DM aún no revela su estado. Su vida aparece como «??? » hasta que lo revele.
+                </div>
+              ) : (
+                <div className="rounded-lg border border-dnd-leather/30 bg-dnd-leather/5 px-3 py-2 text-sm">
+                  <p className="flex items-center justify-between">
+                    <span className="text-dnd-muted">PG</span>
+                    <span className="font-bold text-dnd-text">
+                      {isFriendly(selected) || isEnemyRevealed(snapshot, selected.id)
+                        ? `${selected.hp}/${selected.maxHp}`
+                        : '??? '}
+                    </span>
                   </p>
-                )}
-                {selected.speed !== undefined && (
-                  <p className="mt-1 flex items-center justify-between">
-                    <span className="text-dnd-muted">Velocidad</span>
-                    <span className="font-bold text-dnd-text">{selected.speed} pies</span>
-                  </p>
-                )}
-              </div>
-            )}
-            <p className="text-xs text-dnd-muted">
-              Posición: ({selected.x}, {selected.y}) · {isHiddenHostile(selected) ? 'Enemigo dentro de tu radio de visión' : 'Información visible para tu party'}
-            </p>
-          </div>
-        )}
-      </Modal>
+                  {selected.armorClass > 0 && (
+                    <p className="mt-1 flex items-center justify-between">
+                      <span className="text-dnd-muted">CA</span>
+                      <span className="font-bold text-dnd-text">{selected.armorClass}</span>
+                    </p>
+                  )}
+                  {selected.speed !== undefined && (
+                    <p className="mt-1 flex items-center justify-between">
+                      <span className="text-dnd-muted">Velocidad</span>
+                      <span className="font-bold text-dnd-text">{selected.speed} pies</span>
+                    </p>
+                  )}
+                </div>
+              )}
+              <p className="text-xs text-dnd-muted">
+                Posición: ({selected.x}, {selected.y}) · {isHiddenHostile(selected) ? 'Enemigo dentro de tu radio de visión' : 'Información visible para tu party'}
+              </p>
+            </div>
+          )}
+        </Modal>
+      )}
+
+      {/* Chat / lore del DM en vivo */}
+      {showChat && (
+        <div className="card h-48 shrink-0 overflow-hidden p-3">
+          <ChatPanel messages={snapshot.chat ?? []} readOnly />
+        </div>
+      )}
 
       <p className="text-[10px] text-dnd-muted">
         Vista de jugador: solo ves lo que tu party puede percibir. Los aliados comparten su visión (radio {visionRange} pies), pero los muros y las puertas cerradas bloquean la línea de vista. 🔒 Puerta cerrada · 🚪 Puerta abierta.

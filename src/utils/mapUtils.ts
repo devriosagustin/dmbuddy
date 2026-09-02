@@ -5,12 +5,26 @@
 
 import type { Combatant, MapTile, TileType } from '../types';
 
-/** Número de columnas (casillas horizontales) del mapa. */
+/** Número de columnas (casillas horizontales) por defecto del mapa. */
 export const MAP_COLS = 28;
-/** Número de filas (casillas verticales) del mapa. */
+/** Número de filas (casillas verticales) por defecto del mapa. */
 export const MAP_ROWS = 16;
 /** Pies que representa cada casilla (regla 2024: cuadrícula de 5 pies). */
 export const FEET_PER_CELL = 5;
+
+/**
+ * Dimensiones activas de la cuadrícula. El DM puede cambiarlas (presets de
+ * resolución) y las utilidades de límites/áreas usan siempre estos valores.
+ * Por defecto coinciden con la resolución estándar 28×16.
+ */
+export let activeCols = MAP_COLS;
+export let activeRows = MAP_ROWS;
+
+/** Fija las dimensiones activas de la cuadrícula (>= 8 para mapas mínimos). */
+export const setActiveMapSize = (cols: number, rows: number): void => {
+  activeCols = Math.max(8, Math.round(cols));
+  activeRows = Math.max(8, Math.round(rows));
+};
 
 export interface MapCell {
   x: number;
@@ -19,7 +33,7 @@ export interface MapCell {
 
 /** Indica si una coordenada cae dentro de la cuadrícula. */
 export const inBounds = (x: number, y: number): boolean =>
-  x >= 0 && x < MAP_COLS && y >= 0 && y < MAP_ROWS;
+  x >= 0 && x < activeCols && y >= 0 && y < activeRows;
 
 /** Convierte una distancia en pies al número de casillas (redondeo a ≥1). */
 export const feetToCells = (feet: number): number => Math.max(1, Math.round(feet / FEET_PER_CELL));
@@ -92,8 +106,8 @@ export const cellsInSphere = (
 ): MapCell[] => {
   const r = feetToCells(radiusFeet);
   const out: MapCell[] = [];
-  for (let y = Math.max(0, cy - r); y <= Math.min(MAP_ROWS - 1, cy + r); y++) {
-    for (let x = Math.max(0, cx - r); x <= Math.min(MAP_COLS - 1, cx + r); x++) {
+  for (let y = Math.max(0, cy - r); y <= Math.min(activeRows - 1, cy + r); y++) {
+    for (let x = Math.max(0, cx - r); x <= Math.min(activeCols - 1, cx + r); x++) {
       if (Math.max(Math.abs(x - cx), Math.abs(y - cy)) > r) continue;
       if (isBlocked(tiles, x, y)) continue;
       if (!hasLineOfSight(cx, cy, x, y, tiles)) continue;
@@ -153,8 +167,8 @@ export const cellsInCone = (
   }
   const cosHalf = Math.cos(Math.PI / 4); // 45° a cada lado del eje → cono de 90°
   const out: MapCell[] = [];
-  for (let y = Math.max(0, cy - L); y <= Math.min(MAP_ROWS - 1, cy + L); y++) {
-    for (let x = Math.max(0, cx - L); x <= Math.min(MAP_COLS - 1, cx + L); x++) {
+  for (let y = Math.max(0, cy - L); y <= Math.min(activeRows - 1, cy + L); y++) {
+    for (let x = Math.max(0, cx - L); x <= Math.min(activeCols - 1, cx + L); x++) {
       if (x === cx && y === cy) continue;
       const d = Math.hypot(x - cx, y - cy);
       if (d > L) continue;
@@ -183,18 +197,18 @@ export const findSpawnCell = (
   tiles?: MapTile[]
 ): MapCell => {
   const direction = isPlayer ? 1 : -1;
-  const startX = isPlayer ? 1 : MAP_COLS - 2;
-  const reach = Math.max(MAP_COLS, MAP_ROWS);
+  const startX = isPlayer ? 1 : activeCols - 2;
+  const reach = Math.max(activeCols, activeRows);
   for (let step = 0; step < reach; step++) {
     const x = startX + direction * step;
-    for (let y = 0; y < MAP_ROWS; y++) {
+    for (let y = 0; y < activeRows; y++) {
       if (inBounds(x, y) && !isOccupied(participants, x, y) && !isBlocked(tiles, x, y))
         return { x, y };
     }
   }
   // Fallback: primera casilla libre de todo el tablero.
-  for (let y = 0; y < MAP_ROWS; y++) {
-    for (let x = 0; x < MAP_COLS; x++) {
+  for (let y = 0; y < activeRows; y++) {
+    for (let x = 0; x < activeCols; x++) {
       if (!isOccupied(participants, x, y) && !isBlocked(tiles, x, y)) return { x, y };
     }
   }

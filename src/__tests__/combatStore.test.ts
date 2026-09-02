@@ -158,6 +158,66 @@ describe('Combat Store', () => {
     const p2 = useCombatStore.getState().participants[0];
     expect(p2.x).toBeLessThan(100);
   });
+
+  it('debe cambiar la resolución del mapa recortando lo fuera de límites', () => {
+    useCombatStore.getState().initializeCombat();
+    useCombatStore.getState().setTiles([
+      { x: 2, y: 2, type: 'wall' },
+      { x: 40, y: 5, type: 'wall' }, // fuera del nuevo límite
+    ]);
+    useCombatStore.getState().addCombatant({
+      ...makeCombatant({ name: 'Lejos', initiative: 15 }),
+      x: 43,
+      y: 23,
+    });
+    useCombatStore.getState().setMapSize(20, 12);
+    const s = useCombatStore.getState();
+    expect(s.mapCols).toBe(20);
+    expect(s.mapRows).toBe(12);
+    // El tile fuera de rango se recorta.
+    expect(s.tiles).toEqual([{ x: 2, y: 2, type: 'wall' }]);
+    // La ficha fuera de rango se recoloca en el borde.
+    expect(s.participants[0].x).toBe(19);
+    expect(s.participants[0].y).toBe(11);
+    // Se registra el cambio de resolución.
+    expect(s.combatLog.some((e) => e.message.includes('Mapa cambiado'))).toBe(true);
+  });
+
+  it('debe ignorar un cambio de resolución repetido', () => {
+    useCombatStore.getState().setMapSize(20, 12);
+    const logBefore = useCombatStore.getState().combatLog.length;
+    useCombatStore.getState().setMapSize(20, 12);
+    expect(useCombatStore.getState().mapCols).toBe(20);
+    expect(useCombatStore.getState().combatLog.length).toBe(logBefore);
+  });
+
+  it('debe enviar un mensaje de chat guardándolo en la lista y en el registro', () => {
+    useCombatStore.getState().initializeCombat();
+    useCombatStore.getState().sendChatMessage({
+      author: 'Sombra',
+      kind: 'monster',
+      text: 'La cripta está ocupada.',
+      combatantId: 'm-1',
+    });
+    const s = useCombatStore.getState();
+    expect(s.chat).toHaveLength(1);
+    expect(s.chat[0].author).toBe('Sombra');
+    expect(s.chat[0].kind).toBe('monster');
+    expect(s.chat[0].text).toContain('cripta');
+    expect(s.chat[0].id).toBeTruthy();
+    const chatLog = s.combatLog.find((e) => e.type === 'chat');
+    expect(chatLog).toBeTruthy();
+    expect(chatLog?.message).toContain('Sombra');
+  });
+
+  it('debe limitar el historial de chat a los últimos mensajes', () => {
+    useCombatStore.getState().initializeCombat();
+    for (let i = 0; i < 210; i++) {
+      useCombatStore.getState().sendChatMessage({ author: 'N', kind: 'dm', text: `msg ${i}` });
+    }
+    expect(useCombatStore.getState().chat).toHaveLength(200);
+    expect(useCombatStore.getState().chat[199].text).toBe('msg 209');
+  });
 });
 
 function initializeWithTwo() {

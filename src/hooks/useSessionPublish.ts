@@ -35,8 +35,13 @@ export const useSessionPublish = () => {
         tiles: s.tiles,
         revealedTileKeys: s.revealedTileKeys,
         revealedEnemyIds: s.revealedEnemyIds,
+        chat: s.chat,
       });
-      void publishCombat(code, snapshot, { visionRange: s.visionRange });
+      void publishCombat(code, snapshot, {
+        visionRange: s.visionRange,
+        mapCols: s.mapCols ?? 28,
+        mapRows: s.mapRows ?? 16,
+      });
     };
 
     // Debounce simple: retraso fijo que se reinicia con cada cambio.

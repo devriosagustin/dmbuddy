@@ -45,6 +45,8 @@ export interface Combatant {
   playerSaves?: StatAbbrev[];
   /** Dotes del personaje (títulos del SRD) llevadas al combate para su consulta. */
   playerFeats?: string[];
+  /** Habilidades con competencia del personaje (nombres del SRD) llevadas al combate. */
+  playerSkills?: string[];
   /** Velocidad del combatiente en pies por turno (usada para el resaltado de movimiento). */
   speed?: number;
   /** Posición en el mapa de combate (casilla columna/fila, opcional). */
@@ -173,10 +175,26 @@ export interface Npc {
 export interface CombatLogEntry {
   id: string;
   timestamp: Date;
-  type: 'initiative' | 'damage' | 'heal' | 'status' | 'death' | 'custom' | 'xp' | 'move';
+  type: 'initiative' | 'damage' | 'heal' | 'status' | 'death' | 'custom' | 'xp' | 'move' | 'chat';
   message: string;
   combatantId?: string;
   details?: unknown;
+}
+
+/**
+ * Mensaje de chat/lore de sesión. El DM puede hablar como Narrador (dm),
+ * como NPC o como monstruo del combate. Texto plano, listo para un futuro
+ * lector de voz (TTS).
+ */
+export interface ChatMessage {
+  id: string;
+  timestamp: number;
+  /** Quién emite el mensaje: "DM (Narrador)" o el nombre del personaje. */
+  author: string;
+  kind: 'dm' | 'npc' | 'monster';
+  text: string;
+  /** Combatiente asociado (NPC o monstruo), si aplica. */
+  combatantId?: string;
 }
 
 export interface CombatState {
@@ -196,6 +214,12 @@ export interface CombatState {
   revealedEnemyIds: string[];
   /** Radio de visión de la cortina de guerra (pies). */
   visionRange: number;
+  /** Columnas de la cuadrícula del mapa (resolución controlada por el DM). */
+  mapCols: number;
+  /** Filas de la cuadrícula del mapa (resolución controlada por el DM). */
+  mapRows: number;
+  /** Mensajes de chat/lore de la sesión (sincronizados a la party). */
+  chat: ChatMessage[];
 }
 
 export type TileType = 'wall' | 'door' | 'trap' | 'treasure' | 'investigation';

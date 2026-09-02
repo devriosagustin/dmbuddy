@@ -8,6 +8,7 @@ import { persist } from 'zustand/middleware';
 import type { CombatState, Player } from '../types';
 import { usePlayerStore } from './playerStore';
 import { useCombatStore } from './combatStore';
+import { setActiveMapSize } from '../utils/mapUtils';
 
 const makeId = (): string => {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return crypto.randomUUID();
@@ -58,6 +59,9 @@ const captureLive = (): CampaignSnapshot => {
       revealedTileKeys: c.revealedTileKeys,
       revealedEnemyIds: c.revealedEnemyIds,
       visionRange: c.visionRange,
+      mapCols: c.mapCols,
+      mapRows: c.mapRows,
+      chat: c.chat,
     },
   };
 };
@@ -79,7 +83,12 @@ const applySnapshot = (snapshot: CampaignSnapshot): void => {
     revealedTileKeys: snapshot.combat.revealedTileKeys ?? [],
     revealedEnemyIds: snapshot.combat.revealedEnemyIds ?? [],
     visionRange: snapshot.combat.visionRange ?? 30,
+    mapCols: snapshot.combat.mapCols,
+    mapRows: snapshot.combat.mapRows,
+    chat: snapshot.combat.chat ?? [],
   });
+  // Resincroniza las dimensiones activas de la cuadrícula.
+  setActiveMapSize(snapshot.combat.mapCols ?? 28, snapshot.combat.mapRows ?? 16);
 };
 
 export const useCampaignStore = create<CampaignStore>()(
