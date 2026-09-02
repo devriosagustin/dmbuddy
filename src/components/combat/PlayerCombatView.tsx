@@ -5,8 +5,8 @@
 // revele. Las trampas/tesoros/investigación solo si el DM las revela.
 // ============================================================
 
-import { useState } from 'react';
-import { Eye, EyeOff, MapPin, Scan, Swords, Radio } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Eye, EyeOff, MapPin, Scan, Swords, Radio, Maximize, Minimize } from 'lucide-react';
 import { Modal } from '../common/Modal';
 import { useSessionStore } from '../../store/sessionStore';
 import {
@@ -16,6 +16,7 @@ import {
 import {
   gridDistanceFeet,
   hasTile,
+  hasLineOfSight,
   MAP_COLS,
   MAP_ROWS,
 } from '../../utils/mapUtils';
@@ -53,6 +54,38 @@ export const PlayerCombatView = () => {
   const code = useSessionStore((s) => s.code);
 
   const [selected, setSelected] = useState<Combatant | null>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [mapSize, setMapSize] = useState({ w: 0, h: 0 });
+  const rootRef = useRef<HTMLDivElement>(null);
+  const measureRef = useRef<HTMLDivElement>(null);
+
+  // Dimensionado del mapa: celdas cuadradas que quepan en el área disponible.
+  useEffect(() => {
+    const el = measureRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver((entries) => {
+      const { width, height } = entries[0].contentRect;
+      const cellSize = Math.max(1, Math.floor(Math.min(width / MAP_COLS, height / MAP_ROWS)));
+      setMapSize({ w: cellSize * MAP_COLS, h: cellSize * MAP_ROWS });
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  // Estado de pantalla completa (botón de la cabecera).
+  useEffect(() => {
+    const onChange = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener('fullscreenchange', onChange);
+    return () => document.removeEventListener('fullscreenchange', onChange);
+  }, []);
+
+  const toggleFullscreen = () => {
+    if (document.fullscreenElement) {
+      void document.exitFullscreen();
+    } else {
+      void rootRef.current?.requestFullscreen?.();
+    }
+  };
 
   const snapshot = remoteCombat?.snapshot ?? null;
   const visionRange = remoteCombat?.settings?.visionRange ?? 30;
@@ -86,20 +119,23 @@ export const PlayerCombatView = () => {
 
   const visibleTokens = participants.filter((c) => {
     if (isFriendly(c)) return true;
-    // Enemigo: visible si está dentro del radio de visión de algún aliado.
+    // Enemigo: visible si está dentro del radio de visión de algún aliado
+    // Y con línea de visión no bloqueada (muros o puertas cerradas).
     if (c.x === undefined || c.y === undefined) return false;
     const cx = c.x;
     const cy = c.y;
     return friendlies.some((f) => {
       const fx = f.x;
       const fy = f.y;
-      return fx !== undefined && fy !== undefined && gridDistanceFeet({ x: fx, y: fy }, { x: cx, y: cy }) <= visionRange;
+      if (fx === undefined || fy === undefined) return false;
+      if (gridDistanceFeet({ x: fx, y: fy }, { x: cx, y: cy }) > visionRange) return false;
+      return hasLineOfSight(fx, fy, cx, cy, tiles);
     });
   });
 
-  // Tiles visibles: muros siempre; trampa/tesoro/investigación solo si revelados.
+  // Tiles visibles: muros y puertas siempre; trampa/tesoro/investigación solo si revelados.
   const visibleTiles = tiles.filter((t) => {
-    if (t.type === 'wall') return true;
+    if (t.type === 'wall' || t.type === 'door') return true;
     return isTileRevealed(snapshot, t.x, t.y);
   });
 
@@ -111,7 +147,7 @@ export const PlayerCombatView = () => {
   const cellRowPct = 100 / MAP_ROWS;
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-3">
+    <div ref={rootRef} className="flex h-full min-h-0 flex-col gap-3">
       {/* Cabecera informativa */}
       <div className="card flex flex-wrap items-center justify-between gap-2 py-2.5 px-3">
         <div className="flex items-center gap-2 text-sm">
@@ -145,14 +181,23 @@ export const PlayerCombatView = () => {
               <Radio size={12} className="text-amber-400" /> {revealedTilesCount} lugar(es) investigado(s)
             </span>
           )}
+          <button
+            type="button"
+            onClick={toggleFullscreen}
+            className="flex items-center gap-1.5 rounded-full bg-dnd-leather/30 px-2.5 py-1 font-bold text-dnd-muted transition-colors hover:text-dnd-text"
+            title={isFullscreen ? 'Salir de pantalla completa' : 'Ver en pantalla completa'}
+          >
+            {isFullscreen ? <Minimize size={12} /> : <Maximize size={12} />}
+            {isFullscreen ? 'Salir' : 'Pantalla completa'}
+          </button>
         </div>
       </div>
 
       {/* Mapa de solo lectura */}
-      <div className="card flex min-h-0 flex-1 items-center justify-center overflow-hidden p-3">
+      <div ref={measureRef} className="card flex min-h-0 flex-1 items-center justify-center overflow-hidden p-3">
         <div
-          className="relative max-h-full max-w-full overflow-hidden rounded-dnd-lg border border-dnd-leather/40 bg-dnd-ink/40"
-          style={{ aspectRatio: `${MAP_COLS}/${MAP_ROWS}`, width: '100%' }}
+          className="relative overflow-hidden rounded-dnd-lg border border-dnd-leather/40 bg-dnd-ink/40"
+          style={{ width: mapSize.w || '100%', height: mapSize.h || '100%' }}
           aria-label="Mapa de combate (vista de jugador)"
           role="img"
         >
@@ -184,6 +229,11 @@ export const PlayerCombatView = () => {
                 } else if (tile.type === 'trap') {
                   baseClass = 'bg-red-900/40 flex items-center justify-center';
                   icon = 'X';
+                } else if (tile.type === 'door') {
+                  baseClass = tile.open === true
+                    ? 'bg-emerald-700/40 flex items-center justify-center'
+                    : 'bg-amber-950/90 flex items-center justify-center';
+                  icon = tile.open === true ? '🚪' : '🔒';
                 } else if (tile.type === 'treasure') {
                   baseClass = 'bg-yellow-600/50 flex items-center justify-center';
                   icon = '🟨';
@@ -285,7 +335,7 @@ export const PlayerCombatView = () => {
       </Modal>
 
       <p className="text-[10px] text-dnd-muted">
-        Vista de jugador: solo ves lo que tu party puede percibir. Los enemigos fuera de tu visión (radio {visionRange} pies desde tus aliados) permanecen ocultos.
+        Vista de jugador: solo ves lo que tu party puede percibir. Los aliados comparten su visión (radio {visionRange} pies), pero los muros y las puertas cerradas bloquean la línea de vista. 🔒 Puerta cerrada · 🚪 Puerta abierta.
       </p>
     </div>
   );

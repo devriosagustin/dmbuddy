@@ -198,12 +198,14 @@ export interface CombatState {
   visionRange: number;
 }
 
-export type TileType = 'wall' | 'trap' | 'treasure' | 'investigation';
+export type TileType = 'wall' | 'door' | 'trap' | 'treasure' | 'investigation';
 
 export interface MapTile {
   x: number;
   y: number;
   type: TileType;
+  /** Solo para "door": true = abierta (no bloquea), false/undefined = cerrada. */
+  open?: boolean;
 }
 
 // --------- Lanzador de dados ---------

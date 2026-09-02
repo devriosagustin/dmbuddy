@@ -6,7 +6,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { CombatState, Combatant, CombatLogEntry, StatusEffect, MapTile, TileType } from '../types';
 import { sortByInitiative } from '../utils/combatUtils';
-import { findSpawnCell, inBounds, MAP_COLS, MAP_ROWS, gridDistanceFeet } from '../utils/mapUtils';
+import { findSpawnCell, inBounds, MAP_COLS, MAP_ROWS, gridDistanceFeet, isBlocked } from '../utils/mapUtils';
 import { tileKey } from '../types/session';
 
 // Sincroniza los PG finales del combate con el party (sin recarga circular:
@@ -325,22 +325,30 @@ export const useCombatStore = create<CombatStore>()(
         }));
       },
 
-      toggleTile: (x, y, type) => {
+      toggleTile: (x, y, type: TileType) => {
         const { tiles } = get();
         const idx = tiles.findIndex((t) => t.x === x && t.y === y);
         if (idx >= 0) {
           // Si ya existe un tile del mismo tipo, lo quita (toggle off).
           // Si es de otro tipo, lo reemplaza.
           if (tiles[idx].type === type) {
-            set({ tiles: tiles.filter((t) => !(t.x === x && t.y === y)) });
+            if (type === 'door') {
+              // Puerta: alterna entre cerrada y abierta.
+              const updated = [...tiles];
+              updated[idx] = { ...updated[idx], open: updated[idx].open === true ? false : true };
+              set({ tiles: updated });
+            } else {
+              set({ tiles: tiles.filter((t) => !(t.x === x && t.y === y)) });
+            }
           } else {
             const updated = [...tiles];
             updated[idx] = { x, y, type };
             set({ tiles: updated });
           }
         } else if (inBounds(x, y)) {
-          // Añadir nuevo tile.
-          set({ tiles: [...tiles, { x, y, type }] });
+          // Añadir nuevo tile (las puertas nacen cerradas).
+          const tile: MapTile = type === 'door' ? { x, y, type, open: false } : { x, y, type };
+          set({ tiles: [...tiles, tile] });
         }
       },
 
@@ -362,9 +370,8 @@ export const useCombatStore = create<CombatStore>()(
           ? { x: cx, y: cy }
           : { x: Math.max(0, Math.min(MAP_COLS - 1, cx)), y: Math.max(0, Math.min(MAP_ROWS - 1, cy)) };
         if (combatant.x === clamped.x && combatant.y === clamped.y) return;
-        // Bloquear movimiento si hay un muro en el destino.
-        const destWall = tiles.find((t) => t.x === clamped.x && t.y === clamped.y && t.type === 'wall');
-        if (destWall) return;
+        // Bloquear movimiento si hay un muro o una puerta cerrada en el destino.
+        if (isBlocked(tiles, clamped.x, clamped.y)) return;
         const from = { x: combatant.x ?? 0, y: combatant.y ?? 0 };
         set((state) => ({
           participants: state.participants.map((p) =>

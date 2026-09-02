@@ -36,6 +36,14 @@ export const trueDistanceFeet = (from: MapCell, to: MapCell): number =>
 export const isWall = (tiles: MapTile[] | undefined, x: number, y: number): boolean =>
   !!tiles && tiles.some((t) => t.x === x && t.y === y && t.type === 'wall');
 
+/** Indica si una puerta está cerrada en esa casilla (CERRADA bloquea, ABIERTA no). */
+export const isDoorClosed = (tiles: MapTile[] | undefined, x: number, y: number): boolean =>
+  !!tiles && tiles.some((t) => t.x === x && t.y === y && t.type === 'door' && t.open !== true);
+
+/** Tile que bloquea movimiento y visión: muro o puerta cerrada. */
+export const isBlocked = (tiles: MapTile[] | undefined, x: number, y: number): boolean =>
+  isWall(tiles, x, y) || isDoorClosed(tiles, x, y);
+
 /** Indica si una casilla tiene un tile del tipo dado. */
 export const hasTile = (tiles: MapTile[] | undefined, x: number, y: number, type: TileType): boolean =>
   !!tiles && tiles.some((t) => t.x === x && t.y === y && t.type === type);
@@ -52,7 +60,7 @@ export const hasLineOfSight = (
   ty: number,
   tiles: MapTile[] | undefined
 ): boolean => {
-  if (isWall(tiles, tx, ty)) return false;
+  if (isBlocked(tiles, tx, ty)) return false;
   let x = cx;
   let y = cy;
   const dx = Math.abs(tx - cx);
@@ -62,7 +70,7 @@ export const hasLineOfSight = (
   let err = dx - dy;
   while (true) {
     if (x === tx && y === ty) return true;
-    if ((x !== cx || y !== cy) && isWall(tiles, x, y)) return false;
+    if ((x !== cx || y !== cy) && isBlocked(tiles, x, y)) return false;
     const e2 = 2 * err;
     if (e2 > -dy) {
       err -= dy;
@@ -87,7 +95,7 @@ export const cellsInSphere = (
   for (let y = Math.max(0, cy - r); y <= Math.min(MAP_ROWS - 1, cy + r); y++) {
     for (let x = Math.max(0, cx - r); x <= Math.min(MAP_COLS - 1, cx + r); x++) {
       if (Math.max(Math.abs(x - cx), Math.abs(y - cy)) > r) continue;
-      if (isWall(tiles, x, y)) continue;
+      if (isBlocked(tiles, x, y)) continue;
       if (!hasLineOfSight(cx, cy, x, y, tiles)) continue;
       out.push({ x, y });
     }
@@ -118,7 +126,7 @@ export const cellsInLine = (
     const x = cx + stepX * i;
     const y = cy + stepY * i;
     if (!inBounds(x, y)) break;
-    if (isWall(tiles, x, y)) break;
+    if (isBlocked(tiles, x, y)) break;
     out.push({ x, y });
   }
   return out;
@@ -152,7 +160,7 @@ export const cellsInCone = (
       if (d > L) continue;
       const dot = ((x - cx) * ux + (y - cy) * uy) / d;
       if (dot < cosHalf) continue;
-      if (isWall(tiles, x, y)) continue;
+      if (isBlocked(tiles, x, y)) continue;
       if (!hasLineOfSight(cx, cy, x, y, tiles)) continue;
       out.push({ x, y });
     }
@@ -180,14 +188,14 @@ export const findSpawnCell = (
   for (let step = 0; step < reach; step++) {
     const x = startX + direction * step;
     for (let y = 0; y < MAP_ROWS; y++) {
-      if (inBounds(x, y) && !isOccupied(participants, x, y) && !isWall(tiles, x, y))
+      if (inBounds(x, y) && !isOccupied(participants, x, y) && !isBlocked(tiles, x, y))
         return { x, y };
     }
   }
   // Fallback: primera casilla libre de todo el tablero.
   for (let y = 0; y < MAP_ROWS; y++) {
     for (let x = 0; x < MAP_COLS; x++) {
-      if (!isOccupied(participants, x, y) && !isWall(tiles, x, y)) return { x, y };
+      if (!isOccupied(participants, x, y) && !isBlocked(tiles, x, y)) return { x, y };
     }
   }
   return { x: 0, y: 0 };

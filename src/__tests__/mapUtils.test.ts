@@ -4,11 +4,14 @@ import {
   findSpawnCell,
   inBounds,
   isWall,
+  isDoorClosed,
+  isBlocked,
   MAP_COLS,
   MAP_ROWS,
   cellsInCone,
   cellsInLine,
   cellsInSphere,
+  hasLineOfSight,
   feetToCells,
   gridDistanceFeet,
   trueDistanceFeet,
@@ -153,5 +156,50 @@ describe('mapUtils muros', () => {
     expect(sphere.some((c) => c.x === 7 && c.y === 5)).toBe(true);
     expect(sphere.some((c) => c.x === 8 && c.y === 5)).toBe(true);
     expect(sphere.some((c) => c.x === 9 && c.y === 5)).toBe(true);
+  });
+});
+
+describe('mapUtils puertas', () => {
+  const closedDoors: MapTile[] = [{ x: 7, y: 5, type: 'door', open: false }];
+  const openDoors: MapTile[] = [{ x: 7, y: 5, type: 'door', open: true }];
+
+  it('isDoorClosed detecta puertas cerradas pero no abiertas', () => {
+    expect(isDoorClosed(closedDoors, 7, 5)).toBe(true);
+    expect(isDoorClosed(openDoors, 7, 5)).toBe(false);
+    expect(isDoorClosed(undefined, 7, 5)).toBe(false);
+  });
+
+  it('una puerta cerrada es un tile bloqueante, una abierta no', () => {
+    expect(isBlocked(closedDoors, 7, 5)).toBe(true);
+    expect(isBlocked(openDoors, 7, 5)).toBe(false);
+    expect(isBlocked(undefined, 7, 5)).toBe(false);
+    // isWall solo considera muros, no puertas.
+    expect(isWall(closedDoors, 7, 5)).toBe(false);
+  });
+
+  it('cellsInLine se detiene en una puerta cerrada y atraviesa una abierta', () => {
+    const lineFree = cellsInLine(5, 5, 12, 5, 40);
+    expect(lineFree.some((c) => c.x === 7)).toBe(true);
+    const lineOpen = cellsInLine(5, 5, 12, 5, 40, openDoors);
+    expect(lineOpen.some((c) => c.x === 7)).toBe(true);
+    expect(lineOpen.some((c) => c.x > 7)).toBe(true);
+    const lineClosed = cellsInLine(5, 5, 12, 5, 40, closedDoors);
+    expect(lineClosed.some((c) => c.x === 7)).toBe(false);
+    expect(lineClosed.some((c) => c.x > 7)).toBe(false);
+  });
+
+  it('cellsInSphere excluye una puerta cerrada, incluye una abierta', () => {
+    const openCells = cellsInSphere(5, 5, 30, openDoors);
+    expect(openCells.some((c) => c.x === 7 && c.y === 5)).toBe(true);
+    expect(openCells.some((c) => c.x === 9 && c.y === 5)).toBe(true);
+    const blocked = cellsInSphere(5, 5, 30, closedDoors);
+    expect(blocked.some((c) => c.x === 7 && c.y === 5)).toBe(false);
+    expect(blocked.some((c) => c.x > 7 && c.y === 5)).toBe(false);
+  });
+
+  it('hasLineOfSight no atraviesa muros ni puertas cerradas', () => {
+    expect(hasLineOfSight(5, 5, 12, 5, undefined)).toBe(true);
+    expect(hasLineOfSight(5, 5, 12, 5, closedDoors)).toBe(false);
+    expect(hasLineOfSight(5, 5, 12, 5, openDoors)).toBe(true);
   });
 });

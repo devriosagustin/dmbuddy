@@ -14,7 +14,7 @@ import {
   MAP_ROWS,
   inBounds,
   isOccupied,
-  isWall,
+  isBlocked,
   hasTile,
   cellsInCone,
   cellsInLine,
@@ -248,7 +248,7 @@ export const CombatMap = ({ participants, activeId, nextId, selectedId, tiles, t
           (c) =>
             (c.x !== selectedX || c.y !== selectedY) &&
             !isOccupied(participants, c.x, c.y) &&
-            !isWall(tiles, c.x, c.y)
+            !isBlocked(tiles, c.x, c.y)
         );
 
   // --- Info mostrada -------------------------------------------------------
@@ -323,6 +323,7 @@ export const CombatMap = ({ participants, activeId, nextId, selectedId, tiles, t
                 style={{ width: '11.5rem' }}
               >
                 <option value="wall">Muro</option>
+                <option value="door">🚪 Puerta</option>
                 <option value="trap">✚ Trampa</option>
                 <option value="treasure">🟨 Tesoro</option>
                 <option value="investigation">🔍 Investigación</option>
@@ -583,6 +584,12 @@ export const CombatMap = ({ participants, activeId, nextId, selectedId, tiles, t
               } else if (tile.type === 'trap') {
                 baseClass = 'bg-red-900/40 flex items-center justify-center';
                 icon = 'X';
+              } else if (tile.type === 'door') {
+                // Puerta: cerrada = bloqueante y oscura; abierta = clara.
+                baseClass = tile.open === true
+                  ? 'bg-emerald-700/40 flex items-center justify-center'
+                  : 'bg-amber-950/90 flex items-center justify-center';
+                icon = tile.open === true ? '🚪' : '🔒';
               } else if (tile.type === 'treasure') {
                 baseClass = 'bg-yellow-600/50 flex items-center justify-center';
                 icon = '🟨';
@@ -756,7 +763,7 @@ export const CombatMap = ({ participants, activeId, nextId, selectedId, tiles, t
       </div>
 
       <p className="text-[10px] text-dnd-muted">
-        {tileMode && 'Modo tiles: elige tipo (Muro/Trampa/Tesoro/Investigación) y haz clic en una casilla para colocarlo/quitarlo.'}
+        {tileMode && 'Modo tiles: elige tipo (Muro/Puerta/Trampa/Tesoro/Investigación) y haz clic en una casilla. La puerta alterna cerrada/abierta al hacer clic.'}
         {!tileMode && mode === 'move' && 'Clic en una ficha para seleccionarla · segundo clic para abrir sus acciones · clic en un cuadro resaltado para moverla.'}
         {!tileMode && mode === 'measure' && 'Clic en un punto y luego pasa el ratón (o haz clic) para medir la distancia en pies.'}
         {!tileMode && mode === 'range' && 'Haz clic en una ficha para ver su alcance (radio) y las fichas dentro.'}

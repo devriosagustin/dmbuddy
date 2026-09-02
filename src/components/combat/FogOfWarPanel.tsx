@@ -25,7 +25,7 @@ const isHostile = (c: Combatant): boolean =>
 
 const hideableTileTypes: TileType[] = ['trap', 'treasure', 'investigation'];
 
-const tileLabel: Record<Exclude<TileType, 'wall'>, string> = {
+const tileLabel: Record<'trap' | 'treasure' | 'investigation', string> = {
   trap: '✚ Trampa',
   treasure: '🟨 Tesoro',
   investigation: '🔍 Investigación',
@@ -125,7 +125,7 @@ export const FogOfWarPanel = ({
                     }`}
                   >
                     <span className="truncate">
-                      {tileLabel[t.type as Exclude<TileType, 'wall'>]} ({t.x},{t.y})
+                      {tileLabel[t.type as 'trap' | 'treasure' | 'investigation']} ({t.x},{t.y})
                     </span>
                     {revealed ? <Eye size={13} className="shrink-0 text-amber-300" /> : <EyeOff size={13} className="shrink-0 text-dnd-muted" />}
                   </button>
