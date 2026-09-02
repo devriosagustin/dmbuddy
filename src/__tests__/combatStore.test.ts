@@ -4,7 +4,9 @@
 
 import { beforeEach, describe, expect, it } from 'vitest';
 import { useCombatStore } from '../store/combatStore';
+import { usePlayerStore } from '../store/playerStore';
 import type { Combatant } from '../types';
+import type { Player } from '../types';
 
 // Reiniciar el estado antes de cada prueba
 beforeEach(() => {
@@ -218,6 +220,70 @@ describe('Combat Store', () => {
     expect(useCombatStore.getState().chat).toHaveLength(200);
     expect(useCombatStore.getState().chat[199].text).toBe('msg 209');
   });
+
+  it('debe repartir XP al finalizar, registrarla y guardar el award', () => {
+    usePlayerStore.setState({ players: [] });
+    const player = usePlayerStore.getState().addPlayer(makePlayer());
+    useCombatStore.setState({
+      id: 'combat-xp',
+      isActive: true,
+      participants: [
+        xpMonster('m1', 'Goblin', 50),
+        xpPlayerCombatant('p1', player),
+      ],
+      xpAwards: [],
+    });
+    useCombatStore.getState().endCombat();
+    const s = useCombatStore.getState();
+    expect(s.isActive).toBe(false);
+    expect(s.xpAwards).toHaveLength(1);
+    expect(s.xpAwards[0].playerId).toBe(player.id);
+    expect(s.xpAwards[0].xp).toBe(50);
+    expect(s.xpAwards[0].leveledUp).toBe(false);
+    const p = usePlayerStore.getState().players.find((x) => x.id === player.id);
+    expect(p?.xp).toBe(50);
+    expect(s.combatLog.some((e) => e.type === 'xp' && e.message.includes('XP total del encuentro: 50'))).toBe(true);
+  });
+
+  it('debe marcar leveledUp en el award si la XP cruza el umbral de nivel', () => {
+    usePlayerStore.setState({ players: [] });
+    const player = usePlayerStore.getState().addPlayer(makePlayer());
+    usePlayerStore.getState().addXp(player.id, 280); // 280 + 50 = 330 → Nivel 2
+    useCombatStore.setState({
+      id: 'combat-xp2',
+      isActive: true,
+      participants: [
+        xpMonster('m1', 'Goblin', 50),
+        xpPlayerCombatant('p1', player),
+      ],
+      xpAwards: [],
+    });
+    useCombatStore.getState().endCombat();
+    const p = usePlayerStore.getState().players.find((x) => x.id === player.id);
+    expect(p?.xp).toBe(330);
+    expect(p?.level).toBe(2);
+    const award = useCombatStore.getState().xpAwards[0];
+    expect(award.leveledUp).toBe(true);
+    expect(award.level).toBe(2);
+  });
+
+  it('no reparte XP cuando no quedan monstruos derrotados', () => {
+    usePlayerStore.setState({ players: [] });
+    const player = usePlayerStore.getState().addPlayer(makePlayer());
+    useCombatStore.setState({
+      id: 'combat-xp3',
+      isActive: true,
+      participants: [
+        { ...xpMonster('m1', 'Goblin', 50), isDead: false },
+        xpPlayerCombatant('p1', player),
+      ],
+      xpAwards: [],
+    });
+    useCombatStore.getState().endCombat();
+    expect(useCombatStore.getState().xpAwards).toEqual([]);
+    const p = usePlayerStore.getState().players.find((x) => x.id === player.id);
+    expect(p?.xp ?? 0).toBe(0);
+  });
 });
 
 function initializeWithTwo() {
@@ -226,3 +292,43 @@ function initializeWithTwo() {
   addCombatant(makeCombatant({ name: 'A', initiative: 20, hp: 10, maxHp: 10 }));
   addCombatant(makeCombatant({ name: 'B', initiative: 10, hp: 10, maxHp: 10 }));
 }
+
+const makePlayer = (): Omit<Player, 'id' | 'proficiencyBonus'> => ({
+  name: 'Thorin',
+  level: 1,
+  class: 'Guerrero',
+  hp: 12,
+  maxHp: 12,
+  armorClass: 16,
+  stats: { str: 16, dex: 14, con: 14, int: 10, wis: 10, cha: 8 },
+});
+
+const xpMonster = (id: string, name: string, xpReward: number): Combatant => ({
+  id,
+  name,
+  initiative: 10,
+  hp: 0,
+  maxHp: 7,
+  tempHp: 0,
+  armorClass: 15,
+  type: 'monster',
+  isActive: true,
+  isDead: true,
+  statusEffects: [],
+  xpReward,
+});
+
+const xpPlayerCombatant = (id: string, player: Player): Combatant => ({
+  id,
+  name: player.name,
+  initiative: 12,
+  hp: player.hp,
+  maxHp: player.maxHp,
+  tempHp: 0,
+  armorClass: player.armorClass,
+  type: 'player',
+  isActive: true,
+  isDead: false,
+  statusEffects: [],
+  playerId: player.id,
+});

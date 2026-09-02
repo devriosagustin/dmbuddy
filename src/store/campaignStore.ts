@@ -62,6 +62,7 @@ const captureLive = (): CampaignSnapshot => {
       mapCols: c.mapCols,
       mapRows: c.mapRows,
       chat: c.chat,
+      xpAwards: c.xpAwards,
     },
   };
 };
@@ -86,6 +87,7 @@ const applySnapshot = (snapshot: CampaignSnapshot): void => {
     mapCols: snapshot.combat.mapCols,
     mapRows: snapshot.combat.mapRows,
     chat: snapshot.combat.chat ?? [],
+    xpAwards: snapshot.combat.xpAwards ?? [],
   });
   // Resincroniza las dimensiones activas de la cuadrícula.
   setActiveMapSize(snapshot.combat.mapCols ?? 28, snapshot.combat.mapRows ?? 16);

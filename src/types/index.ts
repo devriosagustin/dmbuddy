@@ -197,6 +197,22 @@ export interface ChatMessage {
   combatantId?: string;
 }
 
+/**
+ * Reparto de XP de un combate finalizado hacia un personaje del party.
+ * Se sincroniza a la party para que cada jugador aplique su parte.
+ */
+export interface XpAward {
+  /** Id del personaje en el party (coincide entre el DM y el jugador). */
+  playerId: string;
+  name: string;
+  /** XP que recibe este personaje en el reparto. */
+  xp: number;
+  /** true si la XP acumulada cruza el umbral del siguiente nivel. */
+  leveledUp: boolean;
+  /** Nivel final del personaje tras el reparto. */
+  level: number;
+}
+
 export interface CombatState {
   id: string;
   round: number;
@@ -220,6 +236,8 @@ export interface CombatState {
   mapRows: number;
   /** Mensajes de chat/lore de la sesión (sincronizados a la party). */
   chat: ChatMessage[];
+  /** Reparto de XP del último combate finalizado (sincronizado a la party). */
+  xpAwards: XpAward[];
 }
 
 export type TileType = 'wall' | 'door' | 'trap' | 'treasure' | 'investigation';

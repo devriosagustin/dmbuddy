@@ -36,6 +36,7 @@ export const useSessionPublish = () => {
         revealedTileKeys: s.revealedTileKeys,
         revealedEnemyIds: s.revealedEnemyIds,
         chat: s.chat,
+        xpAwards: s.xpAwards,
       });
       void publishCombat(code, snapshot, {
         visionRange: s.visionRange,

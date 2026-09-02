@@ -9,6 +9,8 @@ import { useEffect, useRef, useState } from 'react';
 import { Eye, EyeOff, MapPin, Scan, Swords, Radio, Maximize, Minimize, MessageSquare } from 'lucide-react';
 import { Modal } from '../common/Modal';
 import { useSessionStore } from '../../store/sessionStore';
+import { usePlayerStore } from '../../store/playerStore';
+import { useFullscreen } from '../../hooks/useFullscreen';
 import {
   isEnemyRevealed,
   isTileRevealed,
@@ -52,12 +54,12 @@ const tokenClass = (c: Combatant): string => {
 export const PlayerCombatView = () => {
   const remoteCombat = useSessionStore((s) => s.remoteCombat);
   const code = useSessionStore((s) => s.code);
+  const localPlayers = usePlayerStore((s) => s.players);
 
   const [selected, setSelected] = useState<Combatant | null>(null);
-  const [isFullscreen, setIsFullscreen] = useState(false);
   const [showChat, setShowChat] = useState(false);
   const [mapSize, setMapSize] = useState({ w: 0, h: 0 });
-  const rootRef = useRef<HTMLDivElement>(null);
+  const { isFullscreen, toggle: toggleFullscreen, targetRef: rootRef, overlayClass } = useFullscreen();
   const measureRef = useRef<HTMLDivElement>(null);
 
   const snapshot = remoteCombat?.snapshot ?? null;
@@ -80,38 +82,59 @@ export const PlayerCombatView = () => {
     return () => ro.disconnect();
   }, [mapCols, mapRows]);
 
-  // Estado de pantalla completa (botón de la cabecera).
-  useEffect(() => {
-    const onChange = () => setIsFullscreen(!!document.fullscreenElement);
-    document.addEventListener('fullscreenchange', onChange);
-    return () => document.removeEventListener('fullscreenchange', onChange);
-  }, []);
-
-  const toggleFullscreen = () => {
-    if (document.fullscreenElement) {
-      void document.exitFullscreen();
-    } else {
-      void rootRef.current?.requestFullscreen?.();
-    }
-  };
-
   if (!snapshot || !snapshot.isActive) {
+    // Reparto de XP del combate que acaba de terminar, para los personajes
+    // de este jugador (registro local en su party).
+    const localIds = new Set(localPlayers.map((p) => p.id));
+    const myAwards = (snapshot?.xpAwards ?? []).filter((a) => localIds.has(a.playerId));
+    const myXpTotal = myAwards.reduce((sum, a) => sum + a.xp, 0);
     return (
-      <div className="card flex min-h-60 flex-col items-center justify-center gap-3 p-8 text-center">
-        <span className="flex h-14 w-14 items-center justify-center rounded-full border border-dnd-leather/40 bg-dnd-leather/10 text-3xl">
-          <Swords size={26} aria-hidden="true" />
-        </span>
-        <h2 className="page-title">Esperando al DM…</h2>
-        {code ? (
-          <p className="max-w-md text-sm text-dnd-muted">
-            Estás conectado a la sesión <span className="font-mono font-bold text-dnd-gold">{code}</span>. Cuando el DM
-            inicie un combate activo, verás aquí el mapa de tu party.
-          </p>
-        ) : (
-          <p className="max-w-md text-sm text-dnd-muted">
-            Únete a una sesión con el código de tu DM para ver el mapa de combate en tiempo real.
-          </p>
+      <div className="flex h-full min-h-0 flex-col gap-3">
+        {snapshot && !snapshot.isActive && snapshot.xpAwards !== undefined && (
+          <div className="card border-dnd-gold/40 p-4">
+            <h3 className="flex items-center gap-2 font-fantasy text-lg font-bold text-dnd-gold">
+              <Swords size={18} aria-hidden="true" /> Combate finalizado
+            </h3>
+            {myAwards.length > 0 ? (
+              <>
+                <p className="mt-1 text-sm text-dnd-text">
+                  Tu party ganó <span className="font-bold text-dnd-gold">{myXpTotal} XP</span> en total.
+                  {myAwards.some((a) => a.leveledUp) && (
+                    <span className="ml-1 text-emerald-300">¡Algún personaje subió de nivel!</span>
+                  )}
+                </p>
+                <ul className="mt-2 space-y-1">
+                  {myAwards.map((a) => (
+                    <li key={a.playerId} className="flex items-center justify-between gap-2 text-xs">
+                      <span className="font-bold text-dnd-text">{a.name}</span>
+                      <span className="text-dnd-muted">
+                        +{a.xp} XP{a.leveledUp ? ` · Nivel ${a.level}` : ''}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            ) : (
+              <p className="mt-1 text-sm text-dnd-muted">El combate terminó sin reparto de XP para tu party.</p>
+            )}
+          </div>
         )}
+        <div className="card flex min-h-60 flex-1 flex-col items-center justify-center gap-3 p-8 text-center">
+          <span className="flex h-14 w-14 items-center justify-center rounded-full border border-dnd-leather/40 bg-dnd-leather/10 text-3xl">
+            <Swords size={26} aria-hidden="true" />
+          </span>
+          <h2 className="page-title">Esperando al DM…</h2>
+          {code ? (
+            <p className="max-w-md text-sm text-dnd-muted">
+              Estás conectado a la sesión <span className="font-mono font-bold text-dnd-gold">{code}</span>. Cuando el DM
+              inicie un combate activo, verás aquí el mapa de tu party.
+            </p>
+          ) : (
+            <p className="max-w-md text-sm text-dnd-muted">
+              Únete a una sesión con el código de tu DM para ver el mapa de combate en tiempo real.
+            </p>
+          )}
+        </div>
       </div>
     );
   }
@@ -154,7 +177,7 @@ export const PlayerCombatView = () => {
   const cellRowPct = 100 / mapRows;
 
   return (
-    <div ref={rootRef} className="flex h-full min-h-0 flex-col gap-3">
+    <div ref={rootRef} className={`flex h-full min-h-0 flex-col gap-3 ${overlayClass ?? ''}`}>
       {/* Cabecera informativa */}
       <div className="card flex flex-wrap items-center justify-between gap-2 py-2.5 px-3">
         <div className="flex items-center gap-2 text-sm">

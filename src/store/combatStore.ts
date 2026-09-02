@@ -4,7 +4,7 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { CombatState, Combatant, CombatLogEntry, StatusEffect, MapTile, TileType, ChatMessage } from '../types';
+import type { CombatState, Combatant, CombatLogEntry, StatusEffect, MapTile, TileType, ChatMessage, XpAward } from '../types';
 import { sortByInitiative } from '../utils/combatUtils';
 import { findSpawnCell, inBounds, gridDistanceFeet, isBlocked, setActiveMapSize, MAP_COLS, MAP_ROWS } from '../utils/mapUtils';
 import { tileKey } from '../types/session';
@@ -86,6 +86,7 @@ export const useCombatStore = create<CombatStore>()(
       mapCols: MAP_COLS,
       mapRows: MAP_ROWS,
       chat: [],
+      xpAwards: [],
 
       initializeCombat: () => {
         set({
@@ -102,6 +103,7 @@ export const useCombatStore = create<CombatStore>()(
           }],
           startTime: new Date(),
           encounterCount: (get().encounterCount ?? 0) + 1,
+          xpAwards: [],
         });
       },
 
@@ -531,6 +533,8 @@ export const useCombatStore = create<CombatStore>()(
           });
         }
 
+        const xpAwards: XpAward[] = [];
+
         if (playerCombatants.length > 0 && totalXp > 0) {
           const awarded = playerCombatants
             .map((c) => c.playerId)
@@ -540,8 +544,18 @@ export const useCombatStore = create<CombatStore>()(
 
           awarded.forEach((playerId, i) => {
             const share = base + (i === 0 ? remainder : 0);
+            const before = usePlayerStore.getState().players.find((p) => p.id === playerId);
+            const beforeLevel = before?.level;
             // addXp sincroniza automáticamente nivel y competencia al superar umbrales.
             usePlayerStore.getState().addXp(playerId, share);
+            const afterLevel = usePlayerStore.getState().players.find((p) => p.id === playerId)?.level;
+            xpAwards.push({
+              playerId,
+              name: before?.name ?? 'Un jugador',
+              xp: share,
+              leveledUp: Boolean(beforeLevel && afterLevel && afterLevel > beforeLevel),
+              level: afterLevel ?? beforeLevel ?? 1,
+            });
           });
 
           closeOut.push({
@@ -570,11 +584,11 @@ export const useCombatStore = create<CombatStore>()(
           });
         }
 
-        set({ isActive: false, combatLog: [...combatLog, ...closeOut] });
+        set({ isActive: false, xpAwards, combatLog: [...combatLog, ...closeOut] });
       },
 
       resetCombat: () => {
-        set({ participants: [], combatLog: [], turn: -1, round: 0, isActive: false });
+        set({ participants: [], combatLog: [], turn: -1, round: 0, isActive: false, xpAwards: [] });
       },
 
       toggleRevealTile: (x, y) => {

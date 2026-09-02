@@ -2,7 +2,7 @@
 // Tipos para la sincronización de sesiones (Firebase RTDB)
 // ============================================================
 
-import type { ChatMessage, Combatant, MapTile } from './index';
+import type { ChatMessage, Combatant, MapTile, XpAward } from './index';
 
 /** Snapshot del combate publicado por el DM (formato serializable). */
 export interface SyncCombatSnapshot {
@@ -19,6 +19,8 @@ export interface SyncCombatSnapshot {
   revealedEnemyIds: string[];
   /** Mensajes de chat/lore del DM (Narrador, NPC o monstruo). */
   chat: ChatMessage[];
+  /** Reparto de XP del último combate finalizado (ausente en snapshots antiguos). */
+  xpAwards?: XpAward[];
 }
 
 /** Ajustes de la sesión controlados por el DM. */

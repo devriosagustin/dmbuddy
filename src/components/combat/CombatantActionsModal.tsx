@@ -297,12 +297,12 @@ export const CombatantActionsModal = ({ combatant, onClose }: CombatantActionsMo
   };
 
   const applyEffect = (name: string, description: string, icon: string) => {
-    const already = combatant.statusEffects.some((e) => e.name === name);
+    const already = liveCombatant.statusEffects.some((e) => e.name === name);
     if (already) {
-      const effect = combatant.statusEffects.find((e) => e.name === name);
-      if (effect) removeStatusEffect(combatant.id, effect.id);
+      const effect = liveCombatant.statusEffects.find((e) => e.name === name);
+      if (effect) removeStatusEffect(liveCombatant.id, effect.id);
     } else {
-      addStatusEffect(combatant.id, {
+      addStatusEffect(liveCombatant.id, {
         name,
         duration: -1,
         description,
@@ -366,7 +366,7 @@ export const CombatantActionsModal = ({ combatant, onClose }: CombatantActionsMo
         </div>
 
         {/* Estado de vida */}
-        <HealthBar hp={combatant.hp} maxHp={combatant.maxHp} tempHp={combatant.tempHp} isDead={combatant.isDead} />
+        <HealthBar hp={liveCombatant.hp} maxHp={liveCombatant.maxHp} tempHp={liveCombatant.tempHp} isDead={liveCombatant.isDead} />
 
         {/* Rol y notas de NPC (rehén, aliado, neutral o enemigo) */}
         {liveCombatant.type === 'npc' && (
@@ -759,7 +759,7 @@ export const CombatantActionsModal = ({ combatant, onClose }: CombatantActionsMo
           </p>
           <div className="flex flex-wrap gap-1.5">
             {QUICK_EFFECTS.map((effect) => {
-              const active = combatant.statusEffects.some((e) => e.name === effect.name);
+              const active = liveCombatant.statusEffects.some((e) => e.name === effect.name);
               return (
                 <button
                   key={effect.name}
@@ -792,7 +792,7 @@ export const CombatantActionsModal = ({ combatant, onClose }: CombatantActionsMo
           >
             Eliminar del combate
           </Button>
-          {combatant.isDead && (
+          {liveCombatant.isDead && (
             <Button
               variant="primary"
               size="sm"

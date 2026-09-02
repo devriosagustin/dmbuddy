@@ -16,6 +16,7 @@ import {
   type CombatPayload,
 } from '../services/firebaseSync';
 import type { RemotePlayerSheet, SessionRole } from '../types/session';
+import { usePlayerStore } from './playerStore';
 
 export type SessionStatus = 'idle' | 'connecting' | 'connected' | 'error' | 'loading';
 
@@ -30,6 +31,8 @@ interface SessionStore {
   remotePlayers: RemotePlayerSheet[];
   /** Códigos de sesión usados recientemente (sugerencias). */
   recentCodes: string[];
+  /** Id del último combate cuyo reparto de XP ya se aplicó localmente. */
+  lastXpCombatId: string | null;
 
   createSession: (code: string) => Promise<boolean>;
   joinSession: (code: string) => Promise<boolean>;
@@ -59,6 +62,7 @@ export const useSessionStore = create<SessionStore>()(
       remoteCombat: null,
       remotePlayers: [],
       recentCodes: [],
+      lastXpCombatId: null,
 
       createSession: async (code) => {
         const normalized = normalizeCode(code);
@@ -128,10 +132,31 @@ export const useSessionStore = create<SessionStore>()(
           error: null,
           remoteCombat: null,
           remotePlayers: [],
+          lastXpCombatId: null,
         });
       },
 
-      setRemoteCombat: (payload) => set({ remoteCombat: payload }),
+      setRemoteCombat: (payload) => {
+        const snapshot = payload?.snapshot ?? null;
+        // Al terminar un combate, el DM publica el reparto de XP: lo aplicamos
+        // a los personajes locales de este jugador una sola vez por combate.
+        if (
+          snapshot &&
+          !snapshot.isActive &&
+          (snapshot.xpAwards?.length ?? 0) > 0 &&
+          snapshot.id !== get().lastXpCombatId
+        ) {
+          const localIds = new Set(usePlayerStore.getState().players.map((p) => p.id));
+          for (const award of snapshot.xpAwards ?? []) {
+            if (localIds.has(award.playerId)) {
+              usePlayerStore.getState().addXp(award.playerId, award.xp);
+            }
+          }
+          set({ remoteCombat: payload, lastXpCombatId: snapshot.id });
+          return;
+        }
+        set({ remoteCombat: payload });
+      },
       setRemotePlayers: (players) => set({ remotePlayers: players }),
       setError: (message) => set({ error: message }),
 
@@ -158,7 +183,11 @@ export const useSessionStore = create<SessionStore>()(
     }),
     {
       name: 'dmbuddy-session',
-      partialize: (state) => ({ role: state.role, code: state.code }),
+      partialize: (state) => ({
+        role: state.role,
+        code: state.code,
+        lastXpCombatId: state.lastXpCombatId,
+      }),
     },
   ),
 );

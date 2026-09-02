@@ -2,7 +2,7 @@
 // Tracker de combate principal: turnos, rondas y combatientes
 // ============================================================
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import {
   ChevronLeft,
@@ -26,6 +26,7 @@ import { CombatantActionsModal } from './CombatantActionsModal';
 import { useCombatStore } from '../../store/combatStore';
 import { useSessionStore } from '../../store/sessionStore';
 import { useLayoutStore } from '../../store/layoutStore';
+import { useFullscreen } from '../../hooks/useFullscreen';
 import { randomLayout } from '../../utils/layoutPatterns';
 import { ChatPanel } from './ChatPanel';
 import type { Combatant, TileType } from '../../types';
@@ -78,23 +79,8 @@ export const CombatTracker = () => {
   const [tileType, setTileType] = useState<TileType>('wall');
   const [view, setView] = useState<'list' | 'map'>('list');
 
-  // Pantalla completa del módulo de combate.
-  const combatRef = useRef<HTMLDivElement>(null);
-  const [isFullscreen, setIsFullscreen] = useState(false);
-
-  const toggleFullscreen = () => {
-    if (document.fullscreenElement) {
-      void document.exitFullscreen();
-    } else {
-      void combatRef.current?.requestFullscreen();
-    }
-  };
-
-  useEffect(() => {
-    const onChange = () => setIsFullscreen(Boolean(document.fullscreenElement));
-    document.addEventListener('fullscreenchange', onChange);
-    return () => document.removeEventListener('fullscreenchange', onChange);
-  }, []);
+  // Pantalla completa del módulo de combate (con respaldo CSS en móviles).
+  const { isFullscreen, toggle: toggleFullscreen, targetRef: combatRef, overlayClass } = useFullscreen();
 
   // Ordenar por iniciativa (descendente)
   const sorted = useMemo(
@@ -172,7 +158,7 @@ export const CombatTracker = () => {
 return (
     <div
       ref={combatRef}
-      className="flex h-dvh min-h-0 flex-col gap-3 overflow-hidden p-2 md:p-4"
+      className={`flex h-dvh min-h-0 flex-col gap-3 overflow-hidden p-2 md:p-4 ${overlayClass ?? ''}`}
     >
       <motion.div
         initial={{ opacity: 0, y: -8 }}

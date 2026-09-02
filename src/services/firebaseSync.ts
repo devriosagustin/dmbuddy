@@ -9,7 +9,7 @@
 
 import { child, get, onValue, ref, set } from 'firebase/database';
 import { db } from './firebase';
-import type { ChatMessage, Combatant, MapTile } from '../types';
+import type { ChatMessage, Combatant, MapTile, XpAward } from '../types';
 import type { RemotePlayerSheet, SessionMeta, SessionSettings, SyncCombatSnapshot } from '../types/session';
 import { tileKey } from '../types/session';
 
@@ -137,6 +137,7 @@ export const buildCombatSnapshot = (
     revealedTileKeys: string[];
     revealedEnemyIds: string[];
     chat: ChatMessage[];
+    xpAwards?: XpAward[];
   }
 ): SyncCombatSnapshot => ({
   id: state.id,
@@ -149,6 +150,7 @@ export const buildCombatSnapshot = (
   revealedTileKeys: state.revealedTileKeys ?? [],
   revealedEnemyIds: state.revealedEnemyIds ?? [],
   chat: state.chat ?? [],
+  xpAwards: state.xpAwards ?? [],
 });
 
 export type { RemotePlayerSheet, Combatant, MapTile, ChatMessage };
