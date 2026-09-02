@@ -5,8 +5,10 @@
 // ============================================================
 
 import { useMemo, useState } from 'react';
-import { Check, Search } from 'lucide-react';
+import { BookOpen, Check, Search } from 'lucide-react';
 import { BASE_SRD_BUNDLE, srdSpellToSpell } from '../../data/srd2024';
+import { Modal } from '../common/Modal';
+import { MarkdownPreview } from '../notes/MarkdownPreview';
 import type { Spell } from '../../types';
 import type { SrdSpellEntry } from '../../types/srd2024';
 
@@ -57,6 +59,7 @@ export const SpellPicker = ({
   const [query, setQuery] = useState('');
   const [classFilter, setClassFilter] = useState<string>('auto');
   const [levelFilter, setLevelFilter] = useState<string>('all');
+  const [viewing, setViewing] = useState<SrdSpellEntry | null>(null);
 
   const isCaster = useMemo(() => {
     if (!className) return false;
@@ -105,6 +108,10 @@ export const SpellPicker = ({
   );
 
   const chipList = tab === 'cantrips' ? cantrips : spells;
+
+  /** Busca la entrada SRD completa de un conjuro seleccionado (para consultar su texto). */
+  const srdForSpell = (s: Spell): SrdSpellEntry | undefined =>
+    BASE_SRD_BUNDLE.spells.find((e) => e.id === s.id);
 
   // Cuenta actual y máximo permitido en la pestaña activa.
   const currentCount = tab === 'cantrips' ? cantrips.length : spells.length;
@@ -198,6 +205,16 @@ export const SpellPicker = ({
               >
                 {spell.name}
                 <span className="ml-1 text-[9px] uppercase text-dnd-gold">· {levelLabel}</span>
+                {srdForSpell(spell) && (
+                  <button
+                    onClick={() => setViewing(srdForSpell(spell) as SrdSpellEntry)}
+                    aria-label={`Ver descripción de ${spell.name}`}
+                    title="Ver descripción"
+                    className="ml-1 text-dnd-gold hover:text-dnd-gold/80"
+                  >
+                    <BookOpen size={12} aria-hidden="true" />
+                  </button>
+                )}
                 <button
                   onClick={() => (spell.level === 0 ? onRemoveCantrip(spell.id) : onRemoveSpell(spell.id))}
                   aria-label={`Quitar ${spell.name}`}
@@ -234,32 +251,42 @@ export const SpellPicker = ({
               const disabled = !isSelected && isAtCap;
               return (
                 <li key={entry.id}>
-                  <button
-                    onClick={() => toggle(entry)}
-                    aria-pressed={isSelected}
-                    disabled={disabled}
-                    className={`flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm transition-colors hover:bg-dnd-leather/20 ${
-                      isSelected ? 'bg-dnd-gold/10' : ''
-                    } ${disabled ? 'cursor-not-allowed opacity-40' : ''}`}
-                    title={disabled ? `Límite alcanzado (${currentCount}/${capCount})` : undefined}
-                  >
-                    <span
-                      className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${
-                        isSelected ? 'border-dnd-gold bg-dnd-gold text-dnd-ink' : 'border-dnd-leather/60'
-                      }`}
-                      aria-hidden="true"
+                  <div className="flex items-stretch">
+                    <button
+                      onClick={() => toggle(entry)}
+                      aria-pressed={isSelected}
+                      disabled={disabled}
+                      title={disabled ? `Límite alcanzado (${currentCount}/${capCount})` : undefined}
+                      className={`flex min-w-0 flex-1 items-center gap-2 px-3 py-1.5 text-left text-sm transition-colors hover:bg-dnd-leather/20 ${
+                        isSelected ? 'bg-dnd-gold/10' : ''
+                      } ${disabled ? 'cursor-not-allowed opacity-40' : ''}`}
                     >
-                      {isSelected && <Check size={11} strokeWidth={3} />}
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate font-bold text-dnd-text">{entry.title}</span>
-                      <span className="block text-[10px] text-dnd-muted">
-                        {entry.level === 0 ? 'Truco' : `Nivel ${entry.level}`} · {entry.school} ·{' '}
-                        {entry.classes.join(', ')}
+                      <span
+                        className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${
+                          isSelected ? 'border-dnd-gold bg-dnd-gold text-dnd-ink' : 'border-dnd-leather/60'
+                        }`}
+                        aria-hidden="true"
+                      >
+                        {isSelected && <Check size={11} strokeWidth={3} />}
                       </span>
-                    </span>
-                    <span className="shrink-0 text-[10px] text-dnd-muted">{entry.castingTime}</span>
-                  </button>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate font-bold text-dnd-text">{entry.title}</span>
+                        <span className="block text-[10px] text-dnd-muted">
+                          {entry.level === 0 ? 'Truco' : `Nivel ${entry.level}`} · {entry.school} ·{' '}
+                          {entry.classes.join(', ')}
+                        </span>
+                      </span>
+                      <span className="shrink-0 text-[10px] text-dnd-muted">{entry.castingTime}</span>
+                    </button>
+                    <button
+                      onClick={() => setViewing(entry)}
+                      aria-label={`Ver descripción de ${entry.title}`}
+                      title="Ver descripción"
+                      className="flex w-9 shrink-0 items-center justify-center border-l border-dnd-leather/30 text-dnd-gold transition-colors hover:bg-dnd-gold/10"
+                    >
+                      <BookOpen size={14} aria-hidden="true" />
+                    </button>
+                  </div>
                 </li>
               );
             })}
@@ -270,6 +297,31 @@ export const SpellPicker = ({
       {!picksNothing && filtered.length > 0 && (
         <p className="mt-1 text-[10px] text-dnd-muted">{filtered.length} resultados. Haz clic para añadir/quitar.</p>
       )}
+
+      {/* Modal de descripción del conjuro/truco */}
+      <Modal
+        open={viewing !== null}
+        onClose={() => setViewing(null)}
+        title={viewing?.title ?? ''}
+        subtitle={viewing ? `${viewing.level === 0 ? 'Truco' : `Nivel ${viewing.level}`} · ${viewing.school} · ${viewing.classes.join(', ')}` : ''}
+        maxWidth="lg"
+      >
+        {viewing && (
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-dnd-muted sm:grid-cols-3">
+              <p><span className="font-bold text-dnd-text">Lanzamiento</span>: {viewing.castingTime}</p>
+              <p><span className="font-bold text-dnd-text">Alcance</span>: {viewing.range}</p>
+              <p><span className="font-bold text-dnd-text">Componentes</span>: {viewing.components}</p>
+              <p><span className="font-bold text-dnd-text">Duración</span>: {viewing.duration}</p>
+              <p><span className="font-bold text-dnd-text">Concentración</span>: {viewing.concentration ? 'Sí' : 'No'}</p>
+              {viewing.ritual && <p><span className="font-bold text-dnd-text">Ritual</span>: Sí</p>}
+            </div>
+            <div className="max-h-[50vh] overflow-y-auto rounded-lg border border-dnd-leather/30 p-3">
+              <MarkdownPreview content={viewing.content} />
+            </div>
+          </div>
+        )}
+      </Modal>
     </section>
   );
 };

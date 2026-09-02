@@ -3,7 +3,7 @@
 // ============================================================
 
 import { useEffect, useRef, useState } from 'react';
-import { ScrollText, Trash2 } from 'lucide-react';
+import { Download, ScrollText, Trash2 } from 'lucide-react';
 import type { CombatLogEntry } from '../../types';
 import { useCombatStore } from '../../store/combatStore';
 
@@ -53,9 +53,41 @@ export const CombatLog = ({ defaultExpanded = false }: { defaultExpanded?: boole
     useCombatStore.setState({ combatLog: [] });
   };
 
+  // Descarga el registro en JSON legible para un relato posterior (p. ej. IA).
+  const downloadJson = () => {
+    const payload = {
+      exportadoEn: new Date().toISOString(),
+      totalEventos: combatLog.length,
+      eventos: combatLog.map((entry) => ({
+        id: entry.id,
+        tipo: entry.type,
+        tipoHumano: typeIcons[entry.type],
+        fecha: new Date(entry.timestamp).toISOString(),
+        fechaLocal: new Date(entry.timestamp).toLocaleString('es-ES'),
+        texto: entry.message,
+        ...(entry.details ? { detalles: entry.details } : {}),
+      })),
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], {
+      type: 'application/json;charset=utf-8',
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+    a.href = url;
+    a.download = `registro-${stamp}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   return (
-    <section className="card flex min-h-0 flex-col" aria-label="Registro del combate">
-      <div className="mb-2 flex items-center justify-between">
+    <section
+      className={`card flex min-h-0 flex-col ${defaultExpanded ? 'h-[calc(100dvh-15rem)] md:h-[calc(100dvh-13rem)]' : ''}`}
+      aria-label="Registro del combate"
+    >
+      <div className="mb-2 flex shrink-0 items-center justify-between">
         <h2 className="flex items-center gap-2 font-fantasy text-lg font-bold text-dnd-gold">
           <ScrollText size={18} aria-hidden="true" />
           <span>
@@ -66,6 +98,14 @@ export const CombatLog = ({ defaultExpanded = false }: { defaultExpanded?: boole
           </span>
         </h2>
         <div className="flex items-center gap-1">
+          <button
+            onClick={downloadJson}
+            aria-label="Descargar registro en JSON"
+            title="Descargar registro en JSON (para relato posterior)"
+            className="rounded-lg p-1.5 text-dnd-muted transition-colors hover:bg-dnd-leather/30 hover:text-dnd-gold focus:outline-none focus-visible:ring-2 focus-visible:ring-dnd-gold"
+          >
+            <Download size={14} />
+          </button>
           <button
             onClick={() => setShowLog((s) => !s)}
             aria-expanded={showLog}

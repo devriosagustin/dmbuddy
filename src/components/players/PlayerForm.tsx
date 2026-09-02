@@ -3,13 +3,14 @@
 // ============================================================
 
 import { useState } from 'react';
-import { Save, Sparkles, Upload } from 'lucide-react';
+import { BookOpen, Save, Sparkles, Upload } from 'lucide-react';
 import { Modal } from '../common/Modal';
 import { Button } from '../common/Button';
+import { MarkdownPreview } from '../notes/MarkdownPreview';
 import type { Player, Spell } from '../../types';
 import { STAT_LABELS } from '../../types';
 import type { StatAbbrev } from '../../types';
-import type { SpeciesStatBonusOption } from '../../types/srd2024';
+import type { SrdFeatEntry, SpeciesStatBonusOption } from '../../types/srd2024';
 import { usePlayerStore } from '../../store/playerStore';
 import { rollStats } from '../../utils/diceUtils';
 import { proficiencyAtLevel } from '../../utils/damageCalculator';
@@ -62,6 +63,7 @@ export const PlayerForm = ({ player, onClose }: PlayerFormProps) => {
   const [cantrips, setCantrips] = useState<Spell[]>(player?.cantrips ?? []);
   const [feats, setFeats] = useState<string[]>(player?.feats ?? []);
   const [featQuery, setFeatQuery] = useState('');
+  const [viewingFeat, setViewingFeat] = useState<SrdFeatEntry | null>(null);
   const [skills, setSkills] = useState<string[]>(player?.skills ?? []);
   const [weaponIds, setWeaponIds] = useState<string[]>(player?.weaponIds ?? []);
   const [raceBonusIndex, setRaceBonusIndex] = useState(0);
@@ -399,18 +401,31 @@ export const PlayerForm = ({ player, onClose }: PlayerFormProps) => {
           />
           {feats.length > 0 && (
             <div className="mt-2 flex flex-wrap gap-1.5">
-              {feats.map((feat) => (
-                <span key={feat} className="badge border border-dnd-gold/40 bg-dnd-gold/10 text-dnd-text">
-                  {feat}
-                  <button
-                    onClick={() => toggleFeat(feat)}
-                    aria-label={`Quitar dote ${feat}`}
-                    className="ml-1 text-red-300 hover:text-red-200"
-                  >
-                    ×
-                  </button>
-                </span>
-              ))}
+              {feats.map((feat) => {
+                const featEntry = BASE_SRD_BUNDLE.feats.find((f) => f.title === feat);
+                return (
+                  <span key={feat} className="badge border border-dnd-gold/40 bg-dnd-gold/10 text-dnd-text">
+                    {feat}
+                    {featEntry && (
+                      <button
+                        onClick={() => setViewingFeat(featEntry)}
+                        aria-label={`Ver descripción de la dote ${feat}`}
+                        title="Ver descripción"
+                        className="ml-1 text-dnd-gold hover:text-dnd-gold/80"
+                      >
+                        <BookOpen size={12} aria-hidden="true" />
+                      </button>
+                    )}
+                    <button
+                      onClick={() => toggleFeat(feat)}
+                      aria-label={`Quitar dote ${feat}`}
+                      className="ml-1 text-red-300 hover:text-red-200"
+                    >
+                      ×
+                    </button>
+                  </span>
+                );
+              })}
             </div>
           )}
           <div className="mt-2 max-h-44 overflow-y-auto rounded-lg border border-dnd-leather/30">
@@ -420,35 +435,46 @@ export const PlayerForm = ({ player, onClose }: PlayerFormProps) => {
               <ul aria-label="Dotes disponibles">
                 {filteredFeats.map((feat) => {
                   const selected = feats.includes(feat);
+                  const featEntry = BASE_SRD_BUNDLE.feats.find((f) => f.title === feat);
                   return (
                     <li key={feat}>
-                      <button
-                        onClick={() => toggleFeat(feat)}
-                        aria-pressed={selected}
-                        className={`flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm transition-colors hover:bg-dnd-leather/20 ${
-                          selected ? 'bg-dnd-gold/10' : ''
-                        }`}
-                      >
-                        <span
-                          className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${
-                            selected ? 'border-dnd-gold bg-dnd-gold text-dnd-ink' : 'border-dnd-leather/60'
+                      <div className="flex items-stretch">
+                        <button
+                          onClick={() => toggleFeat(feat)}
+                          aria-pressed={selected}
+                          className={`flex min-w-0 flex-1 items-center gap-2 px-3 py-1.5 text-left text-sm transition-colors hover:bg-dnd-leather/20 ${
+                            selected ? 'bg-dnd-gold/10' : ''
                           }`}
-                          aria-hidden="true"
                         >
-                          {selected && '✓'}
-                        </span>
-                        <span className="min-w-0 flex-1">
-                          <span className="block truncate font-bold text-dnd-text">{feat}</span>
-                          <span className="block text-[10px] text-dnd-muted">
-                            {BASE_SRD_BUNDLE.feats.find((f) => f.title === feat)?.type === 'origin'
-                              ? 'Dote de origen'
-                              : 'Dote general'}
-                            {BASE_SRD_BUNDLE.feats.find((f) => f.title === feat)?.prerequisite
-                              ? ` · ${BASE_SRD_BUNDLE.feats.find((f) => f.title === feat)?.prerequisite}`
-                              : ''}
+                          <span
+                            className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${
+                              selected ? 'border-dnd-gold bg-dnd-gold text-dnd-ink' : 'border-dnd-leather/60'
+                            }`}
+                            aria-hidden="true"
+                          >
+                            {selected && '✓'}
                           </span>
-                        </span>
-                      </button>
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate font-bold text-dnd-text">{feat}</span>
+                            <span className="block text-[10px] text-dnd-muted">
+                              {featEntry?.type === 'origin'
+                                ? 'Dote de origen'
+                                : 'Dote general'}
+                              {featEntry?.prerequisite ? ` · ${featEntry.prerequisite}` : ''}
+                            </span>
+                          </span>
+                        </button>
+                        {featEntry && (
+                          <button
+                            onClick={() => setViewingFeat(featEntry)}
+                            aria-label={`Ver descripción de la dote ${feat}`}
+                            title="Ver descripción"
+                            className="flex w-9 shrink-0 items-center justify-center border-l border-dnd-leather/30 text-dnd-gold transition-colors hover:bg-dnd-gold/10"
+                          >
+                            <BookOpen size={14} aria-hidden="true" />
+                          </button>
+                        )}
+                      </div>
                     </li>
                   );
                 })}
@@ -468,6 +494,21 @@ export const PlayerForm = ({ player, onClose }: PlayerFormProps) => {
             (SRD_CLASSES.find((c) => c.title === className)?.skills ?? 0) + featSkillBoosts(feats)
           }
         />
+
+        {/* Modal de descripción de dote */}
+        <Modal
+          open={viewingFeat !== null}
+          onClose={() => setViewingFeat(null)}
+          title={viewingFeat?.title ?? ''}
+          subtitle={viewingFeat ? (viewingFeat.type === 'origin' ? 'Dote de origen' : 'Dote general') + (viewingFeat.prerequisite ? ` · ${viewingFeat.prerequisite}` : '') : ''}
+          maxWidth="lg"
+        >
+          {viewingFeat && (
+            <div className="max-h-[55vh] overflow-y-auto rounded-lg border border-dnd-leather/30 p-3">
+              <MarkdownPreview content={viewingFeat.content} />
+            </div>
+          )}
+        </Modal>
 
         {/* Importar */}
         {!player && (
