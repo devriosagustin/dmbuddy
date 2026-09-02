@@ -10,7 +10,15 @@ import type { Player } from '../types';
 
 // Reiniciar el estado antes de cada prueba
 beforeEach(() => {
-  useCombatStore.setState({ isActive: false, participants: [], combatLog: [], round: 0, turn: 0 });
+  useCombatStore.setState({
+    isActive: false,
+    participants: [],
+    combatLog: [],
+    round: 0,
+    turn: 0,
+    encounterCount: 0,
+    mapCreatures: [],
+  });
 });
 
 const makeCombatant = (
@@ -283,6 +291,104 @@ describe('Combat Store', () => {
     expect(useCombatStore.getState().xpAwards).toEqual([]);
     const p = usePlayerStore.getState().players.find((x) => x.id === player.id);
     expect(p?.xp ?? 0).toBe(0);
+  });
+
+  it('coloca y actualiza criaturas en el mapa de exploración', () => {
+    const { addMapCreature, updateMapCreature, removeMapCreature } = useCombatStore.getState();
+    addMapCreature({
+      name: 'Goblin',
+      kind: 'monster',
+      hp: 7,
+      maxHp: 7,
+      tempHp: 0,
+      armorClass: 15,
+      speed: 30,
+      x: 3,
+      y: 4,
+      statusEffects: [],
+      isDead: false,
+    });
+    let mc = useCombatStore.getState().mapCreatures[0];
+    expect(mc).toBeDefined();
+    expect(mc.x).toBe(3);
+    expect(mc.y).toBe(4);
+
+    updateMapCreature(mc.id, { hp: 4 });
+    mc = useCombatStore.getState().mapCreatures[0];
+    expect(mc.hp).toBe(4);
+
+    removeMapCreature(mc.id);
+    expect(useCombatStore.getState().mapCreatures).toHaveLength(0);
+  });
+
+  it('inicia un encuentro desde criaturas del mapa y sincroniza HP al finalizar', () => {
+    usePlayerStore.setState({ players: [] });
+    const player = usePlayerStore.getState().addPlayer(makePlayer());
+    const { addMapCreature, startEncounter, endCombat } = useCombatStore.getState();
+    // Criatura con refId (monstruo de librería).
+    addMapCreature({
+      name: 'Orco',
+      kind: 'monster',
+      refId: 'orc-1',
+      hp: 15,
+      maxHp: 15,
+      tempHp: 0,
+      armorClass: 12,
+      speed: 30,
+      x: 5,
+      y: 5,
+      statusEffects: [],
+      isDead: false,
+    });
+    const orco = useCombatStore.getState().mapCreatures[0];
+
+    startEncounter([orco.id], [player.id]);
+    let s = useCombatStore.getState();
+    expect(s.isActive).toBe(true);
+    expect(s.encounterCount).toBe(1);
+    const orcoCombat = s.participants.find((p) => p.name === 'Orco');
+    expect(orcoCombat).toBeDefined();
+
+    // El orco recibe daño en el combate.
+    useCombatStore.getState().updateHP(orcoCombat!.id, 9, true); // 15 -> 6
+    endCombat();
+
+    s = useCombatStore.getState();
+    expect(s.isActive).toBe(false);
+    // El orco sobrevive y conserva su PG en el mapa.
+    const surviving = s.mapCreatures.find((c) => c.id === orco.id);
+    expect(surviving).toBeDefined();
+    expect(surviving!.hp).toBe(6);
+    expect(surviving!.isDead).toBe(false);
+  });
+
+  it('retira del mapa las criaturas derrotadas en el combate', () => {
+    usePlayerStore.setState({ players: [] });
+    const player = usePlayerStore.getState().addPlayer(makePlayer());
+    const { addMapCreature, startEncounter, endCombat } = useCombatStore.getState();
+    addMapCreature({
+      name: 'Goblin',
+      kind: 'monster',
+      hp: 7,
+      maxHp: 7,
+      tempHp: 0,
+      armorClass: 15,
+      speed: 30,
+      x: 2,
+      y: 2,
+      statusEffects: [],
+      isDead: false,
+    });
+    const goblin = useCombatStore.getState().mapCreatures[0];
+
+    startEncounter([goblin.id], [player.id]);
+    const goblinCombat = useCombatStore.getState().participants.find((p) => p.name === 'Goblin');
+    useCombatStore.getState().updateHP(goblinCombat!.id, 20, true); // 7 -> 0
+    endCombat();
+
+    const s = useCombatStore.getState();
+    // El goblin muerto se retira del mapa; los PJ se conservan en el mapa.
+    expect(s.mapCreatures.some((c) => c.name === 'Goblin')).toBe(false);
   });
 });
 

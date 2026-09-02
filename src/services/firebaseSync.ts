@@ -9,7 +9,7 @@
 
 import { child, get, onValue, ref, set } from 'firebase/database';
 import { db } from './firebase';
-import type { ChatMessage, Combatant, MapTile, XpAward } from '../types';
+import type { ChatMessage, Combatant, MapTile, MapCreature, XpAward } from '../types';
 import type { RemotePlayerSheet, SessionMeta, SessionSettings, SyncCombatSnapshot } from '../types/session';
 import { tileKey } from '../types/session';
 
@@ -134,6 +134,7 @@ export const buildCombatSnapshot = (
     encounterCount: number;
     participants: Combatant[];
     tiles: MapTile[];
+    mapCreatures?: MapCreature[];
     revealedTileKeys: string[];
     revealedEnemyIds: string[];
     chat: ChatMessage[];
@@ -147,6 +148,7 @@ export const buildCombatSnapshot = (
   encounterCount: state.encounterCount,
   participants: state.participants,
   tiles: state.tiles,
+  mapCreatures: state.mapCreatures ?? [],
   revealedTileKeys: state.revealedTileKeys ?? [],
   revealedEnemyIds: state.revealedEnemyIds ?? [],
   chat: state.chat ?? [],

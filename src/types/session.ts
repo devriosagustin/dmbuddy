@@ -2,7 +2,7 @@
 // Tipos para la sincronización de sesiones (Firebase RTDB)
 // ============================================================
 
-import type { ChatMessage, Combatant, MapTile, XpAward } from './index';
+import type { ChatMessage, Combatant, MapTile, MapCreature, XpAward } from './index';
 
 /** Snapshot del combate publicado por el DM (formato serializable). */
 export interface SyncCombatSnapshot {
@@ -13,6 +13,8 @@ export interface SyncCombatSnapshot {
   encounterCount: number;
   participants: Combatant[];
   tiles: MapTile[];
+  /** Criaturas persistentes del mapa (también presentes en exploración). */
+  mapCreatures?: MapCreature[];
   /** Claves "x-y" de tiles de trampa/tesoro/investigación reveladas a la party. */
   revealedTileKeys: string[];
   /** Ids de enemigos cuya vida es visible a la party. */

@@ -2,7 +2,7 @@
 // Utilidades de combate de DM Copilot Web
 // ============================================================
 
-import type { Combatant, Monster, Npc, Player, StatAbbrev } from '../types';
+import type { Combatant, Monster, Npc, Player, StatAbbrev, MapCreature } from '../types';
 import { SRD_CLASSES } from '../data/srd2024';
 import { crToXp } from '../data/srdMonsters';
 
@@ -151,6 +151,31 @@ export const playerToCombatant = (
     speed: 30,
   };
 };
+
+/**
+ * Convierte una criatura persistente del mapa en un objeto compatible con el
+ * renderizado de fichas de CombatMap (no lo añade a ningún encuentro).
+ */
+export const mapCreatureToCombatant = (c: MapCreature): Combatant => ({
+  id: c.id,
+  name: c.name,
+  initiative: 0,
+  hp: c.hp,
+  maxHp: c.maxHp,
+  tempHp: c.tempHp,
+  armorClass: c.armorClass,
+  type: c.kind === 'player' ? 'player' : c.kind === 'npc' ? 'npc' : 'monster',
+  isActive: true,
+  statusEffects: c.statusEffects,
+  playerId: c.playerId,
+  npcId: c.kind === 'npc' ? c.refId : undefined,
+  npcRole: c.npcRole,
+  xpReward: c.xpReward,
+  isDead: c.isDead,
+  speed: c.speed,
+  x: c.x,
+  y: c.y,
+});
 
 /**
  * Barra de vida normalizada 0-1.

@@ -213,6 +213,52 @@ export interface XpAward {
   level: number;
 }
 
+/**
+ * Criatura persistente en el mapa actual (monstruo, NPC o personaje del
+ * party). A diferencia de un Combatant, vive fuera del combate: el DM la
+ * coloca mientras explora y solo entra en "combate" cuando se inicia un
+ * encuentro. Los personajes del party no se guardan en los layouts.
+ */
+export interface MapCreature {
+  id: string;
+  name: string;
+  kind: 'monster' | 'npc' | 'player';
+  /** Id del registro en su catálogo (monster.id / npc.id / player.id). */
+  refId?: string;
+  /** Posición en la cuadrícula del mapa. */
+  x: number;
+  y: number;
+  hp: number;
+  maxHp: number;
+  tempHp: number;
+  armorClass: number;
+  speed: number;
+  /** Vínculo con un personaje del party (kind === 'player'). */
+  playerId?: string;
+  /** Rol del NPC (hostage/ally/neutral/enemy). */
+  npcRole?: 'hostage' | 'ally' | 'neutral' | 'enemy';
+  /** XP que otorga al ser derrotado (monstruos). */
+  xpReward?: number;
+  statusEffects: StatusEffect[];
+  isDead: boolean;
+}
+
+/**
+ * Encuentro en curso dentro del mapa. Cuando es null, el mapa está en modo
+ * exploración. Al finalizar el encuentro vuelve a null y las criaturas
+ * sobrevivientes conservan su PG en el mapa.
+ */
+export interface EncounterState {
+  id: string;
+  round: number;
+  turn: number;
+  participants: Combatant[];
+  combatLog: CombatLogEntry[];
+  encounterCount: number;
+  /** Reparto de XP del último encuentro finalizado (sincronizado a la party). */
+  xpAwards?: XpAward[];
+}
+
 export interface CombatState {
   id: string;
   round: number;
@@ -222,6 +268,8 @@ export interface CombatState {
   combatLog: CombatLogEntry[];
   startTime: Date;
   encounterCount: number;
+  /** Personajes/jugadores persistentes colocados en el mapa (modo exploración). */
+  mapCreatures: MapCreature[];
   /** Tiles en el mapa: muros, trampas, tesoros, investigación. */
   tiles: MapTile[];
   /** Claves "x-y" de tiles revelados a la party (trampa/tesoro/investigación). */

@@ -4,10 +4,27 @@
 
 import { activeCols, activeRows } from './mapUtils';
 
+export interface LayoutCreature {
+  name: string;
+  kind: 'monster' | 'npc' | 'player';
+  refId?: string;
+  x: number;
+  y: number;
+  hp: number;
+  maxHp: number;
+  tempHp: number;
+  armorClass: number;
+  speed: number;
+  npcRole?: 'hostage' | 'ally' | 'neutral' | 'enemy';
+  xpReward?: number;
+}
+
 export interface MapLayout {
   id: string;
   name: string;
   barriers: { x: number; y: number }[];
+  /** Criaturas (monstruos/NPCs) guardadas con el layout. No se guardan PJs. */
+  creatures?: LayoutCreature[];
 }
 
 const cell = (x: number, y: number) => ({ x, y });

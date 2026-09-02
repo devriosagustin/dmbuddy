@@ -10,6 +10,7 @@ import { PlayerCombatView } from './components/combat/PlayerCombatView';
 
 // Carga diferida (code splitting) para que cada sección se descargue solo cuando se visita
 const CombatTracker = lazy(() => import('./components/combat/CombatTracker'));
+const MapExplorer = lazy(() => import('./components/map/MapExplorer'));
 const MonsterManager = lazy(() => import('./components/monsters/MonsterManager'));
 const ReferenceLibrary = lazy(() => import('./components/reference/ReferenceLibrary'));
 const PartyManager = lazy(() => import('./components/players/PartyManager'));
@@ -59,6 +60,16 @@ export default function App() {
           <Route
             path="/combat"
             element={<CombatRoute />}
+          />
+          <Route
+            path="/map"
+            element={
+              <Suspense fallback={<PageLoader />}>
+                <DmOnlyRoute>
+                  <MapExplorer />
+                </DmOnlyRoute>
+              </Suspense>
+            }
           />
           <Route
             path="/monsters"

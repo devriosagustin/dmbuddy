@@ -97,4 +97,38 @@ describe('cortina de guerra (revelación)', () => {
     expect(out.revealedEnemyIds).toEqual([]);
     expect(out.revealedTileKeys).toEqual([]);
   });
+
+  it('incluye mapCreatures en el snapshot (modo exploración)', () => {
+    const out = buildCombatSnapshot({
+      id: 'c1',
+      round: 0,
+      turn: -1,
+      isActive: false,
+      encounterCount: 0,
+      participants: [],
+      tiles: [],
+      mapCreatures: [
+        {
+          id: 'mc-1',
+          name: 'Orco',
+          kind: 'monster',
+          x: 3,
+          y: 4,
+          hp: 10,
+          maxHp: 10,
+          tempHp: 0,
+          armorClass: 12,
+          speed: 30,
+          statusEffects: [],
+          isDead: false,
+        },
+      ],
+      revealedTileKeys: [],
+      revealedEnemyIds: [],
+      chat: [],
+    });
+    expect(out.mapCreatures).toHaveLength(1);
+    expect(out.mapCreatures![0].name).toBe('Orco');
+    expect(out.mapCreatures![0].x).toBe(3);
+  });
 });

@@ -4,8 +4,8 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { CombatState, Combatant, CombatLogEntry, StatusEffect, MapTile, TileType, ChatMessage, XpAward } from '../types';
-import { sortByInitiative } from '../utils/combatUtils';
+import type { CombatState, Combatant, CombatLogEntry, StatusEffect, MapTile, TileType, ChatMessage, XpAward, MapCreature } from '../types';
+import { sortByInitiative, playerToCombatant } from '../utils/combatUtils';
 import { findSpawnCell, inBounds, gridDistanceFeet, isBlocked, setActiveMapSize, MAP_COLS, MAP_ROWS } from '../utils/mapUtils';
 import { tileKey } from '../types/session';
 
@@ -26,8 +26,35 @@ const baseName = (name: string): string => name.replace(/\s+[a-z]$/, '').trim();
 const copyLetter = (i: number): string =>
   'abcdefghijklmnopqrstuvwxyz'[i % 26] ?? String(i + 1);
 
-export interface CombatStore extends CombatState {
-  // Acciones
+/**
+ * Convierte una criatura persistente del mapa en un combatiente para entrar
+ * en un encuentro (con posición ya fijada en la cuadrícula).
+ */
+const creatureToCombatant = (c: MapCreature): Omit<Combatant, 'id'> => {
+  const initiative = 1 + Math.floor(Math.random() * 20);
+  return {
+    name: c.name,
+    initiative,
+    hp: c.hp,
+    maxHp: c.maxHp,
+    tempHp: c.tempHp,
+    armorClass: c.armorClass,
+    type: c.kind === 'player' ? 'player' : c.kind === 'npc' ? 'npc' : 'monster',
+    isActive: true,
+    statusEffects: c.statusEffects,
+    monsterId: c.kind === 'monster' ? c.refId : undefined,
+    playerId: c.playerId,
+    npcId: c.kind === 'npc' ? c.refId : undefined,
+    npcRole: c.npcRole,
+    xpReward: c.xpReward,
+    isDead: false,
+    speed: c.speed,
+    x: c.x,
+    y: c.y,
+  };
+};
+
+export interface CombatStore extends CombatState {  // Acciones
   initializeCombat: () => void;
   addCombatant: (combatant: Omit<Combatant, 'id' | 'isActive' | 'isDead'>) => boolean;
   removeCombatant: (id: string) => void;
@@ -56,6 +83,14 @@ export interface CombatStore extends CombatState {
   addLogEntry: (entry: Omit<CombatLogEntry, 'id' | 'timestamp'>) => void;
   endCombat: () => void;
   resetCombat: () => void;
+  /** Coloca una criatura persistente en el mapa (monstruo/NPC). */
+  addMapCreature: (creature: Omit<MapCreature, 'id'>) => void;
+  /** Retira una criatura persistente del mapa. */
+  removeMapCreature: (id: string) => void;
+  /** Actualiza campos de una criatura persistente del mapa. */
+  updateMapCreature: (id: string, updates: Partial<MapCreature>) => void;
+  /** Inicia un encuentro con las criaturas indicadas + el party indicado. */
+  startEncounter: (creatureIds: string[], playerIds: string[]) => void;
   /** Revela u oculta una casilla (trampa/tesoro/investigación) a la party. */
   toggleRevealTile: (x: number, y: number) => void;
   /** Revela u oculta la vida de un enemigo a la party. */
@@ -67,6 +102,24 @@ export interface CombatStore extends CombatState {
   /** Envía un mensaje de chat/lore: se guarda en el registro y se sincroniza. */
   sendChatMessage: (msg: Omit<ChatMessage, 'id' | 'timestamp'>) => void;
 }
+
+/** Migración v1: normaliza weaponId (legacy) a weaponIds (array). */
+const migrateWeapons = (state: {
+  participants?: Array<Record<string, unknown>>;
+}): Record<string, unknown> => {
+  const participants = state.participants ?? [];
+  return {
+    ...state,
+    participants: participants.map((p) => {
+      if (p.weaponIds !== undefined) return p;
+      const legacyId = p.weaponId;
+      if (typeof legacyId === 'string' && legacyId) {
+        return { ...p, weaponIds: [legacyId] };
+      }
+      return p;
+    }),
+  };
+};
 
 export const useCombatStore = create<CombatStore>()(
   persist(
@@ -80,6 +133,7 @@ export const useCombatStore = create<CombatStore>()(
       startTime: new Date(),
       encounterCount: 0,
       tiles: [],
+      mapCreatures: [],
       revealedTileKeys: [],
       revealedEnemyIds: [],
       visionRange: 30,
@@ -585,10 +639,132 @@ export const useCombatStore = create<CombatStore>()(
         }
 
         set({ isActive: false, xpAwards, combatLog: [...combatLog, ...closeOut] });
+
+        // Sincronizar el estado tras el combate con el mapa persistente:
+        // - Los monstruos/NPCs que participaron y sobrevivieron conservan su PG
+        //   en el mapa para futuros encuentros.
+        // - Los monstruos derrotados (0 PG) se retiran del mapa.
+        // - Los personajes del party ya se sincronizaron arriba a playerStore.
+        const mapCreatures = get().mapCreatures;
+        const updated = mapCreatures.map((mc) => {
+          // Buscar el combatiente del encuentro que corresponde a esta criatura:
+          // por ref/name, por id (si se conservó) o como último recurso por su
+          // posición en el mapa (criaturas sin refId añadidas a mano).
+          const combatant =
+            participants.find(
+              (p) => p.id === mc.id || (mc.refId !== undefined && p.monsterId === mc.refId && p.name === mc.name)
+            ) ??
+            participants.find(
+              (p) => (p.x === mc.x && p.y === mc.y && p.name === mc.name) || (p.x === mc.x && p.y === mc.y && p.type === mc.kind)
+            );
+          if (!combatant) return mc;
+          // Muerto: retirarlo del mapa (filter más abajo lo elimina).
+          if (combatant.isDead || combatant.hp <= 0) return { ...mc, isDead: true };
+          return {
+            ...mc,
+            hp: combatant.hp,
+            tempHp: combatant.tempHp,
+            statusEffects: combatant.statusEffects,
+            isDead: false,
+          };
+        }).filter((mc) => !mc.isDead);
+        set({ mapCreatures: updated });
       },
 
       resetCombat: () => {
-        set({ participants: [], combatLog: [], turn: -1, round: 0, isActive: false, xpAwards: [] });
+        // Al reiniciar/limpiar se deja el mapa en modo exploración: se conservan
+        // tiles y criaturas colocadas, pero termina el encuentro en curso.
+        set({
+          participants: [],
+          combatLog: [],
+          turn: -1,
+          round: 0,
+          isActive: false,
+          xpAwards: [],
+        });
+      },
+
+      addMapCreature: (creature) => {
+        const full: MapCreature = {
+          ...creature,
+          id: makeId(),
+          isDead: false,
+        };
+        set((state) => ({ mapCreatures: [...state.mapCreatures, full] }));
+        get().addLogEntry({
+          type: 'custom',
+          message: `🪧 ${creature.name} colocado en el mapa en (${creature.x},${creature.y})`,
+        });
+      },
+
+      removeMapCreature: (id) => {
+        const creature = get().mapCreatures.find((c) => c.id === id);
+        set((state) => ({ mapCreatures: state.mapCreatures.filter((c) => c.id !== id) }));
+        if (creature) {
+          get().addLogEntry({
+            type: 'custom',
+            message: `🗑 ${creature.name} retirado del mapa`,
+          });
+        }
+      },
+
+      updateMapCreature: (id, updates) => {
+        set((state) => ({
+          mapCreatures: state.mapCreatures.map((c) => (c.id === id ? { ...c, ...updates } : c)),
+        }));
+      },
+
+      startEncounter: (creatureIds, playerIds) => {
+        const { mapCreatures } = get();
+        const selected = mapCreatures.filter((c) => creatureIds.includes(c.id));
+        if (selected.length === 0 && playerIds.length === 0) return;
+
+        const humanRoll = () =>
+          1 + Math.floor(Math.random() * 20);
+
+        const fromPlayer = (playerId: string): Omit<Combatant, 'id'> | null => {
+          const player = usePlayerStore.getState().players.find((p) => p.id === playerId);
+          if (!player) return null;
+          return playerToCombatant(player, humanRoll());
+        };
+
+        const participants: Combatant[] = [];
+        for (const p of playerIds) {
+          const c = fromPlayer(p);
+          if (c) {
+            const spawn = findSpawnCell(participants, true, get().tiles);
+            participants.push({ ...c, id: makeId(), x: c.x ?? spawn.x, y: c.y ?? spawn.y });
+          }
+        }
+        for (const c of selected) {
+          participants.push({ ...creatureToCombatant(c), id: makeId() });
+        }
+
+        const sorted = sortByInitiative(participants);
+        const newId = makeId();
+        set({
+          id: newId,
+          round: 1,
+          turn: -1,
+          isActive: true,
+          participants: sorted,
+          combatLog: [
+            {
+              id: makeId(),
+              timestamp: new Date(),
+              type: 'initiative',
+              message: `¡Encuentro iniciado con ${selected.length} criatura${selected.length !== 1 ? 's' : ''} y ${playerIds.length} jugador${playerIds.length !== 1 ? 'es' : ''}!`,
+            },
+          ],
+          startTime: new Date(),
+          encounterCount: (get().encounterCount ?? 0) + 1,
+          xpAwards: [],
+        });
+        const names = sorted.map((c) => `${c.name} (${c.initiative})`);
+        get().addLogEntry({
+          type: 'initiative',
+          message: `Iniciativa: ${names.join(', ')}`,
+        });
       },
 
       toggleRevealTile: (x, y) => {
@@ -626,7 +802,18 @@ export const useCombatStore = create<CombatStore>()(
           x: p.x === undefined ? p.x : Math.min(nCols - 1, p.x),
           y: p.y === undefined ? p.y : Math.min(nRows - 1, p.y),
         }));
-        set({ mapCols: nCols, mapRows: nRows, tiles: inBoundsTiles, participants: clampedParticipants });
+        const clampedCreatures = get().mapCreatures.map((c) => ({
+          ...c,
+          x: Math.min(nCols - 1, c.x),
+          y: Math.min(nRows - 1, c.y),
+        }));
+        set({
+          mapCols: nCols,
+          mapRows: nRows,
+          tiles: inBoundsTiles,
+          participants: clampedParticipants,
+          mapCreatures: clampedCreatures,
+        });
         get().addLogEntry({
           type: 'custom',
           message: `🗺 Mapa cambiado a ${nCols}×${nRows} (${nCols * 5}×${nRows * 5} pies)`,
@@ -652,21 +839,21 @@ export const useCombatStore = create<CombatStore>()(
     {
       name: 'combat-storage',
       // v1 = un PJ puede llevar varias armas equipadas (weaponIds).
-      version: 1,
-      migrate: (_persisted, _version) => {
-        const state = (_persisted ?? {}) as { participants?: Array<Record<string, unknown>> };
-        const participants = state.participants ?? [];
-        return {
-          ...state,
-          participants: participants.map((p) => {
-            if (p.weaponIds !== undefined) return p;
-            const legacyId = p.weaponId;
-            if (typeof legacyId === 'string' && legacyId) {
-              return { ...p, weaponIds: [legacyId] };
-            }
-            return p;
-          }),
-        } as unknown as CombatStore;
+      // v2 = capa de criaturas persistentes del mapa (mapCreatures).
+      version: 2,
+      migrate: (persisted, version) => {
+        const state = (persisted ?? {}) as {
+          participants?: Array<Record<string, unknown>>;
+          mapCreatures?: unknown;
+        };
+        let out = state as Record<string, unknown>;
+        if (version === 1) {
+          out = migrateWeapons(state as never);
+        }
+        if (out.mapCreatures === undefined) {
+          out.mapCreatures = [];
+        }
+        return out as unknown as CombatStore;
       },
       // Al rehidratar, resincroniza las dimensiones activas con las guardadas.
       onRehydrateStorage: () => (state) => {

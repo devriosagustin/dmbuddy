@@ -1,15 +1,17 @@
 // ============================================================
-// Tracker de combate principal: turnos, rondas y combatientes
+// Tracker de combate (solo lista): turnos, rondas y combatientes.
+// El mapa de la escena vive en la pestaña «Mapa»; aquí se gestiona
+// el encuentro activo con la lista de iniciativa y sus acciones.
 // ============================================================
 
 import { useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   ChevronLeft,
   ChevronRight,
   Flag,
-  Maximize2,
-  Minimize2,
+  Map as MapIcon,
   Play,
   Plus,
   RotateCcw,
@@ -18,27 +20,17 @@ import {
 } from 'lucide-react';
 import { Button } from '../common/Button';
 import { InitiativeOrder } from './InitiativeOrder';
-import { CombatMap } from './CombatMap';
 import { CombatLog } from './CombatLog';
 import { AddCombatantModal } from './AddCombatantModal';
 import { CombatantActionsModal } from './CombatantActionsModal';
 import { useCombatStore } from '../../store/combatStore';
-import { useLayoutStore } from '../../store/layoutStore';
-import { useFullscreen } from '../../hooks/useFullscreen';
-import { randomLayout } from '../../utils/layoutPatterns';
 import { ChatPanel } from './ChatPanel';
-import type { Combatant, TileType } from '../../types';
+import type { Combatant } from '../../types';
 
 /**
- * Pantalla principal de gestión del combate.
+ * Pantalla principal de gestión del combate (lista de iniciativa).
  */
 export const CombatTracker = () => {
-  const revealedTileKeys = useCombatStore((s) => s.revealedTileKeys);
-  const revealedEnemyIds = useCombatStore((s) => s.revealedEnemyIds);
-  const visionRange = useCombatStore((s) => s.visionRange);
-  const toggleRevealTile = useCombatStore((s) => s.toggleRevealTile);
-  const toggleRevealEnemy = useCombatStore((s) => s.toggleRevealEnemy);
-  const setVisionRange = useCombatStore((s) => s.setVisionRange);
   const {
     participants,
     turn,
@@ -48,36 +40,16 @@ export const CombatTracker = () => {
     previousTurn,
     setTurn,
     reorderParticipants,
-    moveCombatant,
-    toggleTile,
-    setTiles,
-    clearTiles,
     initializeCombat,
     resetCombat,
     endCombat,
     encounterCount,
-    tiles,
-    mapCols,
-    mapRows,
-    setMapSize,
     chat,
     sendChatMessage,
   } = useCombatStore();
 
-  const { savedLayouts, saveLayout, savedLayout: getSavedLayout, deleteLayout, exportLayouts, importLayouts } = useLayoutStore();
-
   const [showAdd, setShowAdd] = useState(false);
   const [selected, setSelected] = useState<Combatant | null>(null);
-  // Ficha seleccionada en el mapa (resalta sus movimientos posibles).
-  const [selectedTokenId, setSelectedTokenId] = useState<string | null>(null);
-  // Modo de colocar tiles en el mapa.
-  const [tileMode, setTileMode] = useState(false);
-  // Tipo de tile seleccionado.
-  const [tileType, setTileType] = useState<TileType>('wall');
-  const [view, setView] = useState<'list' | 'map'>('list');
-
-  // Pantalla completa del módulo de combate (con respaldo CSS en móviles).
-  const { isFullscreen, toggle: toggleFullscreen, targetRef: combatRef, overlayClass } = useFullscreen();
 
   // Ordenar por iniciativa (descendente)
   const sorted = useMemo(
@@ -92,71 +64,8 @@ export const CombatTracker = () => {
 
   const activeCombatant = activeIndex >= 0 ? sorted[activeIndex] : null;
 
-  // Siguiente combatiente en el orden de turnos (para resaltarlo antes de pulsar «Siguiente»).
-  const nextCombatant = useMemo(() => {
-    if (!isActive || sorted.length === 0) return null;
-    if (turn < 0) return sorted[0];
-    return sorted[(turn + 1) % sorted.length];
-  }, [isActive, turn, sorted]);
-
-  // --- Gestión de layouts de mapa ------------------------------------------
-  const handleSaveLayout = (name: string) => {
-    if (!name.trim()) return;
-    // Guardar solo muros para compatibilidad con layouts existentes.
-    const walls = tiles.filter((t) => t.type === 'wall').map((t) => ({ x: t.x, y: t.y }));
-    saveLayout(name, walls);
-  };
-  const handleLoadLayout = (id: string) => {
-    const layout = getSavedLayout(id);
-    if (layout) setTiles(layout.barriers.map((b) => ({ ...b, type: 'wall' })));
-  };
-  const handleDeleteLayout = (id: string) => {
-    deleteLayout(id);
-  };
-  const handleRandomLayout = () => {
-    const { barriers: b } = randomLayout();
-    setTiles(b.map((t) => ({ ...t, type: 'wall' })));
-  };
-
-  const handleExportLayouts = () => {
-    const json = exportLayouts();
-    const blob = new Blob([json], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `dmbuddy-map-layouts-${new Date().toISOString().slice(0, 10)}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  };
-
-  const handleImportLayouts = () => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'application/json';
-    input.onchange = (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        const text = ev.target?.result as string;
-        if (!text) return;
-        const { added, skipped } = importLayouts(text);
-        if (added > 0 || skipped > 0) {
-          console.log(`Importados: ${added}, Omitidos (duplicados/inválidos): ${skipped}`);
-        }
-      };
-      reader.readAsText(file);
-    };
-    input.click();
-  };
-
-return (
-    <div
-      ref={combatRef}
-      className={`flex h-dvh min-h-0 flex-col gap-3 overflow-hidden p-2 md:p-4 ${overlayClass ?? ''}`}
-    >
+  return (
+    <div className="flex h-dvh min-h-0 flex-col gap-3 overflow-hidden p-2 md:p-4">
       <motion.div
         initial={{ opacity: 0, y: -8 }}
         animate={{ opacity: 1, y: 0 }}
@@ -167,17 +76,12 @@ return (
             <Swords size={22} aria-hidden="true" />
             Combate
           </h2>
-
-          {/* Pantalla completa (asociada al mapa, lado izquierdo) */}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={toggleFullscreen}
-            aria-label={isFullscreen ? 'Salir de pantalla completa' : 'Pantalla completa del combate'}
-            icon={isFullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+          <Link
+            to="/map"
+            className="flex items-center gap-1 rounded-lg border border-dnd-leather/40 px-2.5 py-1 text-xs font-bold text-dnd-muted transition-colors hover:border-dnd-gold/50 hover:text-dnd-gold"
           >
-            <span className="hidden sm:inline">{isFullscreen ? 'Salir' : 'Pantalla completa'}</span>
-          </Button>
+            <MapIcon size={14} /> Mapa
+          </Link>
 
           {isActive ? (
             <p className="truncate text-sm text-dnd-muted">
@@ -194,38 +98,14 @@ return (
             </p>
           ) : (
             <p className="text-sm text-dnd-muted">
-              No hay un combate activo{encounterCount > 0 ? ` · ${encounterCount} encuentros realizados` : ''}
+              No hay un encuentro activo. Inícialo desde el{' '}
+              <Link to="/map" className="font-bold text-dnd-gold hover:underline">Mapa</Link>
+              {encounterCount > 0 ? ` · ${encounterCount} encuentro(s) realizados` : ''}.
             </p>
           )}
         </div>
 
         <div className="page-actions">
-          {/* Selector de vista */}
-          <div
-            className="flex items-center gap-0.5 rounded-lg bg-dnd-leather/30 p-0.5"
-            role="group"
-            aria-label="Vista de combate"
-          >
-            <button
-              onClick={() => setView('list')}
-              aria-pressed={view === 'list'}
-              className={`rounded-md px-2.5 py-1 text-xs font-bold transition-colors ${
-                view === 'list' ? 'bg-dnd-gold text-dnd-ink' : 'text-dnd-muted hover:text-dnd-text'
-              }`}
-            >
-              Lista
-            </button>
-            <button
-              onClick={() => setView('map')}
-              aria-pressed={view === 'map'}
-              className={`rounded-md px-2.5 py-1 text-xs font-bold transition-colors ${
-                view === 'map' ? 'bg-dnd-gold text-dnd-ink' : 'text-dnd-muted hover:text-dnd-text'
-              }`}
-            >
-              Mapa
-            </button>
-          </div>
-
           {isActive ? (
             <>
               <Button variant="ghost" size="sm" onClick={previousTurn} aria-label="Turno anterior" icon={<ChevronLeft size={16} />}>
@@ -252,12 +132,7 @@ return (
             </>
           ) : (
             <>
-              <Button
-                variant="primary"
-                onClick={initializeCombat}
-                icon={<Play size={16} />}
-                aria-label="Iniciar combate"
-              >
+              <Button variant="primary" onClick={initializeCombat} icon={<Play size={16} />} aria-label="Iniciar combate">
                 Iniciar combate
               </Button>
               <Button variant="secondary" onClick={() => setShowAdd(true)} icon={<UserPlus size={16} />}>
@@ -298,52 +173,17 @@ return (
         </div>
       )}
 
-      {/* Contenido principal: mapa/lista a la izquierda, registro a la derecha */}
+      {/* Contenido principal: lista de iniciativa a la izquierda, registro a la derecha */}
       <div className="flex min-h-0 flex-1 gap-3">
         <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-          {view === 'list' ? (
-            <div className="h-full overflow-y-auto pr-1">
-              <InitiativeOrder
-                participants={sorted}
-                activeIndex={activeIndex}
-                onReorder={reorderParticipants}
-                onOpenActions={setSelected}
-              />
-            </div>
-          ) : (
-            <CombatMap
+          <div className="h-full overflow-y-auto pr-1">
+            <InitiativeOrder
               participants={sorted}
-              activeId={activeCombatant?.id}
-              nextId={nextCombatant?.id}
-              selectedId={selectedTokenId}
-              tiles={tiles}
-              tileType={tileType}
-              onTileTypeChange={setTileType}
-              tileMode={tileMode}
-              onToggleTileMode={() => setTileMode((v) => !v)}
-              onToggleTile={toggleTile}
-              onClearTiles={clearTiles}
-              savedLayouts={savedLayouts}
-              onSaveLayout={handleSaveLayout}
-              onLoadLayout={handleLoadLayout}
-              onDeleteLayout={handleDeleteLayout}
-              onRandomLayout={handleRandomLayout}
-              onExportLayouts={handleExportLayouts}
-              onImportLayouts={handleImportLayouts}
-              onSelect={setSelectedTokenId}
+              activeIndex={activeIndex}
+              onReorder={reorderParticipants}
               onOpenActions={setSelected}
-              onMove={moveCombatant}
-              cols={mapCols ?? 28}
-              rows={mapRows ?? 16}
-              onMapSizeChange={setMapSize}
-              visionRange={visionRange}
-              onVisionRange={setVisionRange}
-              revealedTileKeys={revealedTileKeys}
-              revealedEnemyIds={revealedEnemyIds}
-              onToggleRevealTile={toggleRevealTile}
-              onToggleRevealEnemy={toggleRevealEnemy}
             />
-          )}
+          </div>
         </div>
         <div className="relative z-[60] hidden min-h-0 w-[19rem] shrink-0 flex-col md:flex">
           <div className="flex h-56 min-h-0 shrink-0 flex-col">

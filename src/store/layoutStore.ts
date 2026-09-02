@@ -4,7 +4,7 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { MapLayout } from '../utils/layoutPatterns';
+import type { MapLayout, LayoutCreature } from '../utils/layoutPatterns';
 
 const makeId = (): string => {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
@@ -15,8 +15,8 @@ const makeId = (): string => {
 
 interface LayoutStore {
   savedLayouts: MapLayout[];
-  /** Guarda (o actualiza por nombre) un layout de barreras. */
-  saveLayout: (name: string, barriers: { x: number; y: number }[]) => MapLayout;
+  /** Guarda (o actualiza por nombre) un layout de barreras y criaturas. */
+  saveLayout: (name: string, barriers: { x: number; y: number }[], creatures?: LayoutCreature[]) => MapLayout;
   savedLayout: (id: string) => MapLayout | undefined;
   deleteLayout: (id: string) => void;
   /** Exporta todos los layouts a JSON string. */
@@ -29,17 +29,17 @@ export const useLayoutStore = create<LayoutStore>()(
   persist(
     (set, get) => ({
       savedLayouts: [],
-      saveLayout: (name, barriers) => {
+      saveLayout: (name, barriers, creatures) => {
         const trimmed = name.trim() || 'Layout sin nombre';
         const existing = get().savedLayouts.find((l) => l.name === trimmed);
         let layout: MapLayout;
         if (existing) {
-          layout = { ...existing, barriers };
+          layout = { ...existing, barriers, creatures };
           set((s) => ({
             savedLayouts: s.savedLayouts.map((l) => (l.id === existing.id ? layout! : l)),
           }));
         } else {
-          layout = { id: makeId(), name: trimmed, barriers };
+          layout = { id: makeId(), name: trimmed, barriers, creatures };
           set((s) => ({ savedLayouts: [...s.savedLayouts, layout!] }));
         }
         return layout;

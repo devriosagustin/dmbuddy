@@ -33,6 +33,7 @@ export const useSessionPublish = () => {
         encounterCount: s.encounterCount,
         participants: s.participants,
         tiles: s.tiles,
+        mapCreatures: s.mapCreatures,
         revealedTileKeys: s.revealedTileKeys,
         revealedEnemyIds: s.revealedEnemyIds,
         chat: s.chat,

@@ -12,6 +12,7 @@ import {
   UserRound,
   Dices,
   NotebookPen,
+  Map as MapIcon,
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react';
@@ -20,6 +21,7 @@ import { useCombatStore } from '../../store/combatStore';
 import { useSessionStore } from '../../store/sessionStore';
 
 const navItems = [
+  { to: '/map', label: 'Mapa', icon: MapIcon },
   { to: '/combat', label: 'Combate', icon: Swords },
   { to: '/monsters', label: 'Monstruos', icon: Skull },
   { to: '/party', label: 'Party', icon: Users },

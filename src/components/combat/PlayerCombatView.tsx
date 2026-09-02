@@ -20,7 +20,8 @@ import {
   hasTile,
   hasLineOfSight,
 } from '../../utils/mapUtils';
-import type { Combatant } from '../../types';
+import { mapCreatureToCombatant } from '../../utils/combatUtils';
+import type { Combatant, MapCreature } from '../../types';
 import { PlayerPartyDetail } from './PlayerPartyDetail';
 import { ChatPanel } from './ChatPanel';
 
@@ -68,6 +69,14 @@ export const PlayerCombatView = () => {
   const mapRows = remoteCombat?.settings?.mapRows ?? 16;
   const participants = snapshot?.participants ?? [];
   const tiles = snapshot?.tiles ?? [];
+  const mapCreatures: MapCreature[] = snapshot?.mapCreatures ?? [];
+
+  // En exploración (sin combate activo) los tokens provienen de las criaturas
+  // persistentes del mapa; en combate, de la lista de iniciativa.
+  const inCombat = !!snapshot?.isActive;
+  const tokens: Combatant[] = inCombat
+    ? participants
+    : mapCreatures.map((c) => mapCreatureToCombatant(c));
 
   // Dimensionado del mapa: celdas cuadradas que quepan en el área disponible.
   useEffect(() => {
@@ -82,81 +91,47 @@ export const PlayerCombatView = () => {
     return () => ro.disconnect();
   }, [mapCols, mapRows]);
 
-  if (!snapshot || !snapshot.isActive) {
-    // Reparto de XP del combate que acaba de terminar, para los personajes
-    // de este jugador (registro local en su party).
-    const localIds = new Set(localPlayers.map((p) => p.id));
-    const myAwards = (snapshot?.xpAwards ?? []).filter((a) => localIds.has(a.playerId));
-    const myXpTotal = myAwards.reduce((sum, a) => sum + a.xp, 0);
+  if (!snapshot) {
     return (
-      <div className="flex h-full min-h-0 flex-col gap-3">
-        {snapshot && !snapshot.isActive && snapshot.xpAwards !== undefined && (
-          <div className="card border-dnd-gold/40 p-4">
-            <h3 className="flex items-center gap-2 font-fantasy text-lg font-bold text-dnd-gold">
-              <Swords size={18} aria-hidden="true" /> Combate finalizado
-            </h3>
-            {myAwards.length > 0 ? (
-              <>
-                <p className="mt-1 text-sm text-dnd-text">
-                  Tu party ganó <span className="font-bold text-dnd-gold">{myXpTotal} XP</span> en total.
-                  {myAwards.some((a) => a.leveledUp) && (
-                    <span className="ml-1 text-emerald-300">¡Algún personaje subió de nivel!</span>
-                  )}
-                </p>
-                <ul className="mt-2 space-y-1">
-                  {myAwards.map((a) => (
-                    <li key={a.playerId} className="flex items-center justify-between gap-2 text-xs">
-                      <span className="font-bold text-dnd-text">{a.name}</span>
-                      <span className="text-dnd-muted">
-                        +{a.xp} XP{a.leveledUp ? ` · Nivel ${a.level}` : ''}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </>
-            ) : (
-              <p className="mt-1 text-sm text-dnd-muted">El combate terminó sin reparto de XP para tu party.</p>
-            )}
-          </div>
+      <div className="card flex min-h-60 flex-1 flex-col items-center justify-center gap-3 p-8 text-center">
+        <span className="flex h-14 w-14 items-center justify-center rounded-full border border-dnd-leather/40 bg-dnd-leather/10 text-3xl">
+          <Swords size={26} aria-hidden="true" />
+        </span>
+        <h2 className="page-title">Esperando al DM…</h2>
+        {code ? (
+          <p className="max-w-md text-sm text-dnd-muted">
+            Estás conectado a la sesión <span className="font-mono font-bold text-dnd-gold">{code}</span>. Cuando el DM
+            comparta su mapa, lo verás aquí.
+          </p>
+        ) : (
+          <p className="max-w-md text-sm text-dnd-muted">
+            Únete a una sesión con el código de tu DM para ver el mapa en tiempo real.
+          </p>
         )}
-        <div className="card flex min-h-60 flex-1 flex-col items-center justify-center gap-3 p-8 text-center">
-          <span className="flex h-14 w-14 items-center justify-center rounded-full border border-dnd-leather/40 bg-dnd-leather/10 text-3xl">
-            <Swords size={26} aria-hidden="true" />
-          </span>
-          <h2 className="page-title">Esperando al DM…</h2>
-          {code ? (
-            <p className="max-w-md text-sm text-dnd-muted">
-              Estás conectado a la sesión <span className="font-mono font-bold text-dnd-gold">{code}</span>. Cuando el DM
-              inicie un combate activo, verás aquí el mapa de tu party.
-            </p>
-          ) : (
-            <p className="max-w-md text-sm text-dnd-muted">
-              Únete a una sesión con el código de tu DM para ver el mapa de combate en tiempo real.
-            </p>
-          )}
-        </div>
       </div>
     );
   }
 
-  // --- Cortina de guerra ------------------------------------------------
-  const friendlies = participants.filter(isFriendly);
+  // --- Cortina de guerra (solo en combate activo) -------------------------
+  const friendlies = inCombat ? tokens.filter(isFriendly) : [];
 
-  const visibleTokens = participants.filter((c) => {
-    if (isFriendly(c)) return true;
-    // Enemigo: visible si está dentro del radio de visión de algún aliado
-    // Y con línea de visión no bloqueada (muros o puertas cerradas).
-    if (c.x === undefined || c.y === undefined) return false;
-    const cx = c.x;
-    const cy = c.y;
-    return friendlies.some((f) => {
-      const fx = f.x;
-      const fy = f.y;
-      if (fx === undefined || fy === undefined) return false;
-      if (gridDistanceFeet({ x: fx, y: fy }, { x: cx, y: cy }) > visionRange) return false;
-      return hasLineOfSight(fx, fy, cx, cy, tiles);
-    });
-  });
+  const visibleTokens = inCombat
+    ? tokens.filter((c) => {
+        if (isFriendly(c)) return true;
+        // Enemigo: visible si está dentro del radio de visión de algún aliado
+        // Y con línea de visión no bloqueada (muros o puertas cerradas).
+        if (c.x === undefined || c.y === undefined) return false;
+        const cx = c.x;
+        const cy = c.y;
+        return friendlies.some((f) => {
+          const fx = f.x;
+          const fy = f.y;
+          if (fx === undefined || fy === undefined) return false;
+          if (gridDistanceFeet({ x: fx, y: fy }, { x: cx, y: cy }) > visionRange) return false;
+          return hasLineOfSight(fx, fy, cx, cy, tiles);
+        });
+      })
+    : tokens;
 
   // Tiles visibles: muros y puertas siempre; trampa/tesoro/investigación solo si revelados.
   const visibleTiles = tiles.filter((t) => {
@@ -169,44 +144,94 @@ export const PlayerCombatView = () => {
 
   // Nombre del combatiente al que le toca el turno: oculto si es un enemigo
   // que tu party no ve todavía.
-  const turnCombatant = snapshot.turn >= 0 ? participants[snapshot.turn] : undefined;
+  const turnCombatant = inCombat && snapshot.turn >= 0 ? tokens[snapshot.turn] : undefined;
   const turnNameVisible =
     !turnCombatant || isFriendly(turnCombatant) || visibleTokens.includes(turnCombatant);
 
   const cellColPct = 100 / mapCols;
   const cellRowPct = 100 / mapRows;
 
+  // Reparto de XP del combate que acaba de terminar (para este jugador).
+  const localIds = new Set(localPlayers.map((p) => p.id));
+  const myAwards = (snapshot.xpAwards ?? []).filter((a) => localIds.has(a.playerId));
+  const myXpTotal = myAwards.reduce((sum, a) => sum + a.xp, 0);
+
   return (
     <div ref={rootRef} className={`flex h-full min-h-0 flex-col gap-3 ${overlayClass ?? ''}`}>
+      {/* Aviso de combate finalizado (reparto de XP) */}
+      {!inCombat && snapshot.xpAwards !== undefined && snapshot.xpAwards.length >= 0 && (
+        <div className="card border-dnd-gold/40 p-4">
+          <h3 className="flex items-center gap-2 font-fantasy text-lg font-bold text-dnd-gold">
+            <Swords size={18} aria-hidden="true" /> Combate finalizado
+          </h3>
+          {myAwards.length > 0 ? (
+            <>
+              <p className="mt-1 text-sm text-dnd-text">
+                Tu party ganó <span className="font-bold text-dnd-gold">{myXpTotal} XP</span> en total.
+                {myAwards.some((a) => a.leveledUp) && (
+                  <span className="ml-1 text-emerald-300">¡Algún personaje subió de nivel!</span>
+                )}
+              </p>
+              <ul className="mt-2 space-y-1">
+                {myAwards.map((a) => (
+                  <li key={a.playerId} className="flex items-center justify-between gap-2 text-xs">
+                    <span className="font-bold text-dnd-text">{a.name}</span>
+                    <span className="text-dnd-muted">
+                      +{a.xp} XP{a.leveledUp ? ` · Nivel ${a.level}` : ''}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </>
+          ) : (
+            <p className="mt-1 text-sm text-dnd-muted">El combate terminó sin reparto de XP para tu party.</p>
+          )}
+        </div>
+      )}
+
       {/* Cabecera informativa */}
       <div className="card flex flex-wrap items-center justify-between gap-2 py-2.5 px-3">
         <div className="flex items-center gap-2 text-sm">
-          <span className="rounded-md bg-dnd-leather/40 px-2 py-0.5 text-[11px] font-bold uppercase text-dnd-muted">
-            Ronda {snapshot.round}
-          </span>
-          {snapshot.turn >= 0 && participants[snapshot.turn] && (
-            <span className="flex items-center gap-1 text-dnd-muted">
-              <MapPin size={13} className="text-dnd-gold" />
-              Turno de{' '}
-              <span className="font-bold text-dnd-text">
-                {turnNameVisible ? participants[snapshot.turn]?.name : '??????'}
+          {inCombat ? (
+            <>
+              <span className="rounded-md bg-dnd-leather/40 px-2 py-0.5 text-[11px] font-bold uppercase text-dnd-muted">
+                Ronda {snapshot.round}
               </span>
+              {snapshot.turn >= 0 && tokens[snapshot.turn] && (
+                <span className="flex items-center gap-1 text-dnd-muted">
+                  <MapPin size={13} className="text-dnd-gold" />
+                  Turno de{' '}
+                  <span className="font-bold text-dnd-text">
+                    {turnNameVisible ? tokens[snapshot.turn]?.name : '??????'}
+                  </span>
+                </span>
+              )}
+            </>
+          ) : (
+            <span className="flex items-center gap-2 text-dnd-muted">
+              <MapPin size={14} className="text-dnd-gold" />
+              <span className="font-bold uppercase tracking-wide text-dnd-text">Exploración</span>
+              {tokens.length > 0 && <span>· {tokens.length} criatura(s) en el mapa</span>}
             </span>
           )}
         </div>
         <div className="flex flex-wrap items-center gap-2 text-[11px] text-dnd-muted">
-          <span className="flex items-center gap-1.5">
-            <Scan size={12} className="text-sky-400" /> Visión: {visionRange} pies
-          </span>
-          {revealedCount > 0 && (
-            <span className="flex items-center gap-1.5">
-              <Eye size={12} className="text-emerald-400" /> {revealedCount} enemigo(s) con vida visible
-            </span>
-          )}
-          {revealedTilesCount > 0 && (
-            <span className="flex items-center gap-1.5">
-              <Radio size={12} className="text-amber-400" /> {revealedTilesCount} lugar(es) investigado(s)
-            </span>
+          {inCombat && (
+            <>
+              <span className="flex items-center gap-1.5">
+                <Scan size={12} className="text-sky-400" /> Visión: {visionRange} pies
+              </span>
+              {revealedCount > 0 && (
+                <span className="flex items-center gap-1.5">
+                  <Eye size={12} className="text-emerald-400" /> {revealedCount} enemigo(s) con vida visible
+                </span>
+              )}
+              {revealedTilesCount > 0 && (
+                <span className="flex items-center gap-1.5">
+                  <Radio size={12} className="text-amber-400" /> {revealedTilesCount} lugar(es) investigado(s)
+                </span>
+              )}
+            </>
           )}
           <button
             type="button"
@@ -239,7 +264,7 @@ export const PlayerCombatView = () => {
         <div
           className="relative overflow-hidden rounded-dnd-lg border border-dnd-leather/40 bg-dnd-ink/40"
           style={{ width: mapSize.w || '100%', height: mapSize.h || '100%' }}
-          aria-label="Mapa de combate (vista de jugador)"
+          aria-label={inCombat ? 'Mapa de combate (vista de jugador)' : 'Mapa del DM (exploración)'}
           role="img"
         >
           {/* Fondo */}
@@ -390,7 +415,10 @@ export const PlayerCombatView = () => {
       )}
 
       <p className="text-[10px] text-dnd-muted">
-        Vista de jugador: solo ves lo que tu party puede percibir. Los aliados comparten su visión (radio {visionRange} pies), pero los muros y las puertas cerradas bloquean la línea de vista. 🔒 Puerta cerrada · 🚪 Puerta abierta.
+        {inCombat
+          ? 'Vista de jugador: solo ves lo que tu party puede percibir. Los aliados comparten su visión (radio ' +
+            `${visionRange} pies), pero los muros y las puertas cerradas bloquean la línea de vista. 🔒 Puerta cerrada · 🚪 Puerta abierta.`
+          : 'Estás en modo exploración: el DM está posicionando criaturas en el mapa. Cuando inicie el combate, entrará en juego la cortina de guerra. 🔒 Puerta cerrada · 🚪 Puerta abierta.'}
       </p>
     </div>
   );
