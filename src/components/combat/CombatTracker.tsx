@@ -24,7 +24,6 @@ import { CombatLog } from './CombatLog';
 import { AddCombatantModal } from './AddCombatantModal';
 import { CombatantActionsModal } from './CombatantActionsModal';
 import { useCombatStore } from '../../store/combatStore';
-import { ChatPanel } from './ChatPanel';
 import type { Combatant } from '../../types';
 
 /**
@@ -44,8 +43,6 @@ export const CombatTracker = () => {
     resetCombat,
     endCombat,
     encounterCount,
-    chat,
-    sendChatMessage,
   } = useCombatStore();
 
   const [showAdd, setShowAdd] = useState(false);
@@ -186,13 +183,6 @@ export const CombatTracker = () => {
           </div>
         </div>
         <div className="relative z-[60] hidden min-h-0 w-[19rem] shrink-0 flex-col md:flex">
-          <div className="flex h-56 min-h-0 shrink-0 flex-col">
-            <ChatPanel
-              messages={chat ?? []}
-              participants={participants}
-              onSend={sendChatMessage}
-            />
-          </div>
           <CombatLog />
         </div>
       </div>

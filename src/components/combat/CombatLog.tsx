@@ -84,20 +84,20 @@ export const CombatLog = ({ defaultExpanded = false }: { defaultExpanded?: boole
 
   return (
     <section
-      className={`card flex min-h-0 flex-col ${defaultExpanded ? 'h-[calc(100dvh-15rem)] md:h-[calc(100dvh-13rem)]' : ''}`}
+      className={`card flex min-h-0 flex-col ${defaultExpanded ? 'h-full min-h-0 flex-1' : ''}`}
       aria-label="Registro del combate"
     >
-      <div className="mb-2 flex shrink-0 items-center justify-between">
+      <div className="mb-2 flex shrink-0 flex-wrap items-center justify-between gap-2">
         <h2 className="flex items-center gap-2 font-fantasy text-lg font-bold text-dnd-gold">
-          <ScrollText size={18} aria-hidden="true" />
-          <span>
+          <ScrollText size={18} className="shrink-0" aria-hidden="true" />
+          <span className="whitespace-nowrap">
             Registro
-            <span className="ml-2 rounded-full bg-dnd-leather/40 px-2 py-0.5 text-[10px] text-dnd-text">
+            <span className="ml-2 inline-block whitespace-nowrap rounded-full bg-dnd-leather/40 px-2 py-0.5 text-[10px] leading-none text-dnd-text">
               {combatLog.length}
             </span>
           </span>
         </h2>
-        <div className="flex items-center gap-1">
+        <div className="flex shrink-0 items-center gap-1">
           <button
             onClick={downloadJson}
             aria-label="Descargar registro en JSON"
@@ -110,7 +110,7 @@ export const CombatLog = ({ defaultExpanded = false }: { defaultExpanded?: boole
             onClick={() => setShowLog((s) => !s)}
             aria-expanded={showLog}
             aria-controls="combat-log-list"
-            className="rounded-lg px-2 py-1 text-xs font-bold text-dnd-muted transition-colors hover:bg-dnd-leather/30 hover:text-dnd-text focus:outline-none focus-visible:ring-2 focus-visible:ring-dnd-gold"
+            className="whitespace-nowrap rounded-lg px-3 py-1 text-xs font-bold leading-none text-dnd-muted transition-colors hover:bg-dnd-leather/30 hover:text-dnd-text focus:outline-none focus-visible:ring-2 focus-visible:ring-dnd-gold"
           >
             {showLog ? 'Ocultar' : 'Mostrar'}
           </button>

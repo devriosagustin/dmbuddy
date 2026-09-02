@@ -123,8 +123,8 @@ export const NotesManager = () => {
 const selectClass = 'select';
 
   return (
-    <div className="mx-auto max-w-6xl space-y-4">
-      <div className="page-header">
+    <div className="mx-auto flex h-full min-h-0 max-w-6xl flex-col gap-3 overflow-hidden">
+      <div className="page-header shrink-0">
         <div>
           <h2 className="page-title flex items-center gap-2">
             <NotebookPen size={22} aria-hidden="true" /> Registro y Notas
@@ -156,7 +156,7 @@ const selectClass = 'select';
       </div>
 
       {/* Pestañas: Notas y Registro */}
-      <div className="flex w-fit gap-1 rounded-lg border border-dnd-leather/40 bg-dnd-ink/40 p-1" role="tablist" aria-label="Registro y notas">
+      <div className="flex w-fit shrink-0 gap-1 rounded-lg border border-dnd-leather/40 bg-dnd-ink/40 p-1" role="tablist" aria-label="Registro y notas">
         <button
           role="tab"
           aria-selected={tab === 'notas'}
@@ -175,13 +175,14 @@ const selectClass = 'select';
         </button>
       </div>
 
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
       {tab === 'registro' ? (
         <CombatLog defaultExpanded />
       ) : (
-      <div className="grid gap-4 lg:grid-cols-[320px_1fr]">
+      <div className="grid min-h-0 flex-1 gap-4 overflow-hidden lg:grid-cols-[320px_1fr]">
         {/* Lista de notas */}
-        <div className="space-y-3">
-          <div className="card space-y-2">
+        <div className="flex min-h-0 flex-col gap-3 overflow-hidden">
+          <div className="card shrink-0 space-y-2">
             <div className="relative">
               <label htmlFor="note-search" className="sr-only">Buscar notas</label>
               <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-dnd-muted" aria-hidden="true" />
@@ -217,7 +218,7 @@ const selectClass = 'select';
           </div>
 
           {/* Lista */}
-          <div className="card max-h-[70vh] space-y-1 overflow-y-auto" role="list" aria-label="Lista de notas">
+          <div className="card min-h-0 flex-1 space-y-1 overflow-y-auto" role="list" aria-label="Lista de notas">
             {filtered.length === 0 && (
               <p className="py-8 text-center text-sm text-dnd-muted">No hay notas que coincidan.</p>
             )}
@@ -247,9 +248,9 @@ const selectClass = 'select';
         </div>
 
         {/* Editor */}
-        <div className="card min-h-[40vh]">
+        <div className="card flex min-h-0 flex-col overflow-hidden">
           {selected ? (
-            <div className="space-y-3">
+            <div className="min-h-0 flex-1 space-y-3 overflow-y-auto">
               {/* Barra del editor */}
               <div className="flex flex-wrap items-center gap-2">
                 <select
@@ -344,6 +345,7 @@ const selectClass = 'select';
         </div>
       </div>
       )}
+      </div>
     </div>
   );
 };

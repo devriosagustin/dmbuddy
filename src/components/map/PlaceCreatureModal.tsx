@@ -5,12 +5,13 @@
 // ============================================================
 
 import { useMemo, useState } from 'react';
-import { Plus, Search, Hand, Skull } from 'lucide-react';
+import { Plus, Search, Hand, Skull, Users } from 'lucide-react';
 import { Modal } from '../common/Modal';
 import { Button } from '../common/Button';
 import { useCombatStore } from '../../store/combatStore';
 import { useMonsterStore } from '../../store/monsterStore';
 import { useNpcStore } from '../../store/npcStore';
+import { usePlayerStore } from '../../store/playerStore';
 import { crToXp } from '../../data/srdMonsters';
 
 interface PlaceCreatureModalProps {
@@ -38,13 +39,23 @@ const npcLabel: Record<string, string> = {
 export const PlaceCreatureModal = ({ open, onClose }: PlaceCreatureModalProps) => {
   const monsters = useMonsterStore((s) => s.monsters);
   const npcs = useNpcStore((s) => s.npcs);
+  const players = usePlayerStore((s) => s.players);
   const mapCreatures = useCombatStore((s) => s.mapCreatures);
   const addMapCreature = useCombatStore((s) => s.addMapCreature);
   const mapCols = useCombatStore((s) => s.mapCols);
   const mapRows = useCombatStore((s) => s.mapRows);
 
   const [search, setSearch] = useState('');
-  const [tab, setTab] = useState<'monsters' | 'npcs'>('monsters');
+  const [tab, setTab] = useState<'monsters' | 'npcs' | 'players'>('monsters');
+
+  const filteredPlayers = useMemo(() => {
+    const placedIds = new Set(
+      mapCreatures.filter((c) => c.kind === 'player').map((c) => c.playerId)
+    );
+    const list = players.filter((pl) => !placedIds.has(pl.id));
+    if (!search.trim()) return list;
+    return list.filter((pl) => pl.name.toLowerCase().includes(search.toLowerCase()));
+  }, [players, mapCreatures, search]);
 
   const filteredMonsters = useMemo(() => {
     if (!search.trim()) return monsters;
@@ -111,6 +122,27 @@ export const PlaceCreatureModal = ({ open, onClose }: PlaceCreatureModalProps) =
     onClose();
   };
 
+  const placePlayer = (playerId: string) => {
+    const player = players.find((pl) => pl.id === playerId);
+    if (!player) return;
+    const cell = freeCell();
+    addMapCreature({
+      name: player.name,
+      kind: 'player',
+      playerId: player.id,
+      x: cell.x,
+      y: cell.y,
+      hp: player.hp,
+      maxHp: player.maxHp,
+      tempHp: 0,
+      armorClass: player.armorClass,
+      speed: 30,
+      statusEffects: [],
+      isDead: false,
+    });
+    onClose();
+  };
+
   return (
     <Modal
       open={open}
@@ -143,6 +175,18 @@ export const PlaceCreatureModal = ({ open, onClose }: PlaceCreatureModalProps) =
           }`}
         >
           <Hand size={14} /> NPCs
+        </button>
+        <button
+          role="tab"
+          aria-selected={tab === 'players'}
+          onClick={() => setTab('players')}
+          className={`inline-flex items-center gap-1 rounded-lg px-4 py-2 text-sm font-bold transition-colors ${
+            tab === 'players'
+              ? 'bg-dnd-gold text-dnd-ink'
+              : 'bg-dnd-leather/30 text-dnd-muted hover:text-dnd-text'
+          }`}
+        >
+          <Users size={14} /> Party
         </button>
       </div>
 
@@ -179,6 +223,46 @@ export const PlaceCreatureModal = ({ open, onClose }: PlaceCreatureModalProps) =
                   icon={<Plus size={14} />}
                   onClick={() => placeMonster(monster.id)}
                   aria-label={`Colocar ${monster.name} en el mapa`}
+                >
+                  Colocar
+                </Button>
+              </div>
+            ))
+          )
+        ) : tab === 'players' ? (
+          players.length === 0 ? (
+            <p className="py-6 text-center text-sm text-dnd-muted">
+              No hay personajes en el party. Créalos en la pestaña «Party» del menú.
+            </p>
+          ) : filteredPlayers.length === 0 ? (
+            <p className="py-6 text-center text-sm text-dnd-muted">
+              {search.trim() ? 'Sin resultados.' : 'Todos los miembros del party ya están en el mapa.'}
+            </p>
+          ) : (
+            filteredPlayers.map((player) => (
+              <div
+                key={player.id}
+                role="listitem"
+                className="flex items-center justify-between gap-2 rounded-lg border border-dnd-leather/30 px-3 py-2 transition-colors hover:border-dnd-gold/50 hover:bg-dnd-leather/10"
+              >
+                <div className="flex min-w-0 items-center gap-2">
+                  <span aria-hidden="true">
+                    <Users size={15} className="shrink-0 text-emerald-400" />
+                  </span>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-bold">{player.name}</p>
+                    <p className="text-[11px] text-dnd-muted">
+                      {player.race ? `${player.race} · ` : ''}
+                      {player.class} · Nv {player.level} · HP {player.hp}/{player.maxHp}
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  icon={<Plus size={14} />}
+                  onClick={() => placePlayer(player.id)}
+                  aria-label={`Colocar ${player.name} en el mapa`}
                 >
                   Colocar
                 </Button>

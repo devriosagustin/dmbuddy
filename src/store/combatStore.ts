@@ -643,8 +643,9 @@ export const useCombatStore = create<CombatStore>()(
         // Sincronizar el estado tras el combate con el mapa persistente:
         // - Los monstruos/NPCs que participaron y sobrevivieron conservan su PG
         //   en el mapa para futuros encuentros.
-        // - Los monstruos derrotados (0 PG) se retiran del mapa.
-        // - Los personajes del party ya se sincronizaron arriba a playerStore.
+        // - Los monstruos/NPCs derrotados (0 PG) se retiran del mapa.
+        // - Los personajes del party NUNCA se retiran: siguen explorando aunque
+        //   hayan caído a 0 PG (estabilizados/moribundos).
         const mapCreatures = get().mapCreatures;
         const updated = mapCreatures.map((mc) => {
           // Buscar el combatiente del encuentro que corresponde a esta criatura:
@@ -658,7 +659,17 @@ export const useCombatStore = create<CombatStore>()(
               (p) => (p.x === mc.x && p.y === mc.y && p.name === mc.name) || (p.x === mc.x && p.y === mc.y && p.type === mc.kind)
             );
           if (!combatant) return mc;
-          // Muerto: retirarlo del mapa (filter más abajo lo elimina).
+          // Los personajes del party permanecen en el mapa pase lo que pase.
+          if (mc.kind === 'player') {
+            return {
+              ...mc,
+              hp: Math.max(0, Math.min(mc.maxHp, combatant.hp ?? mc.hp)),
+              tempHp: combatant.tempHp,
+              statusEffects: combatant.statusEffects,
+              isDead: false,
+            };
+          }
+          // Monstruo/NPC muerto: retirarlo del mapa (filter más abajo lo elimina).
           if (combatant.isDead || combatant.hp <= 0) return { ...mc, isDead: true };
           return {
             ...mc,
@@ -667,7 +678,7 @@ export const useCombatStore = create<CombatStore>()(
             statusEffects: combatant.statusEffects,
             isDead: false,
           };
-        }).filter((mc) => !mc.isDead);
+        }).filter((mc) => !(mc.isDead && mc.kind !== 'player'));
         set({ mapCreatures: updated });
       },
 
@@ -732,8 +743,17 @@ export const useCombatStore = create<CombatStore>()(
         for (const p of playerIds) {
           const c = fromPlayer(p);
           if (c) {
+            // Si el jugador ya está colocado en el mapa (exploración), conserva su
+            // posición y PG actuales al entrar al encuentro.
+            const placed = mapCreatures.find((m) => m.kind === 'player' && m.playerId === p);
             const spawn = findSpawnCell(participants, true, get().tiles);
-            participants.push({ ...c, id: makeId(), x: c.x ?? spawn.x, y: c.y ?? spawn.y });
+            participants.push({
+              ...c,
+              id: makeId(),
+              x: placed?.x ?? c.x ?? spawn.x,
+              y: placed?.y ?? c.y ?? spawn.y,
+              hp: placed?.hp ?? c.hp,
+            });
           }
         }
         for (const c of selected) {

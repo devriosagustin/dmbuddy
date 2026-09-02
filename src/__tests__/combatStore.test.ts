@@ -390,6 +390,61 @@ describe('Combat Store', () => {
     // El goblin muerto se retira del mapa; los PJ se conservan en el mapa.
     expect(s.mapCreatures.some((c) => c.name === 'Goblin')).toBe(false);
   });
+
+  it('mantiene a los miembros del party en el mapa tras finalizar el encuentro', () => {
+    usePlayerStore.setState({ players: [] });
+    const player = usePlayerStore.getState().addPlayer(makePlayer());
+    const { addMapCreature, startEncounter, endCombat } = useCombatStore.getState();
+    // El DM coloca al PJ en el mapa (exploración) y a un monstruo.
+    addMapCreature({
+      name: player.name,
+      kind: 'player',
+      playerId: player.id,
+      hp: player.hp,
+      maxHp: player.maxHp,
+      tempHp: 0,
+      armorClass: player.armorClass,
+      speed: 30,
+      x: 5,
+      y: 5,
+      statusEffects: [],
+      isDead: false,
+    });
+    addMapCreature({
+      name: 'Goblin',
+      kind: 'monster',
+      hp: 7,
+      maxHp: 7,
+      tempHp: 0,
+      armorClass: 15,
+      speed: 30,
+      x: 2,
+      y: 2,
+      statusEffects: [],
+      isDead: false,
+    });
+    const party = useCombatStore.getState().mapCreatures.find((c) => c.kind === 'player')!;
+    const goblin = useCombatStore.getState().mapCreatures.find((c) => c.kind === 'monster')!;
+
+    startEncounter([goblin.id], [player.id]);
+    let s = useCombatStore.getState();
+    // El PJ colocado conserva su posición al entrar al encuentro.
+    const partyCombat = s.participants.find((p) => p.name === player.name);
+    expect(partyCombat).toBeDefined();
+    expect(partyCombat!.x).toBe(5);
+    expect(partyCombat!.y).toBe(5);
+    // El PJ cae a 0 PG en el combate.
+    useCombatStore.getState().updateHP(partyCombat!.id, 99, true);
+    endCombat();
+
+    s = useCombatStore.getState();
+    // El monstruo sobrevive; el PJ NUNCA se retira del mapa aunque esté a 0.
+    expect(s.mapCreatures.some((c) => c.id === goblin.id)).toBe(true);
+    const keptParty = s.mapCreatures.find((c) => c.id === party.id);
+    expect(keptParty).toBeDefined();
+    expect(keptParty!.hp).toBe(0);
+    expect(keptParty!.isDead).toBe(false);
+  });
 });
 
 function initializeWithTwo() {
