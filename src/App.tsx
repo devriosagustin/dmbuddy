@@ -55,7 +55,7 @@ export default function App() {
         <Route element={<Layout />}>
           <Route
             path="/"
-            element={<Navigate to="/combat" replace />}
+            element={<Navigate to="/reference" replace />}
           />
           <Route
             path="/combat"
@@ -129,7 +129,7 @@ export default function App() {
               </Suspense>
             }
           />
-          <Route path="*" element={<Navigate to="/combat" replace />} />
+          <Route path="*" element={<Navigate to="/reference" replace />} />
         </Route>
       </Routes>
     </HashRouter>
