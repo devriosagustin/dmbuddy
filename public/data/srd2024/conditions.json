@@ -1,1 +1,180 @@
-{"entries":[{"id":"srd-en-cond-blinded","title":"Blinded","category":"conditions","source":"srd2024","tags":["SRD 2024","Condición","EN"],"content":"While you have the Blinded condition, you experience the following effects.\n\n**Can't See.** You can't see and automatically fail any ability check that requires sight.\n\n**Attacks Affected.** Attack rolls against you have Advantage, and your attack rolls have Disadvantage."},{"id":"srd-en-cond-charmed","title":"Charmed","category":"conditions","source":"srd2024","tags":["SRD 2024","Condición","EN"],"content":"While you have the Charmed condition, you experience the following effects.\n\n**Can't Harm the Charmer.** You can't attack the charmer or target the charmer with damaging abilities or magical effects.\n\n**Social Advantage.** The charmer has Advantage on any ability check to interact with you socially."},{"id":"srd-en-cond-deafened","title":"Deafened","category":"conditions","source":"srd2024","tags":["SRD 2024","Condición","EN"],"content":"While you have the Deafened condition, you experience the following effect.\n\n**Can't Hear.** You can't hear and automatically fail any ability check that requires hearing."},{"id":"srd-en-cond-exhaustion","title":"Exhaustion","category":"conditions","source":"srd2024","tags":["SRD 2024","Condición","EN"],"content":"While you have the Exhaustion condition, you experience the following effects.\n\n**Exhaustion Levels.** This condition is cumulative. Each time you receive it, you gain 1 Exhaustion level. You die if your Exhaustion level is 6.\n\n**D20 Tests Affected.** When you make a D20 Test, the roll is reduced by 2 times your Exhaustion level.\n\n**Speed Reduced.** Your Speed is reduced by a number of feet equal to 5 times your Exhaustion level.\n\n**Removing Exhaustion Levels.** Finishing a Long Rest removes 1 of your Exhaustion levels. When your Exhaustion level reaches 0, the condition ends."},{"id":"srd-en-cond-frightened","title":"Frightened","category":"conditions","source":"srd2024","tags":["SRD 2024","Condición","EN"],"content":"While you have the Frightened condition, you experience the following effects.\n\n**Ability Checks and Attacks Affected.** You have Disadvantage on ability checks and attack rolls while the source of fear is within line of sight.\n\n**Can't Approach.** You can't willingly move closer to the source of fear."},{"id":"srd-en-cond-grappled","title":"Grappled","category":"conditions","source":"srd2024","tags":["SRD 2024","Condición","EN"],"content":"While you have the Grappled condition, you experience the following effects.\n\n**Speed 0.** Your Speed is 0 and can't increase.\n\n**Attacks Affected.** You have Disadvantage on attack rolls against any target other than the grappler.\n\n**Movable.** The grappler can drag or carry you when it moves, but every foot of movement costs it 1 extra foot unless you are Tiny or two or more sizes smaller than it."},{"id":"srd-en-cond-incapacitated","title":"Incapacitated","category":"conditions","source":"srd2024","tags":["SRD 2024","Condición","EN"],"content":"While you have the Incapacitated condition, you experience the following effects.\n\n**Inactive.** You can't take any action, Bonus Action, or Reaction.\n\n**No Concentration.** Your Concentration is broken.\n\n**Speechless.** You can't speak.\n\n**Surprised.** If you're Incapacitated when you roll Initiative, you have Disadvantage on the roll."},{"id":"srd-en-cond-invisible","title":"Invisible","category":"conditions","source":"srd2024","tags":["SRD 2024","Condición","EN"],"content":"While you have the Invisible condition, you experience the following effects.\n\n**Surprise.** If you're Invisible when you roll Initiative, you have Advantage on the roll.\n\n**Concealed.** You aren't affected by any effect that requires its target to be seen unless the effect's creator can somehow see you. Any equipment you are wearing or carrying is also concealed.\n\n**Attacks Affected.** Attack rolls against you have Disadvantage, and your attack rolls have Advantage. If a creature can somehow see you, you don't gain this benefit against that creature."},{"id":"srd-en-cond-paralyzed","title":"Paralyzed","category":"conditions","source":"srd2024","tags":["SRD 2024","Condición","EN"],"content":"While you have the Paralyzed condition, you experience the following effects.\n\n**Incapacitated.** You have the Incapacitated condition.\n\n**Speed 0.** Your Speed is 0 and can't increase.\n\n**Saving Throws Affected.** You automatically fail Strength and Dexterity saving throws.\n\n**Attacks Affected.** Attack rolls against you have Advantage.\n\n**Automatic Critical Hits.** Any attack roll that hits you is a Critical Hit if the attacker is within 5 feet of you."},{"id":"srd-en-cond-petrified","title":"Petrified","category":"conditions","source":"srd2024","tags":["SRD 2024","Condición","EN"],"content":"While you have the Petrified condition, you experience the following effects.\n\n**Turned to Inanimate Substance.** You are transformed, along with any nonmagical objects you are wearing and carrying, into a solid inanimate substance (usually stone). Your weight increases by a factor of ten, and you cease aging.\n\n**Incapacitated.** You have the Incapacitated condition.\n\n**Speed 0.** Your Speed is 0 and can't increase.\n\n**Attacks Affected.** Attack rolls against you have Advantage.\n\n**Saving Throws Affected.** You automatically fail Strength and Dexterity saving throws.\n\n**Resist Damage.** You have Resistance to all damage.\n\n**Poison Immunity.** You have Immunity to the Poisoned condition."},{"id":"srd-en-cond-poisoned","title":"Poisoned","category":"conditions","source":"srd2024","tags":["SRD 2024","Condición","EN"],"content":"While you have the Poisoned condition, you experience the following effect.\n\n**Ability Checks and Attacks Affected.** You have Disadvantage on attack rolls and ability checks."},{"id":"srd-en-cond-prone","title":"Prone","category":"conditions","source":"srd2024","tags":["SRD 2024","Condición","EN"],"content":"While you have the Prone condition, you experience the following effects.\n\n**Restricted Movement.** Your only movement options are to crawl or to spend an amount of movement equal to half your Speed (round down) to right yourself and thereby end the condition. If your Speed is 0, you can't right yourself.\n\n**Attacks Affected.** You have Disadvantage on attack rolls. An attack roll against you has Advantage if the attacker is within 5 feet of you. Otherwise, that attack roll has Disadvantage."},{"id":"srd-en-cond-restrained","title":"Restrained","category":"conditions","source":"srd2024","tags":["SRD 2024","Condición","EN"],"content":"While you have the Restrained condition, you experience the following effects.\n\n**Speed 0.** Your Speed is 0 and can't increase.\n\n**Attacks Affected.** Attack rolls against you have Advantage, and your attack rolls have Disadvantage.\n\n**Saving Throws Affected.** You have Disadvantage on Dexterity saving throws."},{"id":"srd-en-cond-stunned","title":"Stunned","category":"conditions","source":"srd2024","tags":["SRD 2024","Condición","EN"],"content":"While you have the Stunned condition, you experience the following effects.\n\n**Incapacitated.** You have the Incapacitated condition.\n\n**Saving Throws Affected.** You automatically fail Strength and Dexterity saving throws.\n\n**Attacks Affected.** Attack rolls against you have Advantage."},{"id":"srd-en-cond-unconscious","title":"Unconscious","category":"conditions","source":"srd2024","tags":["SRD 2024","Condición","EN"],"content":"While you have the Unconscious condition, you experience the following effects.\n\n**Inert.** You have the Incapacitated and Prone conditions, and you drop whatever you're holding. When this condition ends, you remain Prone.\n\n**Speed 0.** Your Speed is 0 and can't increase.\n\n**Attacks Affected.** Attack rolls against you have Advantage.\n\n**Saving Throws Affected.** You automatically fail Strength and Dexterity saving throws.\n\n**Automatic Critical Hits.** Any attack roll that hits you is a Critical Hit if the attacker is within 5 feet of you.\n\n**Unaware.** You're unaware of your surroundings."}]}
+{
+  "entries": [
+    {
+      "id": "cond-seeing",
+      "title": "Cegado (Blinded)",
+      "category": "conditions",
+      "source": "srd2024",
+      "tags": [
+        "SRD 2024",
+        "Condición"
+      ],
+      "content": "**Cegado**\n- No puedes ver y fallas automáticamente cualquier prueba que requiera vista.\n- Los ataques contra ti tienen **ventaja** y tus ataques tienen **desventaja**."
+    },
+    {
+      "id": "cond-charmed",
+      "title": "Encantado (Charmed)",
+      "category": "conditions",
+      "source": "srd2024",
+      "tags": [
+        "SRD 2024",
+        "Condición"
+      ],
+      "content": "**Encantado**\n- No puedes atacar al encantador ni apuntarlo con efectos dañinos.\n- El encantador tiene **ventaja** en sus pruebas sociales contra ti."
+    },
+    {
+      "id": "cond-deafened",
+      "title": "Ensordecido (Deafened)",
+      "category": "conditions",
+      "source": "srd2024",
+      "tags": [
+        "SRD 2024",
+        "Condición"
+      ],
+      "content": "**Ensordecido**\n- No puedes oír y fallas automáticamente cualquier prueba que requiera oído."
+    },
+    {
+      "id": "cond-exhaustion",
+      "title": "Agotamiento (Exhaustion)",
+      "category": "conditions",
+      "source": "srd2024",
+      "tags": [
+        "SRD 2024",
+        "Condición"
+      ],
+      "content": "**Agotamiento**\nSe acumula en **6 niveles**:\n| Nivel | Efecto |\n| --- | --- |\n| 1 | Desventaja en pruebas de habilidad |\n| 2 | Velocidad reducida a la mitad |\n| 3 | Desventaja en tiradas de ataque y salvaciones |\n| 4 | Máximo de PG reducido a la mitad |\n| 5 | Velocidad reducida a 0 |\n| 6 | Muerte |\n\nUn **descanso largo** reduce el nivel en 1 (excepto por daño, que requiere un conjuro como *Mayor Restauración*). Algunas fuentes de agotamiento indican cuántos niveles infligen."
+    },
+    {
+      "id": "cond-frightened",
+      "title": "Asustado (Frightened)",
+      "category": "conditions",
+      "source": "srd2024",
+      "tags": [
+        "SRD 2024",
+        "Condición"
+      ],
+      "content": "**Asustado**\n- Tienes **desventaja** en tiradas de ataque y pruebas de habilidad mientras la fuente del miedo esté visible.\n- No puedes acercarte voluntariamente a la fuente del miedo."
+    },
+    {
+      "id": "cond-grappled",
+      "title": "Agarrado (Grappled)",
+      "category": "conditions",
+      "source": "srd2024",
+      "tags": [
+        "SRD 2024",
+        "Condición"
+      ],
+      "content": "**Agarrado**\n- Tu velocidad es **0** y no puedes recibir beneficios de velocidad (p. ej. de *Haste*).\n- El estado termina si el agarrador queda incapacitado o se separa.\n- **En 2024** el estado es binario: impones *Agarrado* con una prueba de Atletismo (FUE) contra Atletismo o Acrobacias de tu rival."
+    },
+    {
+      "id": "cond-incapacitated",
+      "title": "Incapacitado (Incapacitated)",
+      "category": "conditions",
+      "source": "srd2024",
+      "tags": [
+        "SRD 2024",
+        "Condición"
+      ],
+      "content": "**Incapacitado**\n- No puedes tomar Acciones, Reacciones ni Acciones de Bonificación.\n- Implica vulnerabilidad total: los ataques contra ti tienen **ventaja** y tus salvaciones de Destreza se hacen con desventaja (según el efecto que lo cause)."
+    },
+    {
+      "id": "cond-invisible",
+      "title": "Invisible",
+      "category": "conditions",
+      "source": "srd2024",
+      "tags": [
+        "SRD 2024",
+        "Condición"
+      ],
+      "content": "**Invisible**\n- No te pueden ver por medios normales, aunque los rastros (sonido, olor) delatan tu posición.\n- Los ataques contra ti tienen **desventaja** y tus ataques contra criaturas que no te ven, **ventaja**.\n- Invisible no te hace indetectable: una criatura con **Vista en la oscuridad** no te ve, pero una con *ver lo invisible* sí."
+    },
+    {
+      "id": "cond-paralyzed",
+      "title": "Paralizado (Paralyzed)",
+      "category": "conditions",
+      "source": "srd2024",
+      "tags": [
+        "SRD 2024",
+        "Condición"
+      ],
+      "content": "**Paralizado**\n- Incapacitado: no puede moverse, hablar ni reaccionar.\n- Los ataques contra ti tienen **ventaja**; los que te alcanzan desde a menos de 5 pies son **críticos automáticos**.\n- Falla automáticamente las salvaciones de Destreza y Fuerza."
+    },
+    {
+      "id": "cond-petrified",
+      "title": "Petrificado (Petrified)",
+      "category": "conditions",
+      "source": "srd2024",
+      "tags": [
+        "SRD 2024",
+        "Condición"
+      ],
+      "content": "**Petrificado**\n- Transformado en piedra: **Incapacitado**, sin posibilidad de moverse ni hablar; no envejece.\n- Resiste el daño (resistencia a todo el daño).\n- En estado petrificado no comen, no respiran ni duermen; las salvaciones contra petrificación fallan automáticamente."
+    },
+    {
+      "id": "cond-poisoned",
+      "title": "Envenenado (Poisoned)",
+      "category": "conditions",
+      "source": "srd2024",
+      "tags": [
+        "SRD 2024",
+        "Condición"
+      ],
+      "content": "**Envenenado**\n- Tienes **desventaja** en tiradas de ataque y pruebas de habilidad.\n- No hay retroalimentación positiva: algunos venenos también dañan al final del turno de la víctima."
+    },
+    {
+      "id": "cond-prone",
+      "title": "Derribado (Prone)",
+      "category": "conditions",
+      "source": "srd2024",
+      "tags": [
+        "SRD 2024",
+        "Condición"
+      ],
+      "content": "**Derribado (tumbado)**\n- Los ataques contra ti desde más de 5 pies tienen **desventaja**; los de a menos de 5 pies, **ventaja**.\n- Tienes desventaja en ataques y en pruebas de Destreza.\n- Para levantarte gastas **media velocidad** (p. ej. 15 pies de 30). No puedes gatear: mueves 5 pies arrastrándote con desventaja."
+    },
+    {
+      "id": "cond-restrained",
+      "title": "Restringido (Restrained)",
+      "category": "conditions",
+      "source": "srd2024",
+      "tags": [
+        "SRD 2024",
+        "Condición"
+      ],
+      "content": "**Restringido**\n- Velocidad **0** y no puedes recibir bonificaciones de velocidad.\n- Los ataques contra ti tienen **ventaja**; tus ataques y tus salvaciones de Destreza tienen **desventaja**."
+    },
+    {
+      "id": "cond-slowed",
+      "title": "Ralentizado (Slowed)",
+      "category": "conditions",
+      "source": "srd2024",
+      "tags": [
+        "SRD 2024",
+        "Condición"
+      ],
+      "content": "**Ralentizado**\n- **Nuevo en 2024.** Velocidad reducida a la mitad.\n- **-2** a CA y a las tiradas de Destreza.\n- No puedes usar Reacciones ni una Acción de Bonificación; solo una Acción o un Movimiento."
+    },
+    {
+      "id": "cond-stunned",
+      "title": "Aturdido (Stunned)",
+      "category": "conditions",
+      "source": "srd2024",
+      "tags": [
+        "SRD 2024",
+        "Condición"
+      ],
+      "content": "**Aturdido**\n- **Incapacitado** y sin velocidad.\n- Falla automáticamente las salvaciones de **Fuerza** y **Destreza**, y los ataques contra ti tienen **ventaja**."
+    },
+    {
+      "id": "cond-unconscious",
+      "title": "Inconsciente (Unconscious)",
+      "category": "conditions",
+      "source": "srd2024",
+      "tags": [
+        "SRD 2024",
+        "Condición"
+      ],
+      "content": "**Inconsciente**\n- **Incapacitado**, sin poder moverse ni hablar; no percibe el mundo (deja caer lo que sostiene, termina su concentración).\n- Falla automáticamente las salvaciones de **Fuerza** y **Destreza**.\n- Los ataques contra ti tienen **ventaja**; los que te golpean desde a menos de 5 pies son **críticos**.\n- Volver a la consciencia: recibir daño (te despiertas), o finalizar el efecto que lo causa. Con 0 PG, permaneces en **salvaciones de muerte**."
+    }
+  ]
+}
