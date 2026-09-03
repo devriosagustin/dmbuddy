@@ -55,10 +55,11 @@ export const ChatPanel = ({ messages, readOnly, participants, onSend, onClear }:
   const [who, setWho] = useState<string>('__dm__');
   const listRef = useRef<HTMLDivElement>(null);
 
-  // Auto-scroll al último mensaje.
+  // El mensaje nuevo aparece arriba del todo, así no hace falta scrollear
+  // para verlo. Nos quedamos fijados arriba cuando llega un mensaje nuevo.
   useEffect(() => {
     if (listRef.current) {
-      listRef.current.scrollTop = listRef.current.scrollHeight;
+      listRef.current.scrollTop = 0;
     }
   }, [messages]);
 
@@ -124,7 +125,7 @@ export const ChatPanel = ({ messages, readOnly, participants, onSend, onClear }:
               : 'Elige cómo hablar (Narrador, NPC o monstruo) y escribe el lore. Cada mensaje se guarda en el registro y se sincroniza con el party.'}
           </p>
         ) : (
-          messages.map((m) => (
+          [...messages].reverse().map((m) => (
             <div key={m.id} className="rounded-lg border border-dnd-leather/20 bg-dnd-ink/30 px-2 py-1.5">
               <p className="flex items-center justify-between gap-2">
                 <span className={`text-[11px] font-bold ${authorColor(m.kind)}`}>

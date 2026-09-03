@@ -42,12 +42,12 @@ export const CombatLog = ({ defaultExpanded = false }: { defaultExpanded?: boole
   const [showLog, setShowLog] = useState(defaultExpanded);
   const listRef = useRef<HTMLDivElement>(null);
 
-  // Auto-scroll dentro del propio log: bajamos al fondo siempre que llegue
-  // una entrada nueva para ver el resultado de la última acción.
+  // Auto-scroll: el mensaje nuevo aparece arriba del todo, así que no hace falta
+  // scrollear para verlo. Nos quedamos fijados arriba cuando llega una entrada nueva.
   useEffect(() => {
     const el = listRef.current;
     if (!el) return;
-    el.scrollTop = el.scrollHeight;
+    el.scrollTop = 0;
   }, [combatLog.length]);
 
   // Limpiar solo el log sin tocar el resto del combate
@@ -135,7 +135,7 @@ export const CombatLog = ({ defaultExpanded = false }: { defaultExpanded?: boole
           {combatLog.length === 0 && (
             <p className="text-center text-dnd-muted">Sin eventos todavía.</p>
           )}
-          {combatLog.map((entry) => (
+          {[...combatLog].reverse().map((entry) => (
             <div
               key={entry.id}
               className="flex items-start gap-2 border-b border-dnd-leather/20 py-1"
