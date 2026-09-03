@@ -70,8 +70,10 @@ interface CombatMapProps {
   onRenameFolder: (id: string, name: string) => void;
   /** Elimina una carpeta. */
   onDeleteFolder: (id: string) => void;
-  /** Aplica un layout aleatorio generado por patrón. */
-  onRandomLayout: () => void;
+  /** Aplica un layout aleatorio generado por patrón (o por templateId concreto). */
+  onRandomLayout: (templateId?: string) => void;
+  /** Plantillas de mapa disponibles para generar un patrón concreto. */
+  mapTemplates: { id: string; name: string; description: string }[];
   onOpenActions: (combatant: Combatant) => void;
   /** Mueve una ficha a una casilla (acción del store). */
   onMove: (id: string, x: number, y: number) => void;
@@ -116,7 +118,7 @@ const SAME = <T,>(a: T, b: T) => JSON.stringify(a) === JSON.stringify(b);
 const RANGE_PRESETS = [5, 10, 15, 30, 60, 90, 120];
 const AOE_PRESETS = [5, 10, 15, 20, 30, 60];
 
-export const CombatMap = ({ participants, activeId, nextId, selectedId, tiles, tileType, onTileTypeChange, tileMode, onToggleTileMode, onToggleTile, onClearTiles, onExportLayouts, onImportLayouts, savedLayouts, folders, onSaveLayout, onLoadLayout, onDeleteLayout, onSetMapFolder, onCreateFolder, onRenameFolder, onDeleteFolder, onRandomLayout, onOpenActions, onMove, onSelect, cols, rows, onMapSizeChange, visionRange, onVisionRange, revealedTileKeys, revealedEnemyIds, onToggleRevealTile, onToggleRevealEnemy, mapBackground, onMapBackground }: CombatMapProps) => {
+export const CombatMap = ({ participants, activeId, nextId, selectedId, tiles, tileType, onTileTypeChange, tileMode, onToggleTileMode, onToggleTile, onClearTiles, onExportLayouts, onImportLayouts, savedLayouts, folders, onSaveLayout, onLoadLayout, onDeleteLayout, onSetMapFolder, onCreateFolder, onRenameFolder, onDeleteFolder, onRandomLayout, mapTemplates, onOpenActions, onMove, onSelect, cols, rows, onMapSizeChange, visionRange, onVisionRange, revealedTileKeys, revealedEnemyIds, onToggleRevealTile, onToggleRevealEnemy, mapBackground, onMapBackground }: CombatMapProps) => {
   const gridRef = useRef<HTMLDivElement>(null);
   const [mode, setMode] = useState<Mode>('move');
   const [drag, setDrag] = useState<DragState | null>(null);
@@ -147,6 +149,7 @@ export const CombatMap = ({ participants, activeId, nextId, selectedId, tiles, t
   const [layoutSaveFolder, setLayoutSaveFolder] = useState('');
   const [newFolderName, setNewFolderName] = useState('');
   const [moveFolder, setMoveFolder] = useState('');
+  const [templateSel, setTemplateSel] = useState('');
 
   // Opciones del selector de layouts, agrupadas por carpeta (sin carpeta + cada carpeta).
   const layoutGroups = useMemo(() => {
@@ -591,12 +594,38 @@ export const CombatMap = ({ participants, activeId, nextId, selectedId, tiles, t
                       </button>
                       <button
                         type="button"
-                        onClick={onRandomLayout}
+                        onClick={() => onRandomLayout()}
                         className="rounded-md bg-violet-500 px-2 py-1.5 text-xs font-bold text-white hover:bg-violet-400"
                       >
                         🎲 Aleatorio
                       </button>
                     </div>
+                    <select
+                      className="input h-8 w-full text-xs"
+                      value={templateSel}
+                      onChange={(e) => setTemplateSel(e.target.value)}
+                      aria-label="Patrón de mapa"
+                    >
+                      <option value="">— Patrón concreto —</option>
+                      {mapTemplates.map((t) => (
+                        <option key={t.id} value={t.id}>
+                          {t.name}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (templateSel) {
+                          onRandomLayout(templateSel);
+                          setTemplateSel('');
+                        }
+                      }}
+                      disabled={!templateSel}
+                      className="rounded-md bg-fuchsia-600 px-2 py-1.5 text-xs font-bold text-white hover:bg-fuchsia-500 disabled:opacity-40"
+                    >
+                      Generar patrón
+                    </button>
                     <select
                       className="input h-8 w-full text-xs"
                       value={moveFolder}

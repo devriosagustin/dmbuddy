@@ -37,7 +37,7 @@ import { useLayoutStore } from '../../store/layoutStore';
 import { usePlayerStore } from '../../store/playerStore';
 import { useSessionStore } from '../../store/sessionStore';
 import { useFullscreen } from '../../hooks/useFullscreen';
-import { randomLayout } from '../../utils/layoutPatterns';
+import { MAP_TEMPLATES, randomLayout } from '../../utils/layoutPatterns';
 import { mapCreatureToCombatant, playerToCombatant } from '../../utils/combatUtils';
 import { RollRequestModal } from '../session/RollRequestModal';
 import { SkillRollModal } from '../session/SkillRollModal';
@@ -252,9 +252,9 @@ export const MapExplorer = () => {
     useCombatStore.setState({ mapCreatures: restored });
   };
   const handleDeleteLayout = (id: string) => deleteLayout(id);
-  const handleRandomLayout = () => {
-    const { barriers } = randomLayout();
-    setTiles(barriers.map((t) => ({ ...t, type: 'wall' as const })));
+  const handleRandomLayout = (templateId?: string) => {
+    const { tiles } = randomLayout(templateId);
+    setTiles(tiles);
   };
   const handleExportLayouts = () => {
     const json = exportLayouts();
@@ -478,6 +478,7 @@ export const MapExplorer = () => {
             onRenameFolder={renameFolder}
             onDeleteFolder={deleteFolder}
             onRandomLayout={handleRandomLayout}
+            mapTemplates={MAP_TEMPLATES.map((t) => ({ id: t.id, name: t.name, description: t.description }))}
             onExportLayouts={handleExportLayouts}
             onImportLayouts={handleImportLayouts}
             onSelect={setSelectedTokenId}

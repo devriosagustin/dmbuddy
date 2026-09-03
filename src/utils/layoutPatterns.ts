@@ -125,22 +125,59 @@ const dedupe = (list: { x: number; y: number }[]): { x: number; y: number }[] =>
   return out;
 };
 
+// Celdas planas (x,y) => tiles de muro; y helpers de tiles especiales.
+const doorAt = (x: number, y: number): LayoutTile => ({ x, y, type: 'door' });
+const treasureAt = (x: number, y: number): LayoutTile => ({ x, y, type: 'treasure' });
+const trapAt = (x: number, y: number): LayoutTile => ({ x, y, type: 'trap' });
+
+// Pequeña variación aleatoria para que cada generación difiera
+// ligeramente de la anterior (variación automática al pulsar aleatorio).
+const jitter = (amount: number) => Math.floor(Math.random() * (amount + 1) * 2) - amount;
+
+/** Une muros + puertas + tesoros + trampas en un array de tiles deduplicado. */
+function assemble(
+  opts: {
+    walls?: { x: number; y: number }[];
+    doors?: LayoutTile[];
+    treasures?: LayoutTile[];
+    traps?: LayoutTile[];
+  }
+): LayoutTile[] {
+  const seen = new Set<string>();
+  const out: LayoutTile[] = [];
+  const push = (t: LayoutTile) => {
+    const key = `${t.x},${t.y}`;
+    if (!seen.has(key) && inMap(t)) {
+      seen.add(key);
+      out.push(t);
+    }
+  };
+  (opts.walls ?? []).forEach((c) => push({ x: c.x, y: c.y, type: 'wall' }));
+  (opts.doors ?? []).forEach(push);
+  (opts.traps ?? []).forEach(push);
+  (opts.treasures ?? []).forEach(push);
+  return out;
+}
+
 // Cuatro habitaciones conectadas por pasillos.
-function arena(): { x: number; y: number }[] {
-  return dedupe([
-    ...room(2, 2, 10, 7),
-    ...room(16, 2, 10, 7),
-    ...room(2, 9, 10, 7),
-    ...room(16, 9, 10, 7),
-    ...corridor(6, 8, 6, 9),
-    ...corridor(21, 8, 21, 9),
-    ...corridor(11, 5, 16, 5),
-    ...corridor(11, 12, 16, 12),
-  ]);
+function arena(): LayoutTile[] {
+  return assemble({
+    walls: [
+      ...room(2, 2, 10, 7),
+      ...room(16, 2, 10, 7),
+      ...room(2, 9, 10, 7),
+      ...room(16, 9, 10, 7),
+      ...corridor(6, 8, 6, 9),
+      ...corridor(21, 8, 21, 9),
+      ...corridor(11, 5, 16, 5),
+      ...corridor(11, 12, 16, 12),
+    ],
+    doors: [doorAt(11, 5), doorAt(11, 12)],
+  });
 }
 
 // Mazmorra laberíntica con muros dispersos y pilares.
-function dungeon(): { x: number; y: number }[] {
+function dungeon(): LayoutTile[] {
   const out: { x: number; y: number }[] = [];
   // Pilares en una cuadrícula.
   for (let x = 3; x < activeCols - 2; x += 4) {
@@ -150,27 +187,22 @@ function dungeon(): { x: number; y: number }[] {
   }
   // Muros cortos horizontales y verticales.
   for (const [x, y] of [
-    [8, 5],
-    [8, 6],
-    [8, 7],
-    [16, 5],
-    [16, 6],
-    [10, 11],
-    [11, 11],
+    [8, 5], [8, 6], [8, 7],
+    [16, 5], [16, 6],
+    [10, 11], [11, 11],
     [4, 10],
-    [20, 8],
-    [20, 9],
+    [20, 8], [20, 9],
   ]) {
     out.push(cell(x, y));
   }
-  return dedupe(out);
+  return assemble({ walls: dedupe(out) });
 }
 
 // Laberinto sencillo generado aleatoriamente con muros tipo rejilla.
-function maze(): { x: number; y: number }[] {
+function maze(): LayoutTile[] {
   const out: { x: number; y: number }[] = [];
-  const gapCols = [3, 8, 13, 18, 23];
-  const gapRows = [3, 6, 9, 12];
+  const gapCols = [3, 8, 13, 18, 23].map((c) => c + jitter(1));
+  const gapRows = [3, 6, 9].map((r) => r + jitter(1));
   for (let x = 2; x < activeCols - 1; x += 2) {
     for (let y = 0; y < activeRows; y++) {
       if (!gapRows.includes(y)) out.push(cell(x, y));
@@ -181,31 +213,30 @@ function maze(): { x: number; y: number }[] {
       if (!gapCols.includes(x)) out.push(cell(x, y));
     }
   }
-  return dedupe(out);
+  return assemble({ walls: dedupe(out) });
 }
 
 // Columnas/pilares aleatorios dentro de un perímetro.
-function pillars(): { x: number; y: number }[] {
+function pillars(): LayoutTile[] {
   const out = rect(1, 1, activeCols - 2, activeRows - 2, true);
-  const count = 8;
+  const count = 8 + Math.floor(Math.random() * 4);
   let placed = 0;
   let guard = 0;
-  while (placed < count && guard < 2000) {
+  while (placed < count && guard < 3000) {
     guard++;
     const x = 3 + Math.floor(Math.random() * (activeCols - 6));
     const y = 3 + Math.floor(Math.random() * (activeRows - 6));
     if (out.some((b) => b.x === x && b.y === y)) continue;
-    // Evita pilares demasiado juntos.
     const tooClose = out.some((b) => Math.abs(b.x - x) <= 2 && Math.abs(b.y - y) <= 2);
     if (tooClose) continue;
     out.push(cell(x, y));
     placed++;
   }
-  return dedupe(out);
+  return assemble({ walls: dedupe(out) });
 }
 
 // División del mapa en cuadrantes con muros en cruz.
-function cross(): { x: number; y: number }[] {
+function cross(): LayoutTile[] {
   const out: { x: number; y: number }[] = [];
   for (let y = 0; y < activeRows; y++) {
     if (y < 6 || y > 9) out.push(cell(13, y));
@@ -217,25 +248,183 @@ function cross(): { x: number; y: number }[] {
     if (x < 11 || x > 16) out.push(cell(x, 8));
     if (x >= 13 && x <= 14) out.push(cell(x, 7));
   }
-  return dedupe(out);
+  return assemble({ walls: dedupe(out) });
 }
 
-const GENERATORS: { name: string; fn: () => { x: number; y: number }[] }[] = [
-  { name: 'Arena de 4 salas', fn: arena },
-  { name: 'Mazmorra', fn: dungeon },
-  { name: 'Laberinto', fn: maze },
-  { name: 'Columnas + perímetro', fn: pillars },
-  { name: 'Cruz central', fn: cross },
+// ==== Patrones temáticos con diseño "clásico" ====
+
+// Cueva con varias salas irregulares unidas por pasillos serpenteantes.
+function cavern(): LayoutTile[] {
+  const walls: { x: number; y: number }[] = [];
+  // Sala central ovalada.
+  const cx = activeCols / 2;
+  const cy = activeRows / 2;
+  for (let y = 3; y < activeRows - 3; y++) {
+    for (let x = 2; x < activeCols - 2; x++) {
+      // Pared escarpada alrededor del hueco central.
+      const dx = (x - cx) / 7;
+      const dy = (y - cy) / 4.5;
+      if (dx * dx + dy * dy > 1 && Math.random() < 0.6) walls.push(cell(x, y));
+    }
+  }
+  // Pasillos serpenteantes de salida.
+  for (let i = 0; i < 3; i++) {
+    const startX = cx + (i - 1) * 3;
+    const dir = i < 2 ? -1 : 1; // hacia arriba/abajo
+    let x = startX;
+    let y = cy + dir * 4;
+    for (let s = 0; s < 6; s++) {
+      x += jitter(1);
+      y += dir;
+      // Bordes del pasillo (excepto el propio hueco).
+      for (const ox of [-2, -1, 1, 2]) {
+        if (Math.random() < 0.7) walls.push(cell(x + ox, y));
+      }
+    }
+  }
+  const tiles = assemble({ walls: dedupe(walls) });
+  const tx = Math.round(cx);
+  const ty = Math.round(cy);
+  return [...tiles.filter((t) => !(t.x === tx && t.y === ty)), treasureAt(tx, ty)];
+}
+
+// Castillo rectangular: muralla, patios y una nave de habitaciones que
+// acaba en el salón del trono, con puertas encadenadas.
+function castleToThrone(): LayoutTile[] {
+  const walls: { x: number; y: number }[] = [];
+  const doors: LayoutTile[] = [];
+  // Muralla exterior (borde).
+  walls.push(...rect(1, 1, activeCols - 2, activeRows - 2, true, 2));
+  // Entrada por el sur.
+  const gateY = activeRows - 3;
+  const gateX = Math.floor(activeCols / 2);
+  walls.push(cell(gateX - 1, gateY), cell(gateX + 1, gateY));
+  // Nave de habitaciones: recorren el castillo en zigzag hasta el trono
+  // (arriba). Muros divisorios con puertas intercaladas.
+  const roomH = Math.max(3, Math.floor((activeRows - 5) / 4));
+  let prevSide = 1;
+  for (let i = 0; i < 3; i++) {
+    const dividerY = 3 + i * roomH;
+    prevSide = -prevSide;
+    const doorX = prevSide > 0
+      ? Math.floor(activeCols * 0.72) + jitter(2)
+      : Math.floor(activeCols * 0.28) + jitter(2);
+    const clamped = Math.max(3, Math.min(activeCols - 4, doorX));
+    // Muro horizontal (sección de un pasillo vertical de entrada ya hay gate).
+    for (let x = 2; x < activeCols - 2; x++) {
+      if (!(Math.abs(x - gateX) < 3)) walls.push(cell(x, dividerY));
+    }
+    doors.push(doorAt(clamped, dividerY));
+  }
+  // Salón del trono arriba del todo.
+  const throneY = 2;
+  const throneX = Math.floor(activeCols / 2);
+  // Dosillos del trono (pilares).
+  walls.push(cell(throneX - 2, throneY), cell(throneX + 2, throneY));
+  doors.push(doorAt(throneX, throneY));
+  const tiles = assemble({ walls: dedupe(walls), doors });
+  return [...tiles, treasureAt(throneX, throneY + 1)];
+}
+
+// Fuerte: muralla exterior con torreones y un patio central abierto.
+function fort(): LayoutTile[] {
+  const walls: { x: number; y: number }[] = [];
+  walls.push(...rect(1, 1, activeCols - 2, activeRows - 2, true, 2));
+  // Torreones en las esquinas.
+  for (const [tx, ty] of [
+    [1, 1], [activeCols - 2, 1], [1, activeRows - 2], [activeCols - 2, activeRows - 2],
+  ]) {
+    walls.push(cell(tx, ty), cell(tx + (tx === 1 ? 1 : -1), ty), cell(tx, ty + (ty === 1 ? 1 : -1)));
+  }
+  // Puertas en norte y sur.
+  const gateX = Math.floor(activeCols / 2);
+  const doors: LayoutTile[] = [doorAt(gateX, 1), doorAt(gateX, activeRows - 2)];
+  // Garita central con tesoro.
+  const cx = Math.floor(activeCols / 2);
+  const cy = Math.floor(activeRows / 2);
+  const tiles = assemble({ walls: dedupe(walls), doors });
+  return [...tiles, treasureAt(cx, cy), trapAt(cx + 3, cy)];
+}
+
+// Ribera/sala de encuentro con columnas al centro y pasillos laterales.
+function hall(): LayoutTile[] {
+  const walls: { x: number; y: number }[] = [];
+  const doors: LayoutTile[] = [];
+  walls.push(...rect(2, 2, activeCols - 3, activeRows - 3, true, 1));
+  const cx = Math.floor(activeCols / 2);
+  const cy = Math.floor(activeRows / 2);
+  for (let x = 3; x < activeCols - 3; x += 3) {
+    if (Math.random() < 0.7) walls.push(cell(x, cy));
+  }
+  doors.push(doorAt(cx, 2), doorAt(cx, activeRows - 3));
+  const tiles = assemble({ walls: dedupe(walls), doors });
+  return [...tiles, treasureAt(cx, cy)];
+}
+
+export interface MapTemplate {
+  id: string;
+  name: string;
+  description: string;
+  fn: () => LayoutTile[];
+}
+
+/** Plantillas de mapa disponibles (tanto en "Aleatorio" como por patrón). */
+export const MAP_TEMPLATES: MapTemplate[] = [
+  { id: 'arena', name: 'Arena de 4 salas', description: 'Cuatro habitaciones conectadas por pasillos', fn: arena },
+  { id: 'dungeon', name: 'Mazmorra', description: 'Laberinto con muros y pilares', fn: dungeon },
+  { id: 'maze', name: 'Laberinto', description: 'Rejilla clásica de pasillos', fn: maze },
+  { id: 'pillars', name: 'Columnas + perímetro', description: 'Salón con columnas y perímetro', fn: pillars },
+  { id: 'cross', name: 'Cruz central', description: 'Cuadrantes separados por una cruz', fn: cross },
+  { id: 'cavern', name: 'Cueva', description: 'Salas irregulares con pasillos serpenteantes y tesoro interior', fn: cavern },
+  { id: 'castle', name: 'Castillo → Trono', description: 'Muralla, nave de habitaciones encadenadas y salón del trono', fn: castleToThrone },
+  { id: 'fort', name: 'Fuerte', description: 'Muralla con torreones, entrada y garita central', fn: fort },
+  { id: 'hall', name: 'Gran salón', description: 'Sala con columnas y puertas enfrentadas', fn: hall },
 ];
 
-export function randomLayout(): { name: string; barriers: { x: number; y: number }[] } {
-  // Mezcla la selección de generador.
-  const shuffled = [...GENERATORS];
-  for (let i = shuffled.length - 1; i > 0; i--) {
+export interface GeneratedLayout {
+  name: string;
+  /** Tiles tipados (muros, puertas, tesoros, trampas). */
+  tiles: LayoutTile[];
+  /** Barreras (solo muros) para compatibilidad con cargas antiguas. */
+  barriers: { x: number; y: number }[];
+}
+
+const shuffle = <T,>(arr: T[]): T[] => {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
-    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    [a[i], a[j]] = [a[j], a[i]];
   }
-  const pick = shuffled.slice(0, 1 + Math.floor(Math.random() * 2));
-  const barriers = dedupe(pick.flatMap((g) => g.fn()));
-  return { name: `Aleatorio · ${pick.map((g) => g.name.split(' ')[0]).join(' + ')}`, barriers };
+  return a;
+};
+
+export function randomLayout(templateId?: string): GeneratedLayout {
+  let pick: MapTemplate[];
+  if (templateId) {
+    const t = MAP_TEMPLATES.find((x) => x.id === templateId);
+    pick = t ? [t] : [MAP_TEMPLATES[Math.floor(Math.random() * MAP_TEMPLATES.length)]];
+  } else {
+    pick = shuffle(MAP_TEMPLATES).slice(0, 1 + Math.floor(Math.random() * 2));
+  }
+  const tiles = dedupeTiles(pick.flatMap((g) => g.fn()));
+  return {
+    name: templateId
+      ? pick[0].name
+      : `Aleatorio · ${pick.map((g) => g.name.split(' ')[0]).join(' + ')}`,
+    tiles,
+    barriers: tiles.filter((t) => t.type === 'wall').map((t) => ({ x: t.x, y: t.y })),
+  };
+}
+
+// Deduplica tiles conservando la prioridad (muro < puerta < trampa < tesoro).
+function dedupeTiles(list: LayoutTile[]): LayoutTile[] {
+  const rank = { wall: 0, door: 1, trap: 2, treasure: 3, secretDoor: 2 } as Record<string, number>;
+  const byKey = new Map<string, LayoutTile>();
+  for (const t of list) {
+    if (!inMap(t)) continue;
+    const key = `${t.x},${t.y}`;
+    const prev = byKey.get(key);
+    if (!prev || rank[t.type] >= rank[prev.type]) byKey.set(key, t);
+  }
+  return [...byKey.values()];
 }
