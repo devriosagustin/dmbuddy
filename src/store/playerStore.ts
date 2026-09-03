@@ -7,6 +7,7 @@ import { persist } from 'zustand/middleware';
 import type { Player } from '../types';
 import { proficiencyAtLevel } from '../utils/damageCalculator';
 import { applyXpToLevel, MAX_LEVEL, xpForLevel } from '../utils/xp';
+import { bookMaxHp } from '../utils/hpCalculator';
 import { clampUsedToMax, longRestUsed, shortRestUsed, slotProgressionOf, spellSlotsMax } from '../utils/spellcastingRules';
 
 const makeId = (): string => {
@@ -75,11 +76,17 @@ export const usePlayerStore = create<PlayerStore>()(
             if (p.id !== id) return p;
             const nextXp = (p.xp ?? 0) + amount;
             const { level, leveledUp } = applyXpToLevel(p.level, nextXp);
+            // Al subir de nivel (aunque sea de un salto), recalcula los PG
+            // máximos "de libro" (dado de golpe + mod. CON, + Robusto si la
+            // tiene) y deja al personaje con la vida llena.
+            const maxHp = leveledUp ? bookMaxHp(p.class, level, p.stats.con, p.feats) : p.maxHp;
             return {
               ...p,
               xp: nextXp,
               level: leveledUp ? level : p.level,
               proficiencyBonus: leveledUp ? proficiencyAtLevel(level) : p.proficiencyBonus,
+              maxHp,
+              hp: leveledUp ? maxHp : p.hp,
             };
           }),
         }));
@@ -94,7 +101,9 @@ export const usePlayerStore = create<PlayerStore>()(
             // Al subir manualmente, se arrastra la XP al umbral mínimo del nuevo nivel
             // para que la barra nunca quede "hacia atrás".
             const xp = Math.max(p.xp ?? 0, xpForLevel(level));
-            return { ...p, level, xp, proficiencyBonus: proficiencyAtLevel(level) };
+            // Recalcula los PG máximos "de libro" y deja al personaje con la vida llena.
+            const maxHp = bookMaxHp(p.class, level, p.stats.con, p.feats);
+            return { ...p, level, xp, proficiencyBonus: proficiencyAtLevel(level), maxHp, hp: maxHp };
           }),
         }));
       },
