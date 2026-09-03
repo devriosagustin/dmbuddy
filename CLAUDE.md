@@ -13,7 +13,7 @@ El working tree puede mostrar decenas de archivos "modificados" que en realidad 
 ## Modelo de datos SRD 2024
 - Bundle embebido curado (español) en `src/data/srd2024/*.ts`, agregado en `index.ts` como `BASE_SRD_BUNDLE`.
 - Overlays JSON en `public/data/srd2024/*.json` (uno por colección: rules/conditions/spells/monsters/feats — **no existe `classes.json` ni `species.json` como overlay**), cargados en runtime por `srdService.ts` (`fetchSrdOverlays`) y fusionados por `id` sobre el bundle embebido (`mergeBundle`): el overlay solo agrega o pisa por id, nunca borra.
-- Patrón de curación en curso (ver historial de commits "SRD ..."): se viene reemplazando contenido en inglés sin curar por versiones en español curadas, colección por colección. Ya completado: reglas, condiciones, dotes. **Pendiente:** monstruos (328 en overlay, solo 14 curados en el bundle embebido) y conjuros (269 curados + 124 sin curar en el overlay). **Especies: no hay ninguna entrada cargada** (0 en bundle y sin overlay) pese a que el README las lista como cubiertas.
+- Patrón de curación en curso (ver historial de commits "SRD ..."): se viene reemplazando contenido en inglés sin curar por versiones en español curadas, colección por colección. Ya completado: reglas, condiciones, dotes, **especies** (10 entradas en `SRD_SPECIES`, ids `sp-*`). **Pendiente:** monstruos (328 en overlay, solo 14 curados en el bundle embebido) y conjuros (269 curados + 124 sin curar en el overlay).
 - Contenido bajo licencia CC-BY-4.0 (SRD 5.2 de Wizards of the Coast) — mantener el aviso de atribución (`AttributionFooter.tsx`).
 - Ingestión: `scripts/fetch-srd2024.mjs` y `scripts/srd-import-5etools.mjs`. Nunca sobrescriben contenido curado existente — respetar esa regla en cualquier script nuevo.
 
