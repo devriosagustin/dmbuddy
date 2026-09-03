@@ -1,0 +1,6 @@
+* text=auto eol=lf
+
+# Binarios: no tocar finales de línea
+*.png binary
+*.svg binary
+*.pdf binary
