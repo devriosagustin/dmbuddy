@@ -22,3 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# PDFs de referencia del SRD (el contenido ya está extraído/curado en src/data/srd2024)
+/SP_SRD_CC_v5.2.1.pdf
+/SRD_CC_v5.2.1.pdf
