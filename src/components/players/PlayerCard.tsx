@@ -6,13 +6,15 @@
 
 import { useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Download, Edit, Trash2, ChevronRight } from 'lucide-react';
+import { Download, Edit, Trash2, ChevronRight, Sparkles } from 'lucide-react';
 import type { Player } from '../../types';
 import { HealthBar } from '../common/HealthBar';
 import { abilityModifier } from '../../utils/diceUtils';
 import { STAT_LABELS } from '../../types';
 import { skillBonus } from '../../utils/skills';
+import { slotProgressionOf } from '../../utils/spellcastingRules';
 import { XpBar } from './XpBar';
+import { SpellSlotsPanel } from './SpellSlotsPanel';
 
 interface PlayerCardProps {
   player: Player;
@@ -49,6 +51,9 @@ export const PlayerCard = ({ player, onOpen, onEdit, onRemove }: PlayerCardProps
     .slice(0, 2)
     .join('')
     .toUpperCase();
+
+  // Solo clases lanzadoras de conjuros tienen espacios (slots) que gestionar.
+  const isCaster = slotProgressionOf(player.class) !== 'none';
 
   return (
     <motion.article
@@ -127,21 +132,40 @@ export const PlayerCard = ({ player, onOpen, onEdit, onRemove }: PlayerCardProps
       {/* XP */}
       <XpBar player={player} />
 
-      {/* Características */}
-      <div className="grid grid-cols-3 gap-1">
+      {/* Características (compactas, una fila) */}
+      <div className="grid grid-cols-6 gap-1">
         {(['str', 'dex', 'con', 'int', 'wis', 'cha'] as const).map((key) => {
           const mod = abilityModifier(player.stats[key]);
           return (
-            <div key={key} className="stat-box">
-              <span className="text-[9px] text-dnd-muted">{STAT_LABELS[key]}</span>
-              <span className="font-fantasy text-sm font-bold text-dnd-gold">
-                {mod >= 0 ? `+${mod}` : mod}
+            <div
+              key={key}
+              className="flex flex-col items-center rounded bg-dnd-ink/30 px-0.5 py-0.5"
+              title={`${STAT_LABELS[key]}: ${player.stats[key]}`}
+            >
+              <span className="text-[9px] font-bold leading-none text-dnd-muted">{STAT_LABELS[key]}</span>
+              <span className="flex items-baseline gap-0.5 leading-none">
+                <span className="font-fantasy text-sm font-bold text-dnd-gold">
+                  {mod >= 0 ? `+${mod}` : mod}
+                </span>
+                <span className="text-[8px] text-dnd-muted">{player.stats[key]}</span>
               </span>
-              <span className="text-[10px] text-dnd-muted">{player.stats[key]}</span>
             </div>
           );
         })}
       </div>
+
+      {/* Espacios de conjuro usados (solo lanzadores) */}
+      {isCaster && (
+        <div
+          className="flex flex-col gap-1"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <p className="flex items-center gap-1 text-[10px] uppercase text-dnd-muted">
+            <Sparkles size={11} aria-hidden="true" /> Espacios de conjuro
+          </p>
+          <SpellSlotsPanel playerId={player.id} compact />
+        </div>
+      )}
 
       {/* Habilidades con competencia */}
       {player.skills && player.skills.length > 0 && (
@@ -157,7 +181,7 @@ export const PlayerCard = ({ player, onOpen, onEdit, onRemove }: PlayerCardProps
                 return (
                   <span
                     key={name}
-                    className="inline-flex items-center gap-1 rounded-full border border-dnd-leather/40 bg-dnd-ink/50 px-2 py-0.5 text-[10px] text-dnd-text"
+                    className="inline-flex items-center gap-1 rounded-full border border-dnd-leather/40 bg-dnd-ink/50 px-1.5 py-0 text-[10px] text-dnd-text"
                   >
                     {name}
                     <span className="font-bold text-dnd-gold">{bonus >= 0 ? `+${bonus}` : bonus}</span>

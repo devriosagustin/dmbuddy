@@ -8,6 +8,8 @@ import { clampUsedToMax, slotProgressionOf, spellSlotsMax } from '../../utils/sp
 
 interface SpellSlotsPanelProps {
   playerId: string;
+  /** Modo compacto para incrustar en la tarjeta del party. */
+  compact?: boolean;
 }
 
 const LEVEL_TONES = [
@@ -27,7 +29,7 @@ const LEVEL_TONES = [
  * Se lee de la ficha viva del party, así mantenerlo desde el combate
  * mantiene sincronizadas las dos vistas.
  */
-export const SpellSlotsPanel = ({ playerId }: SpellSlotsPanelProps) => {
+export const SpellSlotsPanel = ({ playerId, compact = false }: SpellSlotsPanelProps) => {
   const player = usePlayerStore((s) => s.players.find((p) => p.id === playerId));
   const adjustSpellSlot = usePlayerStore((s) => s.adjustSpellSlot);
 
@@ -44,6 +46,51 @@ export const SpellSlotsPanel = ({ playerId }: SpellSlotsPanelProps) => {
   if (rows.length === 0) return null;
 
   const isPact = progression === 'pact';
+
+  if (compact) {
+    return (
+      <div className="flex flex-wrap items-center gap-1">
+        {rows.map(({ level, total }) => {
+          const levelUsed = used[level - 1];
+          return (
+            <span
+              key={level}
+              className="inline-flex items-center gap-0.5 rounded-md border border-dnd-leather/30 bg-dnd-dark/50 px-1 py-0.5"
+              title={isPact ? `Espacios de nivel ${level}` : `Nivel ${level}`}
+            >
+              <span
+                className={`inline-flex h-4 w-4 shrink-0 items-center justify-center rounded text-[9px] font-bold ${LEVEL_TONES[(level - 1) % LEVEL_TONES.length]}`}
+                aria-hidden="true"
+              >
+                {level}
+              </span>
+              <span className="text-[10px] font-bold text-dnd-gold">
+                {levelUsed}/{total}
+              </span>
+              <button
+                onClick={() => adjustSpellSlot(playerId, level, -1)}
+                disabled={levelUsed <= 0}
+                aria-label={`Recuperar 1 espacio de nivel ${level} (${player.name})`}
+                title="Recuperar 1 espacio"
+                className="rounded bg-dnd-gold/20 px-0.5 py-0 text-dnd-gold transition-colors hover:bg-dnd-gold/40 disabled:opacity-30"
+              >
+                <Minus size={9} aria-hidden="true" />
+              </button>
+              <button
+                onClick={() => adjustSpellSlot(playerId, level, 1)}
+                disabled={levelUsed >= total}
+                aria-label={`Gastar 1 espacio de nivel ${level} (${player.name})`}
+                title="Gastar 1 espacio"
+                className="rounded bg-dnd-gold/20 px-0.5 py-0 text-dnd-gold transition-colors hover:bg-dnd-gold/40 disabled:opacity-30"
+              >
+                <Plus size={9} aria-hidden="true" />
+              </button>
+            </span>
+          );
+        })}
+      </div>
+    );
+  }
 
   return (
     <div className="rounded-dnd-lg border border-dnd-leather/40 bg-dnd-ink/40 p-2.5">
