@@ -28,11 +28,11 @@ const STAT_LABELS: Record<RollAbility, string> = {
   str: 'FUE', dex: 'DES', con: 'CON', int: 'INT', wis: 'SAB', cha: 'CAR',
 };
 
-// Nombre "base" de un combatiente (sin el sufijo de copia " a", " b"...).
-const baseName = (name: string): string => name.replace(/\s+[a-z]$/, '').trim();
-// Letra identificadora para copias del mismo monstruo: 0 -> a, 1 -> b, ...
+// Nombre "base" de un combatiente (sin el sufijo de copia " A", " B"...).
+const baseName = (name: string): string => name.replace(/\s+[a-z]$/i, '').trim();
+// Letra identificadora para copias del mismo monstruo: 0 -> A, 1 -> B, ...
 const copyLetter = (i: number): string =>
-  'abcdefghijklmnopqrstuvwxyz'[i % 26] ?? String(i + 1);
+  'ABCDEFGHIJKLMNOPQRSTUVWXYZ'[i % 26] ?? String(i + 1);
 
 /**
  * Envía la petición de iniciativa al siguiente jugador conectado del encuentro
@@ -748,15 +748,30 @@ export const useCombatStore = create<CombatStore>()(
       },
 
       addMapCreature: (creature) => {
+        // Etiquetar copias del mismo monstruo (Wolf -> Wolf A, Wolf B...).
+        const base = baseName(creature.name);
+        const sameBefore = get().mapCreatures.filter((c) => baseName(c.name) === base).length;
+        const name = sameBefore >= 1 ? `${base} ${copyLetter(sameBefore)}` : creature.name;
         const full: MapCreature = {
           ...creature,
+          name,
           id: makeId(),
           isDead: false,
         };
-        set((state) => ({ mapCreatures: [...state.mapCreatures, full] }));
+        set((state) => {
+          let withNew = [...state.mapCreatures, full];
+          // Re-etiquetar retroactivamente copias previas sin sufijo (p. ej. un
+          // "Wolf" suelto pasa a "Wolf A" al añadir un segundo "Wolf B").
+          const same = withNew.filter((c) => baseName(c.name) === base);
+          if (same.length > 1) {
+            const relabel = new Map(same.map((c, idx) => [c.id, `${base} ${copyLetter(idx)}`]));
+            withNew = withNew.map((c) => (relabel.has(c.id) ? { ...c, name: relabel.get(c.id)! } : c));
+          }
+          return { mapCreatures: withNew };
+        });
         get().addLogEntry({
           type: 'custom',
-          message: `🪧 ${creature.name} colocado en el mapa en (${creature.x},${creature.y})`,
+          message: `🪧 ${name} colocado en el mapa en (${creature.x},${creature.y})`,
         });
       },
 
