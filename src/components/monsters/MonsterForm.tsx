@@ -12,6 +12,8 @@ import { useMonsterStore } from '../../store/monsterStore';
 interface MonsterFormProps {
   monster: Monster | null; // null = crear nuevo
   onClose: () => void;
+  /** Si es true, se renderiza dentro de la página (sin modal). */
+  inline?: boolean;
 }
 
 const EMPTY_ACTION: MonsterAction = { name: '', description: '', damage: '', damageType: '', target: 'Una criatura' };
@@ -20,7 +22,7 @@ const EMPTY_TRAIT: MonsterTrait = { name: '', description: '' };
 /**
  * Formulario completo para crear o editar un monstruo en la biblioteca.
  */
-export const MonsterForm = ({ monster, onClose }: MonsterFormProps) => {
+export const MonsterForm = ({ monster, onClose, inline = false }: MonsterFormProps) => {
   const { addMonster, updateMonster } = useMonsterStore();
 
   const [form, setForm] = useState<Monster>(
@@ -91,18 +93,11 @@ export const MonsterForm = ({ monster, onClose }: MonsterFormProps) => {
 
   const input = 'input text-sm';
 
-  return (
-    <Modal
-      open
-      onClose={onClose}
-      title={monster ? `Editar: ${monster.name}` : 'Nuevo monstruo'}
-      subtitle="Los campos con marca son obligatorios"
-      maxWidth="4xl"
-    >
-      <div className="space-y-5">
-        {/* Datos básicos */}
-        <section className="section-box">
-          <h3 className="mb-2 section-title">Datos básicos</h3>
+  const formBody = (
+    <div className="space-y-5">
+      {/* Datos básicos */}
+      <section className="section-box">
+        <h3 className="mb-2 section-title">Datos básicos</h3>
           <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
             <div className="col-span-2">
               <label htmlFor="m-name" className="label">Nombre *</label>
@@ -254,7 +249,32 @@ export const MonsterForm = ({ monster, onClose }: MonsterFormProps) => {
             {monster ? 'Guardar cambios' : 'Crear monstruo'}
           </Button>
         </div>
+    </div>
+  );
+
+  if (inline) {
+    return (
+      <div className="card">
+        <div className="mb-3 flex items-center justify-between">
+          <div>
+            <h3 className="page-title">{monster ? `Editar: ${monster.name}` : 'Nuevo monstruo'}</h3>
+            <p className="text-sm text-dnd-muted">Los campos con marca son obligatorios</p>
+          </div>
+        </div>
+        {formBody}
       </div>
+    );
+  }
+
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      title={monster ? `Editar: ${monster.name}` : 'Nuevo monstruo'}
+      subtitle="Los campos con marca son obligatorios"
+      maxWidth="4xl"
+    >
+      {formBody}
     </Modal>
   );
 };

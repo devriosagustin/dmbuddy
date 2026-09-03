@@ -1,58 +1,33 @@
 // ============================================================
-// Tarjeta de jugador del party
+// Tarjeta compacta de jugador del party
+// Muestra solo: PG, XP, características (stats) y habilidades.
+// Clic en la tarjeta abre la ficha completa del personaje.
 // ============================================================
 
 import { useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Download, Edit, Swords, Trash2 } from 'lucide-react';
+import { Download, Edit, Trash2, ChevronRight } from 'lucide-react';
 import type { Player } from '../../types';
 import { HealthBar } from '../common/HealthBar';
 import { abilityModifier } from '../../utils/diceUtils';
-import { useCombatStore } from '../../store/combatStore';
-import { useDice } from '../../hooks/useDice';
-import { playerToCombatant } from '../../utils/combatUtils';
-import { srdSpellByTitle, srdWeaponById, srdFeatByTitle } from '../../data/srd2024';
-import { weaponAttackBonus, weaponDamageFormula } from '../../utils/weaponUtils';
-import { SrdDetailPanel } from '../reference/SrdDetailPanel';
 import { STAT_LABELS } from '../../types';
 import { skillBonus } from '../../utils/skills';
-import { SpellSlotsPanel } from './SpellSlotsPanel';
 import { XpBar } from './XpBar';
-import { SpellChip, FeatChip } from './srdChips';
 
 interface PlayerCardProps {
   player: Player;
+  /** Abre la ficha completa del personaje (vista con pestañas). */
+  onOpen: (player: Player) => void;
   onEdit: (player: Player) => void;
   onRemove: (id: string) => void;
 }
 
 /**
- * Tarjeta resumen de un personaje jugador.
+ * Tarjeta resumen compacta de un personaje jugador.
  */
-export const PlayerCard = ({ player, onEdit, onRemove }: PlayerCardProps) => {
-  const { addCombatant, isActive, initializeCombat } = useCombatStore();
-  const participants = useCombatStore((s) => s.participants);
-  const { roll } = useDice();
+export const PlayerCard = ({ player, onOpen, onEdit, onRemove }: PlayerCardProps) => {
   const [copied, setCopied] = useState(false);
-  const [openSpellId, setOpenSpellId] = useState<string | null>(null);
-  const [openFeatId, setOpenFeatId] = useState<string | null>(null);
   const downloadRef = useRef<HTMLAnchorElement>(null);
-
-  const alreadyInCombat = participants.some((p) => p.playerId === player.id);
-
-  const weapons = (player.weaponIds ?? [])
-    .map((id) => srdWeaponById(id))
-    .filter((w): w is NonNullable<typeof w> => Boolean(w));
-
-  const openSpellEntry = openSpellId ? (srdSpellByTitle(openSpellId) ?? null) : null;
-  const openFeatEntry = openFeatId ? (srdFeatByTitle(openFeatId) ?? null) : null;
-
-  const addToCombat = () => {
-    if (alreadyInCombat) return;
-    if (!isActive) initializeCombat();
-    const r = roll('d20');
-    addCombatant(playerToCombatant(player, r.result));
-  };
 
   const exportJSON = () => {
     const json = JSON.stringify(player, null, 2);
@@ -80,7 +55,17 @@ export const PlayerCard = ({ player, onEdit, onRemove }: PlayerCardProps) => {
       layout
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="card group flex flex-col gap-3 hover:border-dnd-gold/60"
+      onClick={() => onOpen(player)}
+      className="card group flex flex-col gap-3 hover:border-dnd-gold/60 hover:bg-dnd-dark/60 focus-within:border-dnd-gold/60 cursor-pointer"
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onOpen(player);
+        }
+      }}
+      aria-label={`Abrir ficha de ${player.name}`}
     >
       {/* Encabezado */}
       <div className="flex items-start justify-between gap-2">
@@ -99,49 +84,50 @@ export const PlayerCard = ({ player, onEdit, onRemove }: PlayerCardProps) => {
           </div>
         </div>
 
-        <div className="flex items-center gap-1 hover-reveal">
+        <div className="flex items-center gap-1">
           <button
-            onClick={() => onEdit(player)}
+            onClick={(e) => {
+              e.stopPropagation();
+              onEdit(player);
+            }}
             aria-label={`Editar a ${player.name}`}
+            title="Editar"
             className="icon-btn hover:text-dnd-text"
           >
             <Edit size={15} />
           </button>
           <button
-            onClick={exportJSON}
+            onClick={(e) => {
+              e.stopPropagation();
+              exportJSON();
+            }}
             aria-label={`Exportar a ${player.name} como JSON`}
+            title="Exportar JSON"
             className="icon-btn hover:text-dnd-gold"
           >
             <Download size={15} />
           </button>
           <button
-            onClick={() => onRemove(player.id)}
+            onClick={(e) => {
+              e.stopPropagation();
+              onRemove(player.id);
+            }}
             aria-label={`Eliminar a ${player.name}`}
+            title="Eliminar"
             className="rounded-lg p-1.5 text-dnd-muted hover:bg-dnd-blood/30 hover:text-red-300 focus:outline-none"
           >
             <Trash2 size={15} />
           </button>
         </div>
-        {/* Botón invisible para accesibilidad si no se usa hover */}
-        <div className="flex md:hidden">
-          <button onClick={() => onEdit(player)} aria-label={`Editar a ${player.name}`} className="rounded p-1.5 text-dnd-muted">
-            <Edit size={15} />
-          </button>
-        </div>
       </div>
 
-      {/* HP */}
+      {/* PG */}
       <HealthBar hp={player.hp} maxHp={player.maxHp} ariaLabel={`Puntos de golpe de ${player.name}`} />
 
       {/* XP */}
       <XpBar player={player} />
 
-      {/* Stats rápidas */}
-      <div className="flex items-center justify-between text-xs">
-        <span className="badge border border-sky-500/40 bg-dnd-ink/60 text-sky-300">🛡️ CA {player.armorClass}</span>
-        <span className="text-dnd-muted">Competencia +{player.proficiencyBonus}</span>
-      </div>
-
+      {/* Características */}
       <div className="grid grid-cols-3 gap-1">
         {(['str', 'dex', 'con', 'int', 'wis', 'cha'] as const).map((key) => {
           const mod = abilityModifier(player.stats[key]);
@@ -182,82 +168,12 @@ export const PlayerCard = ({ player, onEdit, onRemove }: PlayerCardProps) => {
         </div>
       )}
 
-      {/* Armas equipadas */}
-      {weapons.length > 0 && (
-        <div className="flex flex-col gap-1">
-          {weapons.map((wpn) => {
-            const atk = weaponAttackBonus(wpn, player.stats, player.proficiencyBonus);
-            const dmg = weaponDamageFormula(wpn, player.stats);
-            return (
-              <div key={wpn.id} className="rounded-lg border border-dnd-leather/30 bg-dnd-ink/40 p-2 text-[10px]">
-                <p className="font-bold text-dnd-gold">
-                  ⚔️ {wpn.name} · {wpn.damage} {wpn.damageType}
-                </p>
-                <p className="text-dnd-text">
-                  Ataque <span className="font-bold">+{atk}</span> · Daño <span className="font-bold">{dmg}</span>
-                </p>
-                {wpn.range && <p className="text-dnd-muted">Alcance {wpn.range} pies</p>}
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Espacios de conjuro */}
-      <SpellSlotsPanel playerId={player.id} />
+      <div className="flex items-center justify-end gap-1 border-t border-dnd-leather/20 pt-2 text-xs font-bold text-dnd-gold">
+        Ver ficha <ChevronRight size={14} aria-hidden="true" />
+      </div>
 
       <a ref={downloadRef} className="hidden" aria-hidden="true" tabIndex={-1} />
       {copied && <p className="sr-only" role="status">Exportado como JSON</p>}
-      {(player.cantrips && player.cantrips.length > 0) ||
-        (player.spells && player.spells.length > 0) || (player.feats && player.feats.length > 0) ? (
-        <div className="flex flex-col gap-1.5 text-[11px] text-dnd-muted">
-          {player.cantrips && player.cantrips.length > 0 && (
-            <div>
-              <p className="mb-1">✨ {player.cantrips.length} trucos</p>
-              <div className="flex flex-wrap gap-1">
-                {player.cantrips.map((spell) => (
-                  <SpellChip key={spell.id} spell={spell} onOpen={setOpenSpellId} />
-                ))}
-              </div>
-            </div>
-          )}
-          {player.spells && player.spells.length > 0 && (
-            <div>
-              <p className="mb-1">🌟 {player.spells.length} conjuros preparados</p>
-              <div className="flex flex-wrap gap-1">
-                {[...player.spells]
-                  .sort((a, b) => a.level - b.level || a.name.localeCompare(b.name))
-                  .map((spell) => (
-                    <SpellChip key={spell.id} spell={spell} onOpen={setOpenSpellId} />
-                  ))}
-              </div>
-            </div>
-          )}
-          {player.feats && player.feats.length > 0 && (
-            <div>
-              <p className="mb-1">🛡️ {player.feats.length} dote{player.feats.length !== 1 ? 's' : ''}</p>
-              <div className="flex flex-wrap gap-1">
-                {player.feats.map((title) => (
-                  <FeatChip key={title} title={title} onOpen={setOpenFeatId} />
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      ) : null}
-
-      <button
-        onClick={addToCombat}
-        disabled={alreadyInCombat}
-        className={`w-full text-sm ${alreadyInCombat ? 'btn-secondary opacity-50' : 'btn-secondary'}`}
-        aria-label={`Añadir a ${player.name} al combate`}
-        title={alreadyInCombat ? `${player.name} ya está en combate` : undefined}
-      >
-        <Swords size={14} aria-hidden="true" /> {alreadyInCombat ? 'Ya en combate' : 'Añadir al combate'}
-      </button>
-
-      <SrdDetailPanel entry={openSpellEntry} onClose={() => setOpenSpellId(null)} />
-      <SrdDetailPanel entry={openFeatEntry} onClose={() => setOpenFeatId(null)} />
     </motion.article>
   );
 };

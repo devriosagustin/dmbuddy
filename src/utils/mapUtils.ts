@@ -133,6 +133,7 @@ export const cellsInLine = (
   tiles?: MapTile[]
 ): MapCell[] => {
   const L = feetToCells(lengthFeet);
+  const maxR = lengthFeet / FEET_PER_CELL; // radio en casillas (float)
   const vecX = tx - cx;
   const vecY = ty - cy;
   const len = Math.hypot(vecX, vecY);
@@ -147,6 +148,10 @@ export const cellsInLine = (
     const y = cy + stepY * i;
     if (!inBounds(x, y)) break;
     if (isBlocked(tiles, x, y)) break;
+    // Respeta la regla circular: aunque sea una línea, no debe pasarse del radio
+    // euclídeo real (en diagonal cada paso recorre √2 veces más, así que se corta
+    // antes para no sobrepasar la distancia indicada en pies).
+    if (Math.hypot(x - cx, y - cy) > maxR) break;
     out.push({ x, y });
   }
   return out;

@@ -1,13 +1,18 @@
 // ============================================================
-// Gestor de monstruos: pantalla de biblioteca + modales
+// Gestor de monstruos: biblioteca + ficha de detalle en vista
 // ============================================================
 
 import { useState } from 'react';
 import { useMonsterStore } from '../../store/monsterStore';
 import type { Monster } from '../../types';
 import { MonsterLibrary } from './MonsterLibrary';
+import { MonsterSheet } from './MonsterSheet';
 import { MonsterForm } from './MonsterForm';
-import { MonsterDetailModal } from './MonsterDetailModal';
+
+type MonsterView =
+  | { type: 'list' }
+  | { type: 'detail'; monster: Monster }
+  | { type: 'create' };
 
 /**
  * Pantalla principal de monstruos de la aplicación.
@@ -15,53 +20,47 @@ import { MonsterDetailModal } from './MonsterDetailModal';
 export const MonsterManager = () => {
   const monsters = useMonsterStore((s) => s.monsters);
   const removeMonster = useMonsterStore((s) => s.removeMonster);
-  const [detailTarget, setDetailTarget] = useState<Monster | null>(null);
-  const [formTarget, setFormTarget] = useState<Monster | null>(null);
-  const [formOpen, setFormOpen] = useState(false);
+  const [view, setView] = useState<MonsterView>({ type: 'list' });
 
   const handleDelete = (monster: Monster) => {
     removeMonster(monster.id);
-    if (detailTarget?.id === monster.id) setDetailTarget(null);
+    if (view.type === 'detail' && view.monster.id === monster.id) setView({ type: 'list' });
   };
 
   return (
     <div className="mx-auto max-w-5xl space-y-4">
-      <div>
-        <h2 className="page-title">Biblioteca de monstruos</h2>
-        <p className="text-sm text-dnd-muted">
-          Tu biblioteca arranca vacía: importa desde la Biblioteca SRD 5.2 los monstruos que vayas a usar o crea los tuyos
-          propios con «Nuevo monstruo».
-        </p>
-      </div>
-
-      <MonsterLibrary
-        monsters={monsters}
-        onSelect={setDetailTarget}
-        onNew={() => {
-          setFormTarget(null);
-          setFormOpen(true);
-        }}
-        onDelete={handleDelete}
-      />
-
-      {/* Modales */}
-      <MonsterDetailModal
-        monster={detailTarget}
-        onClose={() => setDetailTarget(null)}
-        onEdit={(m) => {
-          setDetailTarget(null);
-          setFormTarget(m);
-          setFormOpen(true);
-        }}
-        onDelete={handleDelete}
-      />
-      {formOpen && (
-        <MonsterForm
-          monster={formTarget}
-          onClose={() => {
-            setFormOpen(false);
-            setFormTarget(null);
-          }}
+      {view.type === 'list' ? (
+        <>
+          <div>
+            <h2 className="page-title">Biblioteca de monstruos</h2>
+            <p className="text-sm text-dnd-muted">
+              Tu biblioteca arranca vacía: importa desde la Biblioteca SRD 5.2 los monstruos que vayas a usar o crea los tuyos
+              propios con «Nuevo monstruo».
+            </p>
+          </div>
+          <MonsterLibrary
+            monsters={monsters}
+            onSelect={(m) => setView({ type: 'detail', monster: m })}
+            onNew={() => setView({ type: 'create' })}
+            onDelete={handleDelete}
+          />
+        </>
+      ) : view.type === 'create' ? (
+        <div className="page">
+          <div className="page-header">
+            <div>
+              <h2 className="page-title">Nuevo monstruo</h2>
+              <p className="text-sm text-dnd-muted">Crea un monstruo propio y añádelo a tu biblioteca.</p>
+            </div>
+          </div>
+          <MonsterForm inline monster={null} onClose={() => setView({ type: 'list' })} />
+        </div>
+      ) : (
+        <MonsterSheet
+          monster={view.monster}
+          initialEditable={false}
+          onBack={() => setView({ type: 'list' })}
+          onDelete={handleDelete}
         />
       )}
     </div>

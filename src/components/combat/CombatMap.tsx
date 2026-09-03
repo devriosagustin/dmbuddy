@@ -299,21 +299,26 @@ export const CombatMap = ({ participants, activeId, nextId, selectedId, tiles, t
   const cellColPct = 100 / cols;
   const cellRowPct = 100 / rows;
 
-  const modeButton = (m: Mode, label: string) => (
-    <button
-      type="button"
-      key={m}
-      onClick={() => selectMode(m)}
-      aria-pressed={mode === m}
-      className={`rounded-full px-2.5 py-1 text-[11px] font-bold transition-colors ${
-        mode === m
-          ? 'bg-dnd-gold text-dnd-ink'
-          : 'bg-dnd-leather/30 text-dnd-muted hover:text-dnd-text'
-      }`}
-    >
-      {label}
-    </button>
-  );
+  const modeButton = (m: Mode, label: string) => {
+    // Cuando el modo Tiles está activo ninguna herramienta queda preseleccionada:
+    // se ven deseleccionadas para que la pintura de tiles sea la única activa.
+    const active = mode === m && !tileMode;
+    return (
+      <button
+        type="button"
+        key={m}
+        onClick={() => selectMode(m)}
+        aria-pressed={active}
+        className={`rounded-full px-2.5 py-1 text-[11px] font-bold transition-colors ${
+          active
+            ? 'bg-dnd-gold text-dnd-ink'
+            : 'bg-dnd-leather/30 text-dnd-muted hover:text-dnd-text'
+        }`}
+      >
+        {label}
+      </button>
+    );
+  };
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-2">

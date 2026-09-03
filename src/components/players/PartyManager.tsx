@@ -8,8 +8,15 @@ import { Button } from '../common/Button';
 import { usePlayerStore } from '../../store/playerStore';
 import type { Player } from '../../types';
 import { PlayerCard } from './PlayerCard';
-import { PlayerForm } from './PlayerForm';
+import { CharacterSheet } from './CharacterSheet';
 import { CampaignsManager } from './CampaignsManager';
+
+/**
+ * Vista de pantalla: lista del party o ficha de personaje.
+ */
+type PartyView =
+  | { type: 'list' }
+  | { type: 'sheet'; player: Player | null; mode: 'view' | 'edit' };
 
 /**
  * Pantalla principal de gestión de jugadores.
@@ -18,9 +25,7 @@ export const PartyManager = () => {
   const players = usePlayerStore((s) => s.players);
   const removePlayer = usePlayerStore((s) => s.removePlayer);
 
-  const [formOpen, setFormOpen] = useState(false);
-  const [editing, setEditing] = useState<Player | null>(null);
-
+  const [view, setView] = useState<PartyView>({ type: 'list' });
   const [importOpen, setImportOpen] = useState(false);
   const [importText, setImportText] = useState('');
   const [campaignOpen, setCampaignOpen] = useState(false);
@@ -122,16 +127,23 @@ return (
             variant="primary"
             size="sm"
             icon={<Plus size={15} />}
-            onClick={() => {
-              setEditing(null);
-              setFormOpen(true);
-            }}
+            onClick={() => setView({ type: 'sheet', player: null, mode: 'edit' })}
           >
             Nuevo personaje
           </Button>
         </div>
       </div>
 
+      {view.type === 'sheet' && (
+        <CharacterSheet
+          player={view.player}
+          initialMode={view.mode}
+          onBack={() => setView({ type: 'list' })}
+        />
+      )}
+
+      {view.type === 'list' && (
+      <>
       {/* Importar pegado */}
       {importOpen && (
         <div className="card space-y-2" role="group" aria-label="Importar personajes">
@@ -168,24 +180,14 @@ return (
           <PlayerCard
             key={player.id}
             player={player}
-            onEdit={(p) => {
-              setEditing(p);
-              setFormOpen(true);
-            }}
+            onOpen={(p) => setView({ type: 'sheet', player: p, mode: 'view' })}
+            onEdit={(p) => setView({ type: 'sheet', player: p, mode: 'edit' })}
             onRemove={(id) => removePlayer(id)}
           />
         ))}
       </div>
+      </>
 
-{/* Formulario */}
-      {formOpen && (
-        <PlayerForm
-          player={editing}
-          onClose={() => {
-            setFormOpen(false);
-            setEditing(null);
-          }}
-        />
       )}
 
       {/* Campañas */}

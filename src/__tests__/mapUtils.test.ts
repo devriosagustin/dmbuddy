@@ -95,6 +95,20 @@ describe('mapUtils geometría', () => {
     ]);
   });
 
+  it('cellsInLine en diagonal no se pasa del radio euclídeo (regla circular)', () => {
+    // 15 pies de radio ~ 3 casillas; en diagonal (paso √2) la distancia real se
+    // supera en la 3ª casilla, por lo que la línea debe cortarse en 2.
+    const cells = cellsInLine(5, 5, 9, 9, 15);
+    expect(cells).toEqual([
+      { x: 6, y: 6 },
+      { x: 7, y: 7 },
+    ]);
+    // Ninguna casilla queda fuera del radio euclídeo real.
+    for (const c of cells) {
+      expect(Math.hypot(c.x - 5, c.y - 5) * 5).toBeLessThanOrEqual(15 + 0.001);
+    }
+  });
+
   it('cellsInCone queda dentro del radio y en la dirección', () => {
     const cells = cellsInCone(5, 5, 7, 5, 10);
     expect(cells.length).toBeGreaterThan(0);
