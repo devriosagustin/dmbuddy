@@ -36,7 +36,7 @@ export const CORE_RULES: SrdRuleEntry[] = [
 
 Una **Acción de Reacción** es una respuesta a un suceso (p. ej. el Ataque de Oportunidad) y puede realizarse una vez por ronda aunque no sea tu turno. Las **Acciones de Bonificación** requieren una habilidad o rasgo que las conceda.
 
-> **Orden del turno:** en la primera ronda se lanza iniciativa (d20 + DES) al comienzo de cada combate. En cada ronda se actúa de mayor a menor iniciativa. Ronda SSDD: cuando todo el mundo ha actuado, comienza la siguiente ronda.`
+> **Orden del turno:** en la primera ronda se lanza iniciativa (d20 + DES) al comienzo de cada combate. En cada ronda se actúa de mayor a menor iniciativa. Cuando todos los combatientes han actuado, empieza la siguiente ronda.`
   ),
 
   srd(
@@ -47,7 +47,7 @@ Una **Acción de Reacción** es una respuesta a un suceso (p. ej. el Ataque de O
 
 **Cuerpo a cuerpo:** tira **d20 + modificador de habilidad + Competencia**. Contrapones el resultado a la **CA** del objetivo; si igualas o superas la CA, es un **impacto** y tiras el daño.
 
-**A distancia:** tira d20 + DES (o FUE con un arma de lanzar); el ataque tiene **desventaja** si hay una criatura hostil a 5 pies sin neutralizar y sin la dote *Fairgun*. Si el objetivo está a más de la mitad de su alcance normal, también hay desventaja (a menos que tengas una dote).`
+**A distancia:** tira d20 + DES (o FUE con un arma de lanzar); tienes **desventaja** si hay una criatura hostil en combate cuerpo a cuerpo contigo sin neutralizar. Si el objetivo está más allá de su alcance normal, el ataque falla automáticamente (algunas dotes amplían el alcance).`
   ),
 
   srd(
@@ -249,8 +249,7 @@ Al menos **8 horas** (6 de sueño si eres Elfo). Al final:
 - Cada monstruo aporta un **valor de desafío** (p. ej. CR 1 = 200 XP; CR 2 = 450 XP; CR 4 = 1.100 XP).
 - El **umbral por personaje** es una fracción del presupuesto total según el número de jugadores.
 - Ajustar la dificultad: ≥ +25% encima del presupuesto suele ser **mortal**; por debajo del 50%, **fácil**.
-- Regla práctica: 1 monstruo de CR igual al nivel medio por cada 3-4 jugadores es un buen punto de partida. Mulitpler por número de enemigos:
-  - Monstruo único: x1,5; 4+ enemigos: x0,5 por enemigo.`
+- Regla práctica: 1 monstruo de CR igual al nivel medio por cada 3-4 jugadores es un buen punto de partida. Multiplicador por número de monstruos: un único monstruo x1,5; con muchos enemigos, cada uno cuenta menos (p. ej. x0,5 con 4 o más).`
   ),
 
   srd(
@@ -259,7 +258,7 @@ Al menos **8 horas** (6 de sueño si eres Elfo). Al final:
     'Tiradas de habilidad y salvaciones',
     `Cuando un personaje intenta algo con riesgo de fallo, tira **d20 + modificador + Competencia**.
 
-- **Pruebas de habilidad:** FUE→Atletismo; DES→Acrobacias, Juego de manos, Sigilo; CON→Supervivencia; INT→Arcana, Historia, Investigación, Naturaleza, Religión; SAB→Percepción, Perspicacia, Medicina, Trato con animales; CAR→Actuación, Engaño, Intimidación, Persuasión.
+- **Pruebas de habilidad:** FUE→Atletismo; DES→Acrobacias, Juego de manos, Sigilo; INT→Arcana, Historia, Investigación, Naturaleza, Religión; SAB→Percepción, Perspicacia, Medicina, Supervivencia, Trato con animales; CAR→Actuación, Engaño, Intimidación, Persuasión (la Constitución no tiene habilidades asociadas).
 - **CD (clase de dificultad):** muy fácil 5, fácil 10, media 15, dura 20, muy dura 25, casi imposible 30.
 - **Ventaja/Desventaja:** tira **dos d20** y usa el mejor (ventaja) o el peor (desventaja); nunca se apilan más que una de cada.
     - **Salvaciones:** se resisten efectos con d20 + atributo + (competencia si la tienes). CD = 8 + competencia + modificador del lanzador.
@@ -355,17 +354,54 @@ No se aplica a tiradas sin competencia ni a los **Dados de Golpe**. Algunos rasg
   srd(
     'rule-luz',
     'Entorno',
-    'Visión, luz y oscuridad',
-    `| Categoría | Visibilidad |
-| --- | --- |
-| **Luz brillante** | Visión normal |
-| **Luz tenue** | Penumbra: **desventaja** en Percepción (visual) |
-| **Oscuridad** | No mágica: **Cegado** salvo visión especial |
+    'Visión e iluminación',
+    `Tareas como percibir el peligro, acertar a un enemigo y elegir el objetivo de ciertos conjuros dependen de la capacidad de ver. Los efectos que dificultan la visión pueden ser un gran obstáculo.
 
-- **Vista en la oscuridad (60/120 pies):** ves en la oscuridad no mágica en escala de grises.
-- **Vista ciega:** percibes sin necesitar luz hasta su alcance.
-- **Vista verdadera:** ves lo invisible, disfraces, ilusiones y el plano etéreo.
-- La **oscuridad mágica** (p. ej. de mayor oscuridad) solo se contrarresta con vista de un nivel superior (vista verdadera). Un fuego o *Luz* ilumina la zona con luz brillante o tenue.`
+#### Zonas oscuras
+Una zona puede estar **ligeramente oscura** o **muy oscura**.
+- **Ligeramente oscura** (luz tenue, neblinas dispersas o follaje moderado): tienes **desventaja** en las pruebas de Sabiduría (Percepción) que dependan de la vista.
+- **Muy oscura** (oscuridad, niebla espesa o follaje denso): es **opaca**; sufres el estado **cegado** al intentar ver algo dentro.
+
+#### Iluminación
+| Categoría | Efecto |
+| --- | --- |
+| **Luz brillante** | Permite ver con normalidad (día, antorchas, linternas, hogueras). |
+| **Luz tenue** (sombras) | Hace la zona ligeramente oscura; frontera entre luz brillante y oscuridad (ocaso/amanecer, luna llena). |
+| **Oscuridad** | Hace la zona muy oscura (noche al exterior, mazmorra sin iluminar, oscuridad mágica). |
+
+#### Sentidos especiales
+Algunas criaturas perciben cosas en situaciones en las que otras no:
+- **Sentir vibraciones:** percibes la ubicación de criaturas en movimiento que estén en contacto con el mismo suelo hasta su alcance.
+- **Visión ciega:** percibes sin necesidad de luz hasta su alcance.
+- **Visión en la oscuridad:** ves en la **oscuridad no mágica** en escala de grises hasta ese alcance.
+- **Visión verdadera:** ves lo invisible, disfraces, ilusiones y el plano etéreo.
+
+La **oscuridad mágica** solo la contrarresta un sentido de mayor nivel (como la visión verdadera) o la luz creada por un conjuro de nivel superior.`
+  ),
+
+  srd(
+    'rule-objetos',
+    'Entorno',
+    'Interactuar con objetos',
+    `Las interacciones con objetos suelen resolverse de forma sencilla: el jugador describe lo que su personaje hace (mover una palanca, abrir una puerta) y el DM describe lo que ocurre.
+
+- **Qué se considera un objeto:** un elemento específico e inanimado —una ventana, una puerta, una espada, un libro, una mesa, una silla o una piedra—, pero no un edificio o un vehículo formado por muchos objetos.
+- **En combate tienes tiempo limitado:** una **interacción gratuita** con un objeto por turno, durante tu movimiento o tu acción. Cualquier interacción adicional requiere la acción **Utilizar**.
+- **Encontrar objetos escondidos:** la prueba de Sabiduría (Percepción) solo revela un objeto oculto si indicas que examinas sus proximidades; no revela lo que está en sitios que no registras.
+- **Transportar:** normalmente puedes llevar tu equipo sin preocuparte del peso; objetos inusualmente pesados o en grandes cantidades siguen las reglas de capacidad de carga.
+- **Romper objetos:** como acción puedes romper de forma automática un objeto no mágico frágil; dañar algo más resistente sigue las reglas del glosario.`
+  ),
+
+  srd(
+    'rule-peligros',
+    'Entorno',
+    'Peligros del entorno',
+    `Los monstruos no son las únicas amenazas. Los siguientes **peligros** se definen en el glosario:
+- **Asfixia:** puedes aguantar la respiración una cantidad de minutos igual a 1 + tu modificador de Constitución (mínimo 30 segundos); tras eso te quedas a 0 PG y empiezas las salvaciones de muerte al siguiente turno.
+- **Caídas:** al final de una caída recibes **1d6 de daño contundente por cada 10 pies**, máximo 20d6.
+- **Deshidratación:** sin agua, las pruebas de Constitución difíciles se hacen con desventaja; sin agua durante 6 horas o más, ganas un nivel de **agotamiento** (24h sin agua, CD 15 de Constitución cada hora).
+- **Desnutrición:** puedes pasar días sin comer sin efecto; tras la falta prolongada, pruebas de Constitución con desventaja y niveles de agotamiento diarios.
+- **Fuego:** entrar a una zona en llamas o terminar el turno en ella inflige generalmente **1d10 de fuego**; el DM fija la CD de salvación y el daño según el material.`
   ),
 ];
 
