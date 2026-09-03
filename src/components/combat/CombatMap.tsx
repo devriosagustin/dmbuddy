@@ -54,12 +54,22 @@ interface CombatMapProps {
   onImportLayouts: () => void;
   /** Layouts de mapa guardados por el usuario. */
   savedLayouts: MapLayout[];
-  /** Guarda el layout actual de tiles con un nombre. */
-  onSaveLayout: (name: string) => void;
+  /** Carpetas para organizar layouts por sesión o campaña. */
+  folders: { id: string; name: string }[];
+  /** Guarda el layout actual de tiles con un nombre (y opcionalmente en una carpeta). */
+  onSaveLayout: (name: string, folderId?: string) => void;
   /** Aplica (reemplaza) los tiles de un layout cargado. */
   onLoadLayout: (id: string) => void;
   /** Elimina un layout guardado. */
   onDeleteLayout: (id: string) => void;
+  /** Asigna (o quita con null) un layout a una carpeta. */
+  onSetMapFolder: (id: string, folderId: string | null) => void;
+  /** Crea una carpeta nueva y devuelve su id. */
+  onCreateFolder: (name: string) => string;
+  /** Renombra una carpeta. */
+  onRenameFolder: (id: string, name: string) => void;
+  /** Elimina una carpeta. */
+  onDeleteFolder: (id: string) => void;
   /** Aplica un layout aleatorio generado por patrón. */
   onRandomLayout: () => void;
   onOpenActions: (combatant: Combatant) => void;
@@ -106,7 +116,7 @@ const SAME = <T,>(a: T, b: T) => JSON.stringify(a) === JSON.stringify(b);
 const RANGE_PRESETS = [5, 10, 15, 30, 60, 90, 120];
 const AOE_PRESETS = [5, 10, 15, 20, 30, 60];
 
-export const CombatMap = ({ participants, activeId, nextId, selectedId, tiles, tileType, onTileTypeChange, tileMode, onToggleTileMode, onToggleTile, onClearTiles, onExportLayouts, onImportLayouts, savedLayouts, onSaveLayout, onLoadLayout, onDeleteLayout, onRandomLayout, onOpenActions, onMove, onSelect, cols, rows, onMapSizeChange, visionRange, onVisionRange, revealedTileKeys, revealedEnemyIds, onToggleRevealTile, onToggleRevealEnemy, mapBackground, onMapBackground }: CombatMapProps) => {
+export const CombatMap = ({ participants, activeId, nextId, selectedId, tiles, tileType, onTileTypeChange, tileMode, onToggleTileMode, onToggleTile, onClearTiles, onExportLayouts, onImportLayouts, savedLayouts, folders, onSaveLayout, onLoadLayout, onDeleteLayout, onSetMapFolder, onCreateFolder, onRenameFolder, onDeleteFolder, onRandomLayout, onOpenActions, onMove, onSelect, cols, rows, onMapSizeChange, visionRange, onVisionRange, revealedTileKeys, revealedEnemyIds, onToggleRevealTile, onToggleRevealEnemy, mapBackground, onMapBackground }: CombatMapProps) => {
   const gridRef = useRef<HTMLDivElement>(null);
   const [mode, setMode] = useState<Mode>('move');
   const [drag, setDrag] = useState<DragState | null>(null);
@@ -134,6 +144,21 @@ export const CombatMap = ({ participants, activeId, nextId, selectedId, tiles, t
   const [layoutsOpen, setLayoutsOpen] = useState(false);
   const [layoutName, setLayoutName] = useState('');
   const [layoutSel, setLayoutSel] = useState('');
+  const [layoutSaveFolder, setLayoutSaveFolder] = useState('');
+  const [newFolderName, setNewFolderName] = useState('');
+  const [moveFolder, setMoveFolder] = useState('');
+
+  // Opciones del selector de layouts, agrupadas por carpeta (sin carpeta + cada carpeta).
+  const layoutGroups = useMemo(() => {
+    const orphan = savedLayouts.filter((l) => !l.folderId || !folders.some((f) => f.id === l.folderId));
+    const grouped = folders
+      .map((f) => ({
+        folder: f,
+        items: savedLayouts.filter((l) => l.folderId === f.id),
+      }))
+      .filter((g) => g.items.length > 0);
+    return { orphan, grouped };
+  }, [savedLayouts, folders]);
 
   useEffect(() => {
     const el = measureRef.current;
@@ -459,7 +484,7 @@ export const CombatMap = ({ participants, activeId, nextId, selectedId, tiles, t
                     onChange={(e) => setLayoutName(e.target.value)}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') {
-                        onSaveLayout(layoutName);
+                        onSaveLayout(layoutName, layoutSaveFolder || undefined);
                         setLayoutName('');
                       }
                     }}
@@ -467,7 +492,7 @@ export const CombatMap = ({ participants, activeId, nextId, selectedId, tiles, t
                   <button
                     type="button"
                     onClick={() => {
-                      onSaveLayout(layoutName);
+                      onSaveLayout(layoutName, layoutSaveFolder || undefined);
                       setLayoutName('');
                     }}
                     className="rounded-md bg-dnd-gold px-3 py-1 text-xs font-bold text-dnd-ink hover:bg-dnd-gold/80"
@@ -475,6 +500,21 @@ export const CombatMap = ({ participants, activeId, nextId, selectedId, tiles, t
                     Guardar
                   </button>
                 </div>
+                {folders.length > 0 && (
+                  <select
+                    className="input h-8 w-full text-xs"
+                    value={layoutSaveFolder}
+                    onChange={(e) => setLayoutSaveFolder(e.target.value)}
+                    aria-label="Carpeta al guardar"
+                  >
+                    <option value="">📂 Sin carpeta</option>
+                    {folders.map((f) => (
+                      <option key={f.id} value={f.id}>
+                        📁 {f.name}
+                      </option>
+                    ))}
+                  </select>
+                )}
               </div>
 
               <div className="flex gap-2">
@@ -506,10 +546,23 @@ export const CombatMap = ({ participants, activeId, nextId, selectedId, tiles, t
                       onChange={(e) => setLayoutSel(e.target.value)}
                     >
                       <option value="">— Elegir —</option>
-                      {savedLayouts.map((l) => (
-                        <option key={l.id} value={l.id}>
-                          {l.name} ({(l.tiles?.length ?? l.barriers?.length ?? 0)} celdas)
-                        </option>
+                      {layoutGroups.orphan.length > 0 && (
+                        <optgroup label="📂 Sin carpeta">
+                          {layoutGroups.orphan.map((l) => (
+                            <option key={l.id} value={l.id}>
+                              {l.name} ({(l.tiles?.length ?? l.barriers?.length ?? 0)} celdas)
+                            </option>
+                          ))}
+                        </optgroup>
+                      )}
+                      {layoutGroups.grouped.map((g) => (
+                        <optgroup key={g.folder.id} label={`📁 ${g.folder.name}`}>
+                          {g.items.map((l) => (
+                            <option key={l.id} value={l.id}>
+                              {l.name} ({(l.tiles?.length ?? l.barriers?.length ?? 0)} celdas)
+                            </option>
+                          ))}
+                        </optgroup>
                       ))}
                     </select>
                     <div className="grid grid-cols-3 gap-2">
@@ -544,7 +597,99 @@ export const CombatMap = ({ participants, activeId, nextId, selectedId, tiles, t
                         🎲 Aleatorio
                       </button>
                     </div>
+                    <select
+                      className="input h-8 w-full text-xs"
+                      value={moveFolder}
+                      onChange={(e) => setMoveFolder(e.target.value)}
+                      aria-label="Carpeta de destino para mover la selección"
+                    >
+                      <option value="">📂 Mover selección a… sin carpeta</option>
+                      {folders.map((f) => (
+                        <option key={f.id} value={f.id}>
+                          📁 {f.name}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (layoutSel) {
+                          onSetMapFolder(layoutSel, moveFolder || null);
+                          setMoveFolder('');
+                          setLayoutSel('');
+                        }
+                      }}
+                      disabled={!layoutSel}
+                      className="rounded-md bg-slate-600 px-2 py-1.5 text-xs font-bold text-white hover:bg-slate-500 disabled:opacity-40"
+                    >
+                      {moveFolder ? 'Mover a carpeta' : 'Quitar de carpeta'}
+                    </button>
                   </>
+                )}
+              </div>
+
+              <div className="flex flex-col gap-1.5 border-t border-dnd-leather/20 pt-2">
+                <span className="text-[11px] font-bold uppercase tracking-wide text-dnd-muted">Carpetas</span>
+                <div className="flex gap-2">
+                  <input
+                    className="input h-8 min-w-0 flex-1 text-sm"
+                    placeholder="Nueva carpeta (p. ej. Campaña A)"
+                    value={newFolderName}
+                    onChange={(e) => setNewFolderName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        onCreateFolder(newFolderName);
+                        setNewFolderName('');
+                      }
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onCreateFolder(newFolderName);
+                      setNewFolderName('');
+                    }}
+                    className="rounded-md bg-dnd-gold px-3 py-1 text-xs font-bold text-dnd-ink hover:bg-dnd-gold/80"
+                  >
+                    Crear
+                  </button>
+                </div>
+                {folders.length === 0 ? (
+                  <span className="text-xs text-dnd-muted">Sin carpetas. Crea una para agrupar tus mapas.</span>
+                ) : (
+                  <div className="flex max-h-32 flex-col gap-1 overflow-y-auto">
+                    {folders.map((f) => (
+                      <div
+                        key={f.id}
+                        className="flex items-center justify-between gap-2 rounded-md bg-dnd-leather/10 px-2 py-1"
+                      >
+                        <span className="min-w-0 truncate text-xs text-dnd-text">📁 {f.name}</span>
+                        <div className="flex shrink-0 gap-1">
+                          <input
+                            defaultValue={f.name}
+                            aria-label={`Renombrar ${f.name}`}
+                            onBlur={(e) => {
+                              if (e.target.value.trim() && e.target.value !== f.name) {
+                                onRenameFolder(f.id, e.target.value);
+                              }
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+                            }}
+                            className="input h-6 w-24 px-1 text-[11px]"
+                          />
+                          <button
+                            type="button"
+                            title={`Eliminar carpeta ${f.name}`}
+                            onClick={() => onDeleteFolder(f.id)}
+                            className="rounded bg-red-500/80 px-1.5 text-[11px] font-bold text-white hover:bg-red-400"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 )}
               </div>
             </div>

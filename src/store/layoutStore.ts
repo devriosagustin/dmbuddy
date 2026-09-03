@@ -4,7 +4,7 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { MapLayout, LayoutCreature, LayoutTile } from '../utils/layoutPatterns';
+import type { MapLayout, LayoutCreature, LayoutTile, MapFolder } from '../utils/layoutPatterns';
 
 const makeId = (): string => {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
@@ -15,10 +15,19 @@ const makeId = (): string => {
 
 interface LayoutStore {
   savedLayouts: MapLayout[];
+  folders: MapFolder[];
   /** Guarda (o actualiza por nombre) un layout de tiles y criaturas. */
-  saveLayout: (name: string, tiles: LayoutTile[], creatures?: LayoutCreature[]) => MapLayout;
+  saveLayout: (name: string, tiles: LayoutTile[], creatures?: LayoutCreature[], folderId?: string) => MapLayout;
   savedLayout: (id: string) => MapLayout | undefined;
   deleteLayout: (id: string) => void;
+  /** Asigna (o quita con null) un layout a una carpeta. */
+  setMapFolder: (id: string, folderId: string | null) => void;
+  /** Crea una carpeta nueva y devuelve su id. */
+  createFolder: (name: string) => string;
+  /** Renombra una carpeta. */
+  renameFolder: (id: string, name: string) => void;
+  /** Elimina una carpeta; los layouts que contenga pasan a "sin carpeta". */
+  deleteFolder: (id: string) => void;
   /** Exporta todos los layouts a JSON string. */
   exportLayouts: () => string;
   /** Importa layouts desde JSON string; retorna {added, skipped}. */
@@ -29,17 +38,18 @@ export const useLayoutStore = create<LayoutStore>()(
   persist(
     (set, get) => ({
       savedLayouts: [],
-      saveLayout: (name, tiles, creatures) => {
+      folders: [],
+      saveLayout: (name, tiles, creatures, folderId) => {
         const trimmed = name.trim() || 'Layout sin nombre';
         const existing = get().savedLayouts.find((l) => l.name === trimmed);
         let layout: MapLayout;
         if (existing) {
-          layout = { ...existing, tiles, creatures };
+          layout = { ...existing, tiles, creatures, folderId: folderId ?? existing.folderId };
           set((s) => ({
             savedLayouts: s.savedLayouts.map((l) => (l.id === existing.id ? layout! : l)),
           }));
         } else {
-          layout = { id: makeId(), name: trimmed, tiles, creatures };
+          layout = { id: makeId(), name: trimmed, tiles, creatures, folderId: folderId || undefined };
           set((s) => ({ savedLayouts: [...s.savedLayouts, layout!] }));
         }
         return layout;
@@ -47,6 +57,37 @@ export const useLayoutStore = create<LayoutStore>()(
       savedLayout: (id) => get().savedLayouts.find((l) => l.id === id),
       deleteLayout: (id) => {
         set((s) => ({ savedLayouts: s.savedLayouts.filter((l) => l.id !== id) }));
+      },
+      setMapFolder: (id, folderId) => {
+        set((s) => ({
+          savedLayouts: s.savedLayouts.map((l) =>
+            l.id === id ? { ...l, folderId: folderId || undefined } : l
+          ),
+        }));
+      },
+      createFolder: (name) => {
+        const trimmed = name.trim();
+        if (!trimmed || get().folders.some((f) => f.name === trimmed)) {
+          return '';
+        }
+        const folder: MapFolder = { id: makeId(), name: trimmed };
+        set((s) => ({ folders: [...s.folders, folder] }));
+        return folder.id;
+      },
+      renameFolder: (id, name) => {
+        const trimmed = name.trim();
+        if (!trimmed) return;
+        set((s) => ({
+          folders: s.folders.map((f) => (f.id === id ? { ...f, name: trimmed } : f)),
+        }));
+      },
+      deleteFolder: (id) => {
+        set((s) => ({
+          folders: s.folders.filter((f) => f.id !== id),
+          savedLayouts: s.savedLayouts.map((l) =>
+            l.folderId === id ? { ...l, folderId: undefined } : l
+          ),
+        }));
       },
       exportLayouts: () => {
         return JSON.stringify(get().savedLayouts, null, 2);
@@ -68,7 +109,7 @@ export const useLayoutStore = create<LayoutStore>()(
               skipped++;
               continue;
             }
-            const newLayout = { ...l, id: makeId() };
+            const newLayout = { ...l, id: makeId(), folderId: undefined };
             set((s) => ({ savedLayouts: [...s.savedLayouts, newLayout] }));
             nameSet.add(l.name);
             added++;
@@ -79,6 +120,24 @@ export const useLayoutStore = create<LayoutStore>()(
         }
       },
     }),
-    { name: 'dmbuddy-map-layouts' }
+    {
+      name: 'dmbuddy-map-layouts',
+      // v1 = carpetas de mapa (folders + folderId en cada layout).
+      version: 1,
+      migrate: (persisted, version) => {
+        const state = (persisted ?? {}) as Partial<LayoutStore> & Record<string, unknown>;
+        const out = { ...state } as Record<string, unknown>;
+        if (version < 1) {
+          if (out.folders === undefined) out.folders = [];
+          if (Array.isArray(out.savedLayouts)) {
+            out.savedLayouts = (out.savedLayouts as MapLayout[]).map((l) => ({
+              ...l,
+              folderId: (l as MapLayout).folderId || undefined,
+            }));
+          }
+        }
+        return out as unknown as LayoutStore;
+      },
+    }
   )
 );

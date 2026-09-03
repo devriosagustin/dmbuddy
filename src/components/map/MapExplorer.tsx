@@ -119,7 +119,7 @@ export const MapExplorer = () => {
     .filter((rp) => rp.sheet?.active === true)
     .map((rp) => ({ playerId: (rp.sheet?.ownerPlayerId as string | undefined) ?? rp.id, playerName: rp.name }));
 
-  const { savedLayouts, saveLayout, savedLayout: getSavedLayout, deleteLayout, exportLayouts, importLayouts } = useLayoutStore();
+  const { savedLayouts, folders, saveLayout, savedLayout: getSavedLayout, deleteLayout, setMapFolder, createFolder, renameFolder, deleteFolder, exportLayouts, importLayouts } = useLayoutStore();
 
   const [tileType, setTileType] = useState<TileType>('wall');
   const [tileMode, setTileMode] = useState(false);
@@ -192,7 +192,7 @@ export const MapExplorer = () => {
 
   // Layouts: guardar/exportar/importar incluye criaturas del mapa. Los
   // miembros del party no se guardan: sus fichas viven en partyTokens.
-  const handleSaveLayout = (name: string) => {
+  const handleSaveLayout = (name: string, folderId?: string) => {
     // Guardar TODOS los tipos de tiles (wall, door, trap, treasure, investigation).
     const savedTiles = tiles.map((t) => ({
       x: t.x,
@@ -215,7 +215,7 @@ export const MapExplorer = () => {
         npcRole: c.npcRole,
         xpReward: c.xpReward,
       }));
-    saveLayout(name, savedTiles, creatures);
+    saveLayout(name, savedTiles, creatures, folderId);
   };
   const handleLoadLayout = (id: string) => {
     const layout = getSavedLayout(id);
@@ -469,9 +469,14 @@ export const MapExplorer = () => {
             onToggleTile={toggleTile}
             onClearTiles={clearTiles}
             savedLayouts={savedLayouts}
+            folders={folders}
             onSaveLayout={handleSaveLayout}
             onLoadLayout={handleLoadLayout}
             onDeleteLayout={handleDeleteLayout}
+            onSetMapFolder={setMapFolder}
+            onCreateFolder={createFolder}
+            onRenameFolder={renameFolder}
+            onDeleteFolder={deleteFolder}
             onRandomLayout={handleRandomLayout}
             onExportLayouts={handleExportLayouts}
             onImportLayouts={handleImportLayouts}

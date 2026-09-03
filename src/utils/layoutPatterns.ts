@@ -37,6 +37,14 @@ export interface MapLayout {
   tiles?: LayoutTile[];
   /** Criaturas (monstruos/NPCs) guardadas con el layout. No se guardan PJs. */
   creatures?: LayoutCreature[];
+  /** Carpeta en la que se agrupa el layout (undefined = sin carpeta). */
+  folderId?: string;
+}
+
+/** Carpeta/conjunto para organizar layouts de mapa por sesión o campaña. */
+export interface MapFolder {
+  id: string;
+  name: string;
 }
 
 const cell = (x: number, y: number) => ({ x, y });
