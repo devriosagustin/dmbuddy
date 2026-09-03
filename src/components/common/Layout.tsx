@@ -5,7 +5,7 @@
 import type { ReactNode } from 'react';
 import { useEffect, useState } from 'react';
 import { Outlet, useNavigate } from 'react-router-dom';
-import { Crown, Languages, Menu, Search, Users } from 'lucide-react';
+import { Crown, Menu, Search, Users } from 'lucide-react';
 import { Sidebar } from './Sidebar';
 import { QuickRoll } from './QuickRoll';
 import { SearchPalette } from '../reference/SearchPalette';
@@ -24,8 +24,6 @@ import { usePlayerPublish } from '../../hooks/usePlayerPublish';
 export const Layout = () => {
   const { sidebarOpen, toggleSidebar, setIsMobile } = useUIStore();
   const setPaletteOpen = useSrdStore((s) => s.setPaletteOpen);
-  const srdLang = useSrdStore((s) => s.lang);
-  const setSrdLang = useSrdStore((s) => s.setLang);
   const navigate = useNavigate();
   const [sessionOpen, setSessionOpen] = useState(false);
   const sessionRole = useSessionStore((s) => s.role);
@@ -136,32 +134,6 @@ export const Layout = () => {
               <span className="hidden sm:inline">Buscar en el SRD</span>
               <kbd className="hidden rounded border border-dnd-leather/50 px-1 text-[10px] md:inline">Ctrl K</kbd>
             </button>
-
-            {/* Idioma de la biblioteca SRD: ES (curado) / EN (completo) */}
-            <div
-              role="radiogroup"
-              aria-label="Idioma de la biblioteca SRD"
-              className="flex shrink-0 items-center gap-0.5 rounded-lg border border-dnd-leather/50 px-1 py-1"
-              title={srdLang === 'es' ? 'Mostrando el SRD en español (curado)' : 'Mostrando el SRD completo (con contenido en inglés)'}
-            >
-              <Languages size={14} className="text-dnd-muted" aria-hidden="true" />
-              {(['es', 'en'] as const).map((l) => (
-                <button
-                  key={l}
-                  role="radio"
-                  aria-checked={srdLang === l}
-                  onClick={() => setSrdLang(l)}
-                  aria-label={l === 'es' ? 'Español' : 'Inglés'}
-                  className={`rounded px-1.5 py-0.5 text-[11px] font-bold uppercase transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-dnd-gold ${
-                    srdLang === l
-                      ? 'bg-dnd-gold/20 text-dnd-gold'
-                      : 'text-dnd-muted hover:text-dnd-text'
-                  }`}
-                >
-                  {l === 'es' ? 'ES' : 'EN'}
-                </button>
-              ))}
-            </div>
           </div>
         </header>
 
