@@ -339,6 +339,24 @@ export interface MapCreature {
  * exploración. Al finalizar el encuentro vuelve a null y las criaturas
  * sobrevivientes conservan su PG en el mapa.
  */
+/** Composición de un preset de encuentro: qué monstruo (id del catálogo) y cuántos. */
+export interface EncounterPresetMonster {
+  monsterId: string;
+  quantity: number;
+}
+
+/**
+ * Encuentro guardado como preset reutilizable: solo la composición de
+ * monstruos (sin posición en el mapa), para colocarlos todos de una vez
+ * en encuentros repetidos. Mismo patrón que MapLayout (guardar/cargar por
+ * nombre) pero sin tiles ni coordenadas.
+ */
+export interface EncounterPreset {
+  id: string;
+  name: string;
+  monsters: EncounterPresetMonster[];
+}
+
 export interface EncounterState {
   id: string;
   round: number;
