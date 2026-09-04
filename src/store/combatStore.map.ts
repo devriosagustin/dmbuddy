@@ -26,6 +26,7 @@ export type MapSlice = Pick<
   | 'mapVisible'
   | 'mapBackground'
   | 'toggleTile'
+  | 'paintTile'
   | 'setTiles'
   | 'clearTiles'
   | 'addMapCreature'
@@ -79,6 +80,31 @@ export const createMapSlice: StateCreator<CombatStore, [], [], MapSlice> = (set,
       const tile: MapTile = type === 'door' ? { x, y, type, open: false } : { x, y, type };
       set({ tiles: [...tiles, tile] });
     }
+  },
+
+  paintTile: (x, y, type: TileType, mode: 'add' | 'remove') => {
+    if (!inBounds(x, y)) return;
+    const { tiles } = get();
+    const idx = tiles.findIndex((t) => t.x === x && t.y === y);
+    if (mode === 'remove') {
+      if (idx >= 0) {
+        set({ tiles: tiles.filter((t) => !(t.x === x && t.y === y)) });
+      }
+      return;
+    }
+    // mode === 'add': coloca el tile de forma idempotente, sin alternar
+    // puertas (a diferencia de toggleTile) para no generar parpadeo al
+    // repintar la misma celda durante un arrastre continuo.
+    if (idx >= 0) {
+      if (tiles[idx].type !== type) {
+        const updated = [...tiles];
+        updated[idx] = type === 'door' ? { x, y, type, open: false } : { x, y, type };
+        set({ tiles: updated });
+      }
+      return;
+    }
+    const tile: MapTile = type === 'door' ? { x, y, type, open: false } : { x, y, type };
+    set({ tiles: [...tiles, tile] });
   },
 
   setTiles: (tiles) => {

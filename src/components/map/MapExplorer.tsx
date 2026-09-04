@@ -80,6 +80,7 @@ export const MapExplorer = () => {
     finalizeEncounter,
     cancelPendingEncounter,
     toggleTile,
+    paintTile,
     setTiles,
     clearTiles,
     moveCombatant,
@@ -467,6 +468,7 @@ export const MapExplorer = () => {
               setSelectedTokenId(null);
             }}
             onToggleTile={toggleTile}
+            onPaintTile={paintTile}
             onClearTiles={clearTiles}
             savedLayouts={savedLayouts}
             folders={folders}

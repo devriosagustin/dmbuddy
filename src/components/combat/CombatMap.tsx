@@ -47,6 +47,8 @@ interface CombatMapProps {
   onToggleTileMode: () => void;
   /** Alterna/coloca un tile del tipo seleccionado. */
   onToggleTile: (x: number, y: number, type: TileType) => void;
+  /** Pinta/borra un tile de forma determinística (sin alternar puertas) — para arrastre continuo. */
+  onPaintTile: (x: number, y: number, type: TileType, mode: 'add' | 'remove') => void;
   /** Elimina todos los tiles del mapa. */
   onClearTiles: () => void;
   /** Exporta layouts guardados a JSON (descarga archivo). */
@@ -119,11 +121,17 @@ const SAME = <T,>(a: T, b: T) => JSON.stringify(a) === JSON.stringify(b);
 const RANGE_PRESETS = [5, 10, 15, 30, 60, 90, 120];
 const AOE_PRESETS = [5, 10, 15, 20, 30, 60];
 
-export const CombatMap = ({ participants, activeId, nextId, selectedId, tiles, tileType, onTileTypeChange, tileMode, onToggleTileMode, onToggleTile, onClearTiles, onExportLayouts, onImportLayouts, savedLayouts, folders, onSaveLayout, onLoadLayout, onDeleteLayout, onSetMapFolder, onCreateFolder, onRenameFolder, onDeleteFolder, onRandomLayout, mapTemplates, onOpenActions, onMove, onSelect, cols, rows, onMapSizeChange, visionRange, onVisionRange, revealedTileKeys, revealedEnemyIds, onToggleRevealTile, onToggleRevealEnemy, mapBackground, onMapBackground }: CombatMapProps) => {
+export const CombatMap = ({ participants, activeId, nextId, selectedId, tiles, tileType, onTileTypeChange, tileMode, onToggleTileMode, onToggleTile, onPaintTile, onClearTiles, onExportLayouts, onImportLayouts, savedLayouts, folders, onSaveLayout, onLoadLayout, onDeleteLayout, onSetMapFolder, onCreateFolder, onRenameFolder, onDeleteFolder, onRandomLayout, mapTemplates, onOpenActions, onMove, onSelect, cols, rows, onMapSizeChange, visionRange, onVisionRange, revealedTileKeys, revealedEnemyIds, onToggleRevealTile, onToggleRevealEnemy, mapBackground, onMapBackground }: CombatMapProps) => {
   const gridRef = useRef<HTMLDivElement>(null);
   const [mode, setMode] = useState<Mode>('move');
   const [drag, setDrag] = useState<DragState | null>(null);
   const [hover, setHover] = useState<MapCell | null>(null);
+  // Pintado continuo de tiles (arrastrar manteniendo el clic): la acción
+  // ('add'/'remove') se fija en la primera celda del trazo y se repite en
+  // cada celda nueva que el puntero visita mientras el botón sigue abajo.
+  // Refs (no state) porque no deben disparar un re-render por sí solas.
+  const paintActionRef = useRef<'add' | 'remove' | null>(null);
+  const lastPaintedCellRef = useRef<MapCell | null>(null);
 
   // Herramienta «medir distancia».
   const [measureFrom, setMeasureFrom] = useState<MapCell | null>(null);
@@ -179,6 +187,20 @@ export const CombatMap = ({ participants, activeId, nextId, selectedId, tiles, t
     if (tileMode) onToggleTileMode();
   };
 
+  // --- Pintado continuo de tiles -------------------------------------------
+  // Decide 'add' o 'remove' según el estado actual de la celda (mismo
+  // criterio que onToggleTile) y lo fija para el resto del trazo. Las
+  // puertas quedan afuera: su semántica de abrir/cerrar con un solo clic
+  // no tiene sentido en un arrastre continuo.
+  const beginPaintStroke = (e: React.PointerEvent, cell: MapCell) => {
+    gridRef.current?.setPointerCapture(e.pointerId);
+    const existing = tiles.find((t) => t.x === cell.x && t.y === cell.y);
+    const action: 'add' | 'remove' = existing && existing.type === tileType ? 'remove' : 'add';
+    paintActionRef.current = action;
+    lastPaintedCellRef.current = cell;
+    onPaintTile(cell.x, cell.y, tileType, action);
+  };
+
   // --- Fichas bajo el ratón -----------------------------------------------
   const handleTokenPointerDown = (e: React.PointerEvent, combatant: Combatant) => {
     if (e.button !== 0) return;
@@ -186,8 +208,13 @@ export const CombatMap = ({ participants, activeId, nextId, selectedId, tiles, t
     e.stopPropagation();
     const cell = { x: combatant.x ?? 0, y: combatant.y ?? 0 };
     if (tileMode) {
-      // En modo tile, clic en una ficha coloca/quita el tile seleccionado.
-      onToggleTile(cell.x, cell.y, tileType);
+      // En modo tile, clic en una ficha coloca/quita el tile seleccionado
+      // (o inicia un trazo de pintado continuo si se mantiene el clic).
+      if (tileType === 'door') {
+        onToggleTile(cell.x, cell.y, tileType);
+      } else {
+        beginPaintStroke(e, cell);
+      }
       return;
     }
     if (mode === 'move') {
@@ -207,8 +234,13 @@ export const CombatMap = ({ participants, activeId, nextId, selectedId, tiles, t
   const handleEmptyDown = (e: React.PointerEvent, cell: MapCell) => {
     if (e.button !== 0) return;
     if (tileMode) {
-      // En modo tile, clic en una casilla coloca/quita el tile seleccionado.
-      onToggleTile(cell.x, cell.y, tileType);
+      // En modo tile, clic en una casilla coloca/quita el tile seleccionado
+      // (o inicia un trazo de pintado continuo si se mantiene el clic).
+      if (tileType === 'door') {
+        onToggleTile(cell.x, cell.y, tileType);
+      } else {
+        beginPaintStroke(e, cell);
+      }
       return;
     }
     if (mode === 'move') {
@@ -232,12 +264,29 @@ export const CombatMap = ({ participants, activeId, nextId, selectedId, tiles, t
     const rect = gridRef.current.getBoundingClientRect();
     const cell = cellFromPointer(e, rect, cols, rows);
     setHover(cell);
+    if (paintActionRef.current) {
+      // Trazo de pintado en curso: pinta cada celda nueva que el puntero
+      // visita (idempotente, así que repetir la misma celda es inofensivo).
+      const last = lastPaintedCellRef.current;
+      if (cell && (!last || last.x !== cell.x || last.y !== cell.y)) {
+        lastPaintedCellRef.current = cell;
+        onPaintTile(cell.x, cell.y, tileType, paintActionRef.current);
+      }
+      return;
+    }
     if (!drag) return;
     const distance = Math.hypot(e.clientX - drag.startX, e.clientY - drag.startY);
     if (!drag.moved && distance > 6) setDrag({ ...drag, moved: true });
   };
 
   const handleUp = () => {
+    if (paintActionRef.current) {
+      // Fin del trazo de pintado.
+      paintActionRef.current = null;
+      lastPaintedCellRef.current = null;
+      setHover(null);
+      return;
+    }
     if (drag && !drag.moved) {
       const target = participants.find((p) => p.id === drag.id);
       if (target) {
@@ -797,7 +846,7 @@ export const CombatMap = ({ participants, activeId, nextId, selectedId, tiles, t
       </div>
 
       <p className="text-[10px] text-dnd-muted">
-        {tileMode && 'Modo tiles: elige tipo (Muro/Puerta/Trampa/Tesoro/Investigación) y haz clic en una casilla. La puerta alterna cerrada/abierta al hacer clic.'}
+        {tileMode && 'Modo tiles: elige tipo (Muro/Puerta/Trampa/Tesoro/Investigación) y haz clic en una casilla, o mantén el clic y arrastra para pintar varias de una vez. La puerta alterna cerrada/abierta al hacer clic (sin arrastre).'}
         {!tileMode && mode === 'move' && 'Clic en una ficha para seleccionarla · segundo clic para abrir sus acciones · clic en un cuadro resaltado para moverla.'}
         {!tileMode && mode === 'measure' && 'Clic en un punto y luego pasa el ratón (o haz clic) para medir la distancia en pies.'}
         {!tileMode && mode === 'range' && 'Haz clic en una ficha para ver su alcance (radio) y las fichas dentro.'}
