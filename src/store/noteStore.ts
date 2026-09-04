@@ -29,6 +29,30 @@ Escribe aquí tus ideas, NPCs, localizaciones o el resumen de la última sesión
 ¡Que rueden los dados! 🎲
 `;
 
+/**
+ * Esqueleto para preparar una sesión (plantilla de nota, sin IA): ahorra
+ * escribir la misma estructura de prep cada vez. Se usa desde el botón
+ * "Nueva sesión" en NotesManager.
+ */
+export const SESSION_PREP_TEMPLATE = `## Recap de la sesión anterior
+
+
+## Objetivos de hoy
+
+
+## Encuentros planeados
+
+
+## NPCs clave
+
+
+## Botín / recompensas
+
+
+## Notas sueltas
+
+`;
+
 interface NoteStore {
   notes: Note[];
   addNote: (note: Omit<Note, 'id' | 'createdAt' | 'updatedAt'>) => Note;

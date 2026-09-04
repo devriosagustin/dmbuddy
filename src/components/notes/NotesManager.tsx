@@ -4,6 +4,7 @@
 
 import { useMemo, useState } from 'react';
 import {
+  CalendarPlus,
   FileText,
   Heart,
   NotebookPen,
@@ -18,7 +19,7 @@ import {
   PenLine,
 } from 'lucide-react';
 import { Button } from '../common/Button';
-import { NOTE_CATEGORIES, useNoteStore } from '../../store/noteStore';
+import { NOTE_CATEGORIES, SESSION_PREP_TEMPLATE, useNoteStore } from '../../store/noteStore';
 import type { Note, NoteCategory } from '../../types';
 import { MarkdownPreview } from './MarkdownPreview';
 import { CombatLog } from '../combat/CombatLog';
@@ -78,6 +79,21 @@ export const NotesManager = () => {
       content: 'Escribe aquí… usa **markdown** para dar formato.',
       category: c,
       tags: [],
+      isFavorite: false,
+    });
+    setSelectedId(note.id);
+    setDraftTitle(note.title);
+    setDraftContent(note.content);
+  };
+
+  /** Crea una nota de "Sesión" precargada con un esqueleto de preparación. */
+  const createSessionNote = () => {
+    const today = new Date().toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    const note = addNote({
+      title: `Sesión — ${today}`,
+      content: SESSION_PREP_TEMPLATE,
+      category: 'Session',
+      tags: ['prep'],
       isFavorite: false,
     });
     setSelectedId(note.id);
@@ -148,6 +164,9 @@ const selectClass = 'select';
                 onChange={(e) => handleImport(e.target.files?.[0] ?? null)}
               />
             </label>
+            <Button variant="secondary" size="sm" icon={<CalendarPlus size={15} />} onClick={createSessionNote}>
+              Nueva sesión
+            </Button>
             <Button variant="primary" size="sm" icon={<Plus size={15} />} onClick={() => createNote()}>
               Nueva nota
             </Button>
