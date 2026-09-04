@@ -161,9 +161,17 @@ export const CombatantActionsModal = ({ combatant, onClose }: CombatantActionsMo
     let damage = 0;
     let dmgBreakdown = '';
     if (hit) {
+      // Crítico (regla 2024): se tiran los dados de daño el doble de veces;
+      // el modificador de característica se suma una sola vez.
       const dr = rollWeaponDamage(weapon.damage);
-      damage = dr.result + dmgBonus;
-      dmgBreakdown = dmgBonus !== 0 ? `${dr.breakdown} + ${dmgBonus}` : dr.breakdown;
+      if (crit) {
+        const dr2 = rollWeaponDamage(weapon.damage);
+        damage = dr.result + dr2.result + dmgBonus;
+        dmgBreakdown = `${dr.breakdown} + ${dr2.breakdown}${dmgBonus !== 0 ? ` + ${dmgBonus}` : ''}`;
+      } else {
+        damage = dr.result + dmgBonus;
+        dmgBreakdown = dmgBonus !== 0 ? `${dr.breakdown} + ${dmgBonus}` : dr.breakdown;
+      }
     }
     const attackLine = hit
       ? `impacto${crit ? ' · CRÍTICO' : ''} (${d20} + ${bonus} = ${total} ≥ CA ${target.armorClass})`
@@ -487,7 +495,7 @@ export const CombatantActionsModal = ({ combatant, onClose }: CombatantActionsMo
                   className="w-full justify-between text-left"
                   onClick={() => {
                     const result = rollAttackAgainst(action, target.armorClass);
-                    const crit = result.d20Roll === 20;
+                    const crit = result.isCrit;
                     const attackLine = result.hit
                       ? `impacto${crit ? ' · CRÍTICO' : ''} (${result.d20Roll} + ${result.attackBonus} = ${result.attackTotal} ≥ CA ${result.targetAC})`
                       : `falla (${result.d20Roll} + ${result.attackBonus} = ${result.attackTotal} < CA ${result.targetAC})`;

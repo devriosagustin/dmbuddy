@@ -10,6 +10,8 @@ export interface DamageRollResult {
   damageRolls: string[];
   totalDamage: number;
   hit: boolean;
+  /** Nat 20: impacto automático y daño con los dados duplicados (reglas 2024). */
+  isCrit: boolean;
   d20Roll: number;
   attackBonus: number;
   attackTotal: number;
@@ -19,13 +21,17 @@ export interface DamageRollResult {
 /**
  * Realiza una tirada de ataque de una acción contra una CA objetivo.
  * Devuelve si impacta, la tirada del d20, el total comparado contra la CA
- * y el desglose del daño.
+ * y el desglose del daño. En un Crítico (nat 20) se tiran los dados de daño
+ * el doble de veces y el modificador fijo de la fórmula se suma una sola
+ * vez — regla oficial: "Roll all of the attack's damage dice twice... and
+ * add any relevant modifiers as normal".
  */
 export const rollAttackAgainst = (action: MonsterAction, targetAC: number): DamageRollResult => {
   const d20 = Math.floor(Math.random() * 20) + 1;
   const attackBonus = action.attackBonus ?? 0;
   const attackTotal = d20 + attackBonus;
-  const hit = d20 === 20 || attackTotal >= targetAC;
+  const isCrit = d20 === 20;
+  const hit = isCrit || attackTotal >= targetAC;
 
   const damageRolls: string[] = [];
   let totalDamage = 0;
@@ -35,7 +41,8 @@ export const rollAttackAgainst = (action: MonsterAction, targetAC: number): Dama
     for (const formula of formulas) {
       const parsed = formula.match(/(\d*)d(\d+)([+-]\d+)?/);
       if (!parsed) continue;
-      const count = parsed[1] === '' ? 1 : parseInt(parsed[1], 10);
+      const baseCount = parsed[1] === '' ? 1 : parseInt(parsed[1], 10);
+      const count = isCrit ? baseCount * 2 : baseCount;
       const sides = parseInt(parsed[2], 10);
       const mod = parsed[3] ? parseInt(parsed[3], 10) : 0;
 
@@ -52,7 +59,7 @@ export const rollAttackAgainst = (action: MonsterAction, targetAC: number): Dama
     }
   }
 
-  return { action, damageRolls, totalDamage, hit, d20Roll: d20, attackBonus, attackTotal, targetAC };
+  return { action, damageRolls, totalDamage, hit, isCrit, d20Roll: d20, attackBonus, attackTotal, targetAC };
 };
 
 /**
