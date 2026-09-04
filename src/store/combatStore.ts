@@ -32,6 +32,12 @@ export interface CombatStore extends CombatState {  // Acciones
   toggleTile: (x: number, y: number, type: TileType) => void;
   /** Pinta (add) o borra (remove) un tile de forma determinística, sin alternar puertas — usado por el arrastre continuo. */
   paintTile: (x: number, y: number, type: TileType, mode: 'add' | 'remove') => void;
+  /** Actualiza los datos de un portal (mapa destino, casilla de llegada, nombre). No hace nada si la celda no es de tipo "portal". */
+  updatePortal: (
+    x: number,
+    y: number,
+    updates: { targetLayoutId?: string; targetX?: number; targetY?: number; label?: string }
+  ) => void;
   /** Reemplaza todos los tiles (para cargar un layout de mapa). */
   setTiles: (tiles: MapTile[]) => void;
   /** Elimina todos los tiles. */

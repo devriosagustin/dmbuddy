@@ -19,6 +19,7 @@ beforeEach(() => {
     encounterCount: 0,
     mapCreatures: [],
     partyTokens: [],
+    tiles: [],
   });
 });
 
@@ -515,4 +516,43 @@ const xpPlayerCombatant = (id: string, player: Player): Combatant => ({
   isDead: false,
   statusEffects: [],
   playerId: player.id,
+});
+describe('Combat Store - portales de mapa', () => {
+  it('paintTile coloca un portal en blanco (sin mapa destino todavía)', () => {
+    const { paintTile } = useCombatStore.getState();
+    paintTile(2, 3, 'portal', 'add');
+    const tile = useCombatStore.getState().tiles[0];
+    expect(tile).toEqual({ x: 2, y: 3, type: 'portal' });
+  });
+
+  it('updatePortal configura el mapa destino y el punto de llegada', () => {
+    const { paintTile, updatePortal } = useCombatStore.getState();
+    paintTile(2, 3, 'portal', 'add');
+    updatePortal(2, 3, { targetLayoutId: 'layout-1', targetX: 5, targetY: 6, label: 'Escalera' });
+
+    const tile = useCombatStore.getState().tiles[0];
+    expect(tile.targetLayoutId).toBe('layout-1');
+    expect(tile.targetX).toBe(5);
+    expect(tile.targetY).toBe(6);
+    expect(tile.label).toBe('Escalera');
+  });
+
+  it('updatePortal no afecta celdas que no son un portal', () => {
+    const { paintTile, updatePortal } = useCombatStore.getState();
+    paintTile(2, 3, 'wall', 'add');
+    updatePortal(2, 3, { targetLayoutId: 'layout-1' });
+
+    const tile = useCombatStore.getState().tiles[0];
+    expect(tile.type).toBe('wall');
+    expect(tile.targetLayoutId).toBeUndefined();
+  });
+
+  it('paintTile en modo remove quita el portal', () => {
+    const { paintTile, updatePortal } = useCombatStore.getState();
+    paintTile(2, 3, 'portal', 'add');
+    updatePortal(2, 3, { targetLayoutId: 'layout-1' });
+    paintTile(2, 3, 'portal', 'remove');
+
+    expect(useCombatStore.getState().tiles).toHaveLength(0);
+  });
 });

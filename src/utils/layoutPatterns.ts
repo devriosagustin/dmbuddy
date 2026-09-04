@@ -3,6 +3,7 @@
 // ============================================================
 
 import { activeCols, activeRows } from './mapUtils';
+import type { MapTile, MapCreature } from '../types';
 
 export interface LayoutCreature {
   name: string;
@@ -23,9 +24,14 @@ export interface LayoutCreature {
 export interface LayoutTile {
   x: number;
   y: number;
-  type: 'wall' | 'door' | 'secretDoor' | 'trap' | 'treasure' | 'investigation';
+  type: 'wall' | 'door' | 'secretDoor' | 'trap' | 'treasure' | 'investigation' | 'portal';
   /** Solo para "door": true = abierta (no bloquea), false/undefined = cerrada. */
   open?: boolean;
+  /** Solo para "portal": id del MapLayout destino, casilla de llegada y nombre opcional. */
+  targetLayoutId?: string;
+  targetX?: number;
+  targetY?: number;
+  label?: string;
 }
 
 export interface MapLayout {
@@ -46,6 +52,51 @@ export interface MapFolder {
   id: string;
   name: string;
 }
+
+/**
+ * Reconstruye los tiles de un layout guardado con su tipo y configuración
+ * completa (incluye portales: mapa destino, punto de llegada, nombre).
+ * Los layouts viejos solo tenían `barriers` (muros sueltos, sin tipo).
+ */
+export const restoreTilesFromLayout = (layout: MapLayout): MapTile[] =>
+  layout.tiles
+    ? layout.tiles.map((t) => ({
+        x: t.x,
+        y: t.y,
+        type: t.type,
+        open: t.open,
+        targetLayoutId: t.targetLayoutId,
+        targetX: t.targetX,
+        targetY: t.targetY,
+        label: t.label,
+      }))
+    : (layout.barriers ?? []).map((b) => ({ x: b.x, y: b.y, type: 'wall' as const }));
+
+/**
+ * Reconstruye las criaturas (monstruos/NPCs) guardadas en un layout, con ids
+ * nuevos para no chocar con las que ya están en el mapa. Descarta entradas
+ * legacy con kind "player" (los PJ ya no se guardan en layouts).
+ */
+export const restoreCreaturesFromLayout = (layout: MapLayout): MapCreature[] =>
+  (layout.creatures ?? [])
+    .filter((c): c is LayoutCreature & { kind: 'monster' | 'npc' } => c.kind !== 'player')
+    .map((c) => ({
+      id: `mc-${layout.id}-${c.x}-${c.y}-${Math.random().toString(36).slice(2, 8)}`,
+      name: c.name,
+      kind: c.kind,
+      refId: c.refId,
+      x: c.x,
+      y: c.y,
+      hp: c.hp,
+      maxHp: c.maxHp,
+      tempHp: c.tempHp,
+      armorClass: c.armorClass,
+      speed: c.speed,
+      npcRole: c.npcRole,
+      xpReward: c.xpReward,
+      statusEffects: [],
+      isDead: false,
+    }));
 
 const cell = (x: number, y: number) => ({ x, y });
 

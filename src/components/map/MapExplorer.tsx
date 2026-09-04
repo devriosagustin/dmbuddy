@@ -32,16 +32,18 @@ import { PlayerPartyDetail } from '../combat/PlayerPartyDetail';
 import { PlaceCreatureModal } from './PlaceCreatureModal';
 import { StartEncounterModal } from './StartEncounterModal';
 import { CreatureEditorModal } from './CreatureEditorModal';
+import { PortalEditorModal } from './PortalEditorModal';
 import { useCombatStore } from '../../store/combatStore';
 import { useLayoutStore } from '../../store/layoutStore';
 import { usePlayerStore } from '../../store/playerStore';
 import { useSessionStore } from '../../store/sessionStore';
 import { useFullscreen } from '../../hooks/useFullscreen';
-import { MAP_TEMPLATES, randomLayout } from '../../utils/layoutPatterns';
+import { MAP_TEMPLATES, randomLayout, restoreTilesFromLayout, restoreCreaturesFromLayout } from '../../utils/layoutPatterns';
 import { mapCreatureToCombatant, playerToCombatant } from '../../utils/combatUtils';
+import { findConfiguredPortal } from '../../utils/mapPortals';
 import { RollRequestModal } from '../session/RollRequestModal';
 import { SkillRollModal } from '../session/SkillRollModal';
-import type { Combatant, MapCreature, TileType } from '../../types';
+import type { Combatant, MapCreature, MapTile, TileType } from '../../types';
 
 /**
  * Página del mapa: siempre muestra el mapa. En modo exploración permite
@@ -131,6 +133,7 @@ export const MapExplorer = () => {
   const [showSkillRoll, setShowSkillRoll] = useState(false);
   const [selected, setSelected] = useState<Combatant | null>(null);
   const [editingCreature, setEditingCreature] = useState<MapCreature | null>(null);
+  const [portalCell, setPortalCell] = useState<{ x: number; y: number } | null>(null);
   const [partyDetail, setPartyDetail] = useState<Combatant | null>(null);
 
   const { isFullscreen, toggle: toggleFullscreen, targetRef: mapRef, overlayClass } = useFullscreen();
@@ -164,9 +167,49 @@ export const MapExplorer = () => {
     } else if (id.startsWith('party-')) {
       const playerId = id.replace('party-', '');
       setPartyToken(playerId, x, y);
+      // Conexión entre mapas: si la casilla de llegada es un portal ya
+      // configurado, todo el party cruza de inmediato al mapa conectado.
+      const portal = findConfiguredPortal(tiles, x, y);
+      if (portal) crossPortal(portal);
     } else {
       updateMapCreature(id, { x, y });
     }
+  };
+
+  // Coloca (si no existía todavía) el tile de portal en la celda elegida y
+  // abre su editor para elegir/ajustar el mapa destino.
+  const handlePortalClick = (x: number, y: number) => {
+    const existing = tiles.find((t) => t.x === x && t.y === y && t.type === 'portal');
+    if (!existing) {
+      paintTile(x, y, 'portal', 'add');
+    }
+    setPortalCell({ x, y });
+  };
+
+  // Cruce de portal: reemplaza el mapa actual (tiles + criaturas) por el del
+  // layout conectado y mueve a todo el party a la casilla de llegada. Mismo
+  // restore de tiles/criaturas que handleLoadLayout, pero además reubica al
+  // party (los layouts guardados no incluyen PJ, así que si no los moviéramos
+  // quedarían parados sobre el mapa nuevo en su posición del mapa anterior).
+  const crossPortal = (portal: MapTile) => {
+    if (!portal.targetLayoutId) return;
+    const layout = getSavedLayout(portal.targetLayoutId);
+    if (!layout) {
+      useCombatStore.getState().addLogEntry({
+        type: 'custom',
+        message: `⚠️ El portal en (${portal.x},${portal.y}) apunta a un mapa que ya no existe.`,
+      });
+      return;
+    }
+    setTiles(restoreTilesFromLayout(layout));
+    useCombatStore.setState({ mapCreatures: restoreCreaturesFromLayout(layout) });
+    const entryX = Math.max(0, Math.min(mapCols - 1, portal.targetX ?? Math.floor(mapCols / 2)));
+    const entryY = Math.max(0, Math.min(mapRows - 1, portal.targetY ?? Math.floor(mapRows / 2)));
+    for (const t of partyTokens) setPartyToken(t.playerId, entryX, entryY);
+    useCombatStore.getState().addLogEntry({
+      type: 'custom',
+      message: `🌀 El party cruzó a «${layout.name}»`,
+    });
   };
 
   const handleOpenActions = (combatant: Combatant) => {
@@ -194,12 +237,17 @@ export const MapExplorer = () => {
   // Layouts: guardar/exportar/importar incluye criaturas del mapa. Los
   // miembros del party no se guardan: sus fichas viven en partyTokens.
   const handleSaveLayout = (name: string, folderId?: string) => {
-    // Guardar TODOS los tipos de tiles (wall, door, trap, treasure, investigation).
+    // Guardar TODOS los tipos de tiles (wall, door, trap, treasure,
+    // investigation, portal) con su configuración completa.
     const savedTiles = tiles.map((t) => ({
       x: t.x,
       y: t.y,
       type: t.type,
       open: t.open,
+      targetLayoutId: t.targetLayoutId,
+      targetX: t.targetX,
+      targetY: t.targetY,
+      label: t.label,
     }));
     const creatures = mapCreatures
       .map((c) => ({
@@ -223,34 +271,10 @@ export const MapExplorer = () => {
     if (!layout) return;
     // Restaurar los tiles con su tipo. Los layouts nuevos guardan `tiles`;
     // los antiguos solo tenían `barriers` (muros) que se convierten a wall.
-    const restoredTiles = layout.tiles
-      ? layout.tiles.map((t) => ({ x: t.x, y: t.y, type: t.type, open: t.open }))
-      : (layout.barriers ?? []).map((b) => ({ ...b, type: 'wall' as const }));
-    setTiles(restoredTiles);
+    setTiles(restoreTilesFromLayout(layout));
     // Restaurar las criaturas guardadas del layout. Las fichas del party
     // actuales se conservan (viven en partyTokens y no se guardan en layouts).
-    // Los layouts antiguos podrían incluir kind === 'player' (legacy): se
-    // descartan, pues los PJ ya no son criaturas.
-    const restored: MapCreature[] = (layout.creatures ?? [])
-      .filter((c): c is MapCreature & { kind: 'monster' | 'npc' } => c.kind !== 'player')
-      .map((c) => ({
-        id: `mc-${layout.id}-${c.x}-${c.y}-${Math.random().toString(36).slice(2, 8)}`,
-        name: c.name,
-        kind: c.kind,
-        refId: c.refId,
-        x: c.x,
-        y: c.y,
-        hp: c.hp,
-        maxHp: c.maxHp,
-        tempHp: c.tempHp,
-        armorClass: c.armorClass,
-        speed: c.speed,
-        npcRole: c.npcRole,
-        xpReward: c.xpReward,
-        statusEffects: [],
-        isDead: false,
-      }));
-    useCombatStore.setState({ mapCreatures: restored });
+    useCombatStore.setState({ mapCreatures: restoreCreaturesFromLayout(layout) });
   };
   const handleDeleteLayout = (id: string) => deleteLayout(id);
   const handleRandomLayout = (templateId?: string) => {
@@ -468,6 +492,7 @@ export const MapExplorer = () => {
               setSelectedTokenId(null);
             }}
             onToggleTile={toggleTile}
+            onPortalClick={handlePortalClick}
             onPaintTile={paintTile}
             onClearTiles={clearTiles}
             savedLayouts={savedLayouts}
@@ -577,6 +602,7 @@ export const MapExplorer = () => {
       <PlaceCreatureModal open={showAdd} onClose={() => setShowAdd(false)} />
       <StartEncounterModal open={showStart} onClose={() => setShowStart(false)} />
       <CreatureEditorModal creature={editingCreature} onClose={() => setEditingCreature(null)} />
+      <PortalEditorModal cell={portalCell} onClose={() => setPortalCell(null)} />
       <CombatantActionsModal key={selected?.id ?? 'none'} combatant={selected} onClose={() => setSelected(null)} />
       <PlayerPartyDetail combatant={partyDetail} onClose={() => setPartyDetail(null)} />
       <RollRequestModal

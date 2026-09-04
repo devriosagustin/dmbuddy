@@ -47,6 +47,7 @@ interface CombatMapProps {
   onToggleTileMode: () => void;
   /** Alterna/coloca un tile del tipo seleccionado. */
   onToggleTile: (x: number, y: number, type: TileType) => void;
+  onPortalClick: (x: number, y: number) => void;
   /** Pinta/borra un tile de forma determinística (sin alternar puertas) — para arrastre continuo. */
   onPaintTile: (x: number, y: number, type: TileType, mode: 'add' | 'remove') => void;
   /** Elimina todos los tiles del mapa. */
@@ -121,7 +122,7 @@ const SAME = <T,>(a: T, b: T) => JSON.stringify(a) === JSON.stringify(b);
 const RANGE_PRESETS = [5, 10, 15, 30, 60, 90, 120];
 const AOE_PRESETS = [5, 10, 15, 20, 30, 60];
 
-export const CombatMap = ({ participants, activeId, nextId, selectedId, tiles, tileType, onTileTypeChange, tileMode, onToggleTileMode, onToggleTile, onPaintTile, onClearTiles, onExportLayouts, onImportLayouts, savedLayouts, folders, onSaveLayout, onLoadLayout, onDeleteLayout, onSetMapFolder, onCreateFolder, onRenameFolder, onDeleteFolder, onRandomLayout, mapTemplates, onOpenActions, onMove, onSelect, cols, rows, onMapSizeChange, visionRange, onVisionRange, revealedTileKeys, revealedEnemyIds, onToggleRevealTile, onToggleRevealEnemy, mapBackground, onMapBackground }: CombatMapProps) => {
+export const CombatMap = ({ participants, activeId, nextId, selectedId, tiles, tileType, onTileTypeChange, tileMode, onToggleTileMode, onToggleTile, onPortalClick, onPaintTile, onClearTiles, onExportLayouts, onImportLayouts, savedLayouts, folders, onSaveLayout, onLoadLayout, onDeleteLayout, onSetMapFolder, onCreateFolder, onRenameFolder, onDeleteFolder, onRandomLayout, mapTemplates, onOpenActions, onMove, onSelect, cols, rows, onMapSizeChange, visionRange, onVisionRange, revealedTileKeys, revealedEnemyIds, onToggleRevealTile, onToggleRevealEnemy, mapBackground, onMapBackground }: CombatMapProps) => {
   const gridRef = useRef<HTMLDivElement>(null);
   const [mode, setMode] = useState<Mode>('move');
   const [drag, setDrag] = useState<DragState | null>(null);
@@ -212,6 +213,8 @@ export const CombatMap = ({ participants, activeId, nextId, selectedId, tiles, t
       // (o inicia un trazo de pintado continuo si se mantiene el clic).
       if (tileType === 'door') {
         onToggleTile(cell.x, cell.y, tileType);
+      } else if (tileType === 'portal') {
+        onPortalClick(cell.x, cell.y);
       } else {
         beginPaintStroke(e, cell);
       }
@@ -238,6 +241,8 @@ export const CombatMap = ({ participants, activeId, nextId, selectedId, tiles, t
       // (o inicia un trazo de pintado continuo si se mantiene el clic).
       if (tileType === 'door') {
         onToggleTile(cell.x, cell.y, tileType);
+      } else if (tileType === 'portal') {
+        onPortalClick(cell.x, cell.y);
       } else {
         beginPaintStroke(e, cell);
       }
@@ -450,6 +455,7 @@ export const CombatMap = ({ participants, activeId, nextId, selectedId, tiles, t
                 <option value="trap">✚ Trampa</option>
                 <option value="treasure">🟨 Tesoro</option>
                 <option value="investigation">🔍 Investigación</option>
+                <option value="portal">🌀 Portal a otro mapa</option>
               </select>
               <button
                 type="button"
@@ -679,6 +685,11 @@ export const CombatMap = ({ participants, activeId, nextId, selectedId, tiles, t
               } else if (tile.type === 'investigation') {
                 baseClass = 'bg-blue-600/50 flex items-center justify-center';
                 icon = '🔍';
+              } else if (tile.type === 'portal') {
+                // Portal configurado (con mapa destino) vs recién colocado y
+                // sin configurar todavía (el DM tiene que elegir el mapa).
+                baseClass = 'bg-purple-700/50 flex items-center justify-center';
+                icon = tile.targetLayoutId ? '🌀' : '❔';
               }
               return (
                 <div

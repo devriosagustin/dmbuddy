@@ -435,7 +435,7 @@ export interface PendingEncounter {
   partyTokens: PartyToken[];
 }
 
-export type TileType = 'wall' | 'door' | 'secretDoor' | 'trap' | 'treasure' | 'investigation';
+export type TileType = 'wall' | 'door' | 'secretDoor' | 'trap' | 'treasure' | 'investigation' | 'portal';
 
 export interface MapTile {
   x: number;
@@ -443,6 +443,17 @@ export interface MapTile {
   type: TileType;
   /** Solo para "door": true = abierta (no bloquea), false/undefined = cerrada. */
   open?: boolean;
+  /**
+   * Solo para "portal": id del MapLayout guardado al que conecta. Un portal
+   * sin targetLayoutId todavía no está configurado (se colocó pero falta
+   * elegir el mapa destino).
+   */
+  targetLayoutId?: string;
+  /** Solo para "portal": casilla de llegada en el mapa destino. */
+  targetX?: number;
+  targetY?: number;
+  /** Solo para "portal": nombre opcional para identificarlo (p. ej. "Escalera al sótano"). */
+  label?: string;
 }
 
 // --------- Lanzador de dados ---------

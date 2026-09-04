@@ -29,6 +29,7 @@ export type MapSlice = Pick<
   | 'paintTile'
   | 'setTiles'
   | 'clearTiles'
+  | 'updatePortal'
   | 'addMapCreature'
   | 'removeMapCreature'
   | 'updateMapCreature'
@@ -113,6 +114,14 @@ export const createMapSlice: StateCreator<CombatStore, [], [], MapSlice> = (set,
 
   clearTiles: () => {
     set({ tiles: [] });
+  },
+
+  updatePortal: (x, y, updates) => {
+    set((state) => ({
+      tiles: state.tiles.map((t) =>
+        t.x === x && t.y === y && t.type === 'portal' ? { ...t, ...updates } : t
+      ),
+    }));
   },
 
   addMapCreature: (creature) => {
