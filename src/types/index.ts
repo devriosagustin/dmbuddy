@@ -172,6 +172,19 @@ export interface Npc {
   notes?: string;
 }
 
+export type QuestStatus = 'activa' | 'resuelta' | 'fallida';
+
+/** Misión u objetivo narrativo del DM: bitácora separada de las notas libres. */
+export interface Quest {
+  id: string;
+  title: string;
+  status: QuestStatus;
+  reward?: string;
+  notes?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export interface CombatLogEntry {
   id: string;
   timestamp: Date;
