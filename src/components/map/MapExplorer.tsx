@@ -6,6 +6,7 @@
 // ============================================================
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   ChevronLeft,
@@ -38,7 +39,7 @@ import { useLayoutStore } from '../../store/layoutStore';
 import { usePlayerStore } from '../../store/playerStore';
 import { useSessionStore } from '../../store/sessionStore';
 import { useFullscreen } from '../../hooks/useFullscreen';
-import { MAP_TEMPLATES, randomLayout, restoreTilesFromLayout, restoreCreaturesFromLayout } from '../../utils/layoutPatterns';
+import { restoreTilesFromLayout, restoreCreaturesFromLayout } from '../../utils/layoutPatterns';
 import { mapCreatureToCombatant, playerToCombatant } from '../../utils/combatUtils';
 import { findConfiguredPortal } from '../../utils/mapPortals';
 import { RollRequestModal } from '../session/RollRequestModal';
@@ -52,6 +53,7 @@ import type { Combatant, MapCreature, MapTile, TileType } from '../../types';
  * permanecen en el mapa para futuros encuentros.
  */
 export const MapExplorer = () => {
+  const navigate = useNavigate();
   const revealedTileKeys = useCombatStore((s) => s.revealedTileKeys);
   const revealedEnemyIds = useCombatStore((s) => s.revealedEnemyIds);
   const visionRange = useCombatStore((s) => s.visionRange);
@@ -83,6 +85,7 @@ export const MapExplorer = () => {
     cancelPendingEncounter,
     toggleTile,
     paintTile,
+    updatePortal,
     setTiles,
     clearTiles,
     moveCombatant,
@@ -122,7 +125,7 @@ export const MapExplorer = () => {
     .filter((rp) => rp.sheet?.active === true)
     .map((rp) => ({ playerId: (rp.sheet?.ownerPlayerId as string | undefined) ?? rp.id, playerName: rp.name }));
 
-  const { savedLayouts, folders, saveLayout, savedLayout: getSavedLayout, deleteLayout, setMapFolder, createFolder, renameFolder, deleteFolder, exportLayouts, importLayouts } = useLayoutStore();
+  const { savedLayouts, savedLayout: getSavedLayout } = useLayoutStore();
 
   const [tileType, setTileType] = useState<TileType>('wall');
   const [tileMode, setTileMode] = useState(false);
@@ -186,6 +189,14 @@ export const MapExplorer = () => {
     setPortalCell({ x, y });
   };
 
+  const handleSavePortal = (updates: { targetLayoutId: string; targetX: number; targetY: number; label?: string }) => {
+    if (portalCell) updatePortal(portalCell.x, portalCell.y, updates);
+  };
+
+  const handleDeletePortal = () => {
+    if (portalCell) paintTile(portalCell.x, portalCell.y, 'portal', 'remove');
+  };
+
   // Cruce de portal: reemplaza el mapa actual (tiles + criaturas) por el del
   // layout conectado y mueve a todo el party a la casilla de llegada. Mismo
   // restore de tiles/criaturas que handleLoadLayout, pero además reubica al
@@ -232,83 +243,6 @@ export const MapExplorer = () => {
     if (window.confirm(`¿Vaciar el mapa de ${total} ficha${total !== 1 ? 's' : ''} (criaturas y party)?`)) {
       clearMap();
     }
-  };
-
-  // Layouts: guardar/exportar/importar incluye criaturas del mapa. Los
-  // miembros del party no se guardan: sus fichas viven en partyTokens.
-  const handleSaveLayout = (name: string, folderId?: string) => {
-    // Guardar TODOS los tipos de tiles (wall, door, trap, treasure,
-    // investigation, portal) con su configuración completa.
-    const savedTiles = tiles.map((t) => ({
-      x: t.x,
-      y: t.y,
-      type: t.type,
-      open: t.open,
-      targetLayoutId: t.targetLayoutId,
-      targetX: t.targetX,
-      targetY: t.targetY,
-      label: t.label,
-    }));
-    const creatures = mapCreatures
-      .map((c) => ({
-        name: c.name,
-        kind: c.kind as 'monster' | 'npc',
-        refId: c.refId,
-        x: c.x,
-        y: c.y,
-        hp: c.hp,
-        maxHp: c.maxHp,
-        tempHp: c.tempHp,
-        armorClass: c.armorClass,
-        speed: c.speed,
-        npcRole: c.npcRole,
-        xpReward: c.xpReward,
-      }));
-    saveLayout(name, savedTiles, creatures, folderId);
-  };
-  const handleLoadLayout = (id: string) => {
-    const layout = getSavedLayout(id);
-    if (!layout) return;
-    // Restaurar los tiles con su tipo. Los layouts nuevos guardan `tiles`;
-    // los antiguos solo tenían `barriers` (muros) que se convierten a wall.
-    setTiles(restoreTilesFromLayout(layout));
-    // Restaurar las criaturas guardadas del layout. Las fichas del party
-    // actuales se conservan (viven en partyTokens y no se guardan en layouts).
-    useCombatStore.setState({ mapCreatures: restoreCreaturesFromLayout(layout) });
-  };
-  const handleDeleteLayout = (id: string) => deleteLayout(id);
-  const handleRandomLayout = (templateId?: string) => {
-    const { tiles } = randomLayout(templateId);
-    setTiles(tiles);
-  };
-  const handleExportLayouts = () => {
-    const json = exportLayouts();
-    const blob = new Blob([json], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `dmbuddy-map-layouts-${new Date().toISOString().slice(0, 10)}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  };
-  const handleImportLayouts = () => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'application/json';
-    input.onchange = (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        const text = ev.target?.result as string;
-        if (!text) return;
-        importLayouts(text);
-      };
-      reader.readAsText(file);
-    };
-    input.click();
   };
 
   const sorted = useMemo(
@@ -495,19 +429,7 @@ export const MapExplorer = () => {
             onPortalClick={handlePortalClick}
             onPaintTile={paintTile}
             onClearTiles={clearTiles}
-            savedLayouts={savedLayouts}
-            folders={folders}
-            onSaveLayout={handleSaveLayout}
-            onLoadLayout={handleLoadLayout}
-            onDeleteLayout={handleDeleteLayout}
-            onSetMapFolder={setMapFolder}
-            onCreateFolder={createFolder}
-            onRenameFolder={renameFolder}
-            onDeleteFolder={deleteFolder}
-            onRandomLayout={handleRandomLayout}
-            mapTemplates={MAP_TEMPLATES.map((t) => ({ id: t.id, name: t.name, description: t.description }))}
-            onExportLayouts={handleExportLayouts}
-            onImportLayouts={handleImportLayouts}
+            onOpenMapLibrary={() => navigate('/mapas')}
             onSelect={setSelectedTokenId}
             onOpenActions={handleOpenActions}
             onMove={handleMove}
@@ -602,7 +524,16 @@ export const MapExplorer = () => {
       <PlaceCreatureModal open={showAdd} onClose={() => setShowAdd(false)} />
       <StartEncounterModal open={showStart} onClose={() => setShowStart(false)} />
       <CreatureEditorModal creature={editingCreature} onClose={() => setEditingCreature(null)} />
-      <PortalEditorModal cell={portalCell} onClose={() => setPortalCell(null)} />
+      <PortalEditorModal
+        cell={portalCell}
+        tile={portalCell ? tiles.find((t) => t.x === portalCell.x && t.y === portalCell.y && t.type === 'portal') : undefined}
+        layoutOptions={savedLayouts.map((l) => ({ id: l.id, name: l.name }))}
+        mapCols={mapCols}
+        mapRows={mapRows}
+        onSave={handleSavePortal}
+        onDelete={handleDeletePortal}
+        onClose={() => setPortalCell(null)}
+      />
       <CombatantActionsModal key={selected?.id ?? 'none'} combatant={selected} onClose={() => setSelected(null)} />
       <PlayerPartyDetail combatant={partyDetail} onClose={() => setPartyDetail(null)} />
       <RollRequestModal

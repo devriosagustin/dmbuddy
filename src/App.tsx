@@ -19,6 +19,7 @@ const DiceRoller = lazy(() => import('./components/dice/DiceRoller'));
 const NotesManager = lazy(() => import('./components/notes/NotesManager'));
 const RandomTablesPage = lazy(() => import('./components/tools/RandomTablesPage'));
 const QuestManager = lazy(() => import('./components/quests/QuestManager'));
+const MapLibraryPage = lazy(() => import('./components/map/MapLibraryPage'));
 
 /**
  * Cargador que se muestra mientras se descarga cada sección.
@@ -147,6 +148,16 @@ export default function App() {
               <Suspense fallback={<PageLoader />}>
                 <DmOnlyRoute>
                   <QuestManager />
+                </DmOnlyRoute>
+              </Suspense>
+            }
+          />
+          <Route
+            path="/mapas"
+            element={
+              <Suspense fallback={<PageLoader />}>
+                <DmOnlyRoute>
+                  <MapLibraryPage />
                 </DmOnlyRoute>
               </Suspense>
             }

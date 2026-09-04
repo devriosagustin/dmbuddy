@@ -8,7 +8,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Combatant, MapTile, TileType } from '../../types';
 import type { MapCell } from '../../utils/mapUtils';
-import type { MapLayout } from '../../utils/layoutPatterns';
 import {
   isOccupied,
   isBlocked,
@@ -22,7 +21,6 @@ import { MAP_SIZE_PRESETS, presetForSize } from '../../utils/mapSize';
 import { MAP_BACKGROUNDS, getMapBackground } from '../../config/mapBackgrounds';
 import { hpRatio, hpBarColorClass } from '../../utils/combatUtils';
 import { FogOfWarPanel } from './FogOfWarPanel';
-import { MapLayoutsPanel } from './MapLayoutsPanel';
 
 type Mode = 'move' | 'measure' | 'range' | 'aoe';
 type AoeShape = 'sphere' | 'cone' | 'line';
@@ -52,32 +50,8 @@ interface CombatMapProps {
   onPaintTile: (x: number, y: number, type: TileType, mode: 'add' | 'remove') => void;
   /** Elimina todos los tiles del mapa. */
   onClearTiles: () => void;
-  /** Exporta layouts guardados a JSON (descarga archivo). */
-  onExportLayouts: () => void;
-  /** Importa layouts desde archivo JSON (abre file picker). */
-  onImportLayouts: () => void;
-  /** Layouts de mapa guardados por el usuario. */
-  savedLayouts: MapLayout[];
-  /** Carpetas para organizar layouts por sesión o campaña. */
-  folders: { id: string; name: string }[];
-  /** Guarda el layout actual de tiles con un nombre (y opcionalmente en una carpeta). */
-  onSaveLayout: (name: string, folderId?: string) => void;
-  /** Aplica (reemplaza) los tiles de un layout cargado. */
-  onLoadLayout: (id: string) => void;
-  /** Elimina un layout guardado. */
-  onDeleteLayout: (id: string) => void;
-  /** Asigna (o quita con null) un layout a una carpeta. */
-  onSetMapFolder: (id: string, folderId: string | null) => void;
-  /** Crea una carpeta nueva y devuelve su id. */
-  onCreateFolder: (name: string) => string;
-  /** Renombra una carpeta. */
-  onRenameFolder: (id: string, name: string) => void;
-  /** Elimina una carpeta. */
-  onDeleteFolder: (id: string) => void;
-  /** Aplica un layout aleatorio generado por patrón (o por templateId concreto). */
-  onRandomLayout: (templateId?: string) => void;
-  /** Plantillas de mapa disponibles para generar un patrón concreto. */
-  mapTemplates: { id: string; name: string; description: string }[];
+  /** Navega a la biblioteca de mapas guardados (página aparte, no un popover). */
+  onOpenMapLibrary: () => void;
   onOpenActions: (combatant: Combatant) => void;
   /** Mueve una ficha a una casilla (acción del store). */
   onMove: (id: string, x: number, y: number) => void;
@@ -122,7 +96,7 @@ const SAME = <T,>(a: T, b: T) => JSON.stringify(a) === JSON.stringify(b);
 const RANGE_PRESETS = [5, 10, 15, 30, 60, 90, 120];
 const AOE_PRESETS = [5, 10, 15, 20, 30, 60];
 
-export const CombatMap = ({ participants, activeId, nextId, selectedId, tiles, tileType, onTileTypeChange, tileMode, onToggleTileMode, onToggleTile, onPortalClick, onPaintTile, onClearTiles, onExportLayouts, onImportLayouts, savedLayouts, folders, onSaveLayout, onLoadLayout, onDeleteLayout, onSetMapFolder, onCreateFolder, onRenameFolder, onDeleteFolder, onRandomLayout, mapTemplates, onOpenActions, onMove, onSelect, cols, rows, onMapSizeChange, visionRange, onVisionRange, revealedTileKeys, revealedEnemyIds, onToggleRevealTile, onToggleRevealEnemy, mapBackground, onMapBackground }: CombatMapProps) => {
+export const CombatMap = ({ participants, activeId, nextId, selectedId, tiles, tileType, onTileTypeChange, tileMode, onToggleTileMode, onToggleTile, onPortalClick, onPaintTile, onClearTiles, onOpenMapLibrary, onOpenActions, onMove, onSelect, cols, rows, onMapSizeChange, visionRange, onVisionRange, revealedTileKeys, revealedEnemyIds, onToggleRevealTile, onToggleRevealEnemy, mapBackground, onMapBackground }: CombatMapProps) => {
   const gridRef = useRef<HTMLDivElement>(null);
   const [mode, setMode] = useState<Mode>('move');
   const [drag, setDrag] = useState<DragState | null>(null);
@@ -151,11 +125,6 @@ export const CombatMap = ({ participants, activeId, nextId, selectedId, tiles, t
   // cabe en el área disponible (así no hay scroll y todo se ve completo).
   const measureRef = useRef<HTMLDivElement>(null);
   const [mapSize, setMapSize] = useState({ w: 0, h: 0 });
-
-  // Panel de layouts de mapa: visibilidad la controla este componente
-  // (cierra la cortina de guerra al abrirse); el contenido vive en
-  // MapLayoutsPanel (estado propio del panel).
-  const [layoutsOpen, setLayoutsOpen] = useState(false);
 
   useEffect(() => {
     const el = measureRef.current;
@@ -399,10 +368,7 @@ export const CombatMap = ({ participants, activeId, nextId, selectedId, tiles, t
           <div className="relative flex items-center">
             <button
               type="button"
-              onClick={() => {
-                setFogOpen((v) => !v);
-                setLayoutsOpen(false);
-              }}
+              onClick={() => setFogOpen((v) => !v)}
               aria-expanded={fogOpen}
               className={`rounded-full px-2.5 py-1 text-[11px] font-bold transition-colors ${
                 fogOpen
@@ -471,16 +437,8 @@ export const CombatMap = ({ participants, activeId, nextId, selectedId, tiles, t
         <div className="relative flex items-center gap-1">
           <button
             type="button"
-            onClick={() => {
-              setLayoutsOpen((v) => !v);
-              setFogOpen(false);
-            }}
-            aria-expanded={layoutsOpen}
-            className={`rounded-full px-2.5 py-1 text-[11px] font-bold transition-colors ${
-              layoutsOpen
-                ? 'bg-dnd-gold text-dnd-ink'
-                : 'bg-dnd-leather/30 text-dnd-muted hover:text-dnd-text'
-            }`}
+            onClick={onOpenMapLibrary}
+            className="rounded-full bg-dnd-leather/30 px-2.5 py-1 text-[11px] font-bold text-dnd-muted transition-colors hover:text-dnd-text"
           >
             🗺 Mapas
           </button>
@@ -515,25 +473,7 @@ export const CombatMap = ({ participants, activeId, nextId, selectedId, tiles, t
               </option>
             ))}
           </select>
-          {layoutsOpen && (
-            <MapLayoutsPanel
-              savedLayouts={savedLayouts}
-              folders={folders}
-              mapTemplates={mapTemplates}
-              onSaveLayout={onSaveLayout}
-              onLoadLayout={onLoadLayout}
-              onDeleteLayout={onDeleteLayout}
-              onSetMapFolder={onSetMapFolder}
-              onCreateFolder={onCreateFolder}
-              onRenameFolder={onRenameFolder}
-              onDeleteFolder={onDeleteFolder}
-              onRandomLayout={onRandomLayout}
-              onExportLayouts={onExportLayouts}
-              onImportLayouts={onImportLayouts}
-            />
-          )}
         </div>
-
       </div>
       {/* Sub-barra de herramientas de alcance/área (en la línea de abajo de la barra principal) */}
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">

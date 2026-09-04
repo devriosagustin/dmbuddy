@@ -3,35 +3,53 @@
 // la casilla y en qué punto del mapa destino aparece el party al
 // cruzar. Permite armar mazmorras complejas encadenando mapas en
 // vez de un único mapa gigante.
+//
+// Componente presentacional (no lee/escribe ningún store directamente):
+// lo usan tanto el mapa en vivo (MapExplorer.tsx, contra combatStore) como
+// la biblioteca de mapas (MapLibraryPage.tsx, contra el layout en edición).
 // ============================================================
 
 import { useEffect, useState } from 'react';
 import { Save, Trash2 } from 'lucide-react';
 import { Modal } from '../common/Modal';
 import { Button } from '../common/Button';
-import { useCombatStore } from '../../store/combatStore';
-import { useLayoutStore } from '../../store/layoutStore';
+import type { MapTile } from '../../types';
+
+export interface PortalUpdate {
+  targetLayoutId: string;
+  targetX: number;
+  targetY: number;
+  label?: string;
+}
 
 interface PortalEditorModalProps {
   cell: { x: number; y: number } | null;
+  /** Tile actual en esa celda (para precargar el formulario si ya estaba configurado). */
+  tile: MapTile | undefined;
+  /** Mapas guardados entre los que se puede elegir como destino. */
+  layoutOptions: { id: string; name: string }[];
+  mapCols: number;
+  mapRows: number;
+  onSave: (updates: PortalUpdate) => void;
+  onDelete: () => void;
   onClose: () => void;
 }
 
 /**
- * Editor de un tile de portal. La celda ya tiene el tile colocado (lo crea
- * handlePortalClick en MapExplorer antes de abrir este modal); acá solo se
- * elige/edita a qué mapa guardado conecta y dónde llega el party.
+ * Editor de un tile de portal. La celda ya tiene el tile colocado (quien lo
+ * abre lo crea antes, en blanco, si no existía); acá solo se elige/edita a
+ * qué mapa guardado conecta y dónde llega el party.
  */
-export const PortalEditorModal = ({ cell, onClose }: PortalEditorModalProps) => {
-  const tiles = useCombatStore((s) => s.tiles);
-  const updatePortal = useCombatStore((s) => s.updatePortal);
-  const paintTile = useCombatStore((s) => s.paintTile);
-  const mapCols = useCombatStore((s) => s.mapCols);
-  const mapRows = useCombatStore((s) => s.mapRows);
-  const savedLayouts = useLayoutStore((s) => s.savedLayouts);
-
-  const tile = cell ? tiles.find((t) => t.x === cell.x && t.y === cell.y && t.type === 'portal') : undefined;
-
+export const PortalEditorModal = ({
+  cell,
+  tile,
+  layoutOptions,
+  mapCols,
+  mapRows,
+  onSave,
+  onDelete,
+  onClose,
+}: PortalEditorModalProps) => {
   const [targetLayoutId, setTargetLayoutId] = useState('');
   const [targetX, setTargetX] = useState(0);
   const [targetY, setTargetY] = useState(0);
@@ -56,7 +74,7 @@ export const PortalEditorModal = ({ cell, onClose }: PortalEditorModalProps) => 
       alert('Elegí a qué mapa guardado conecta este portal.');
       return;
     }
-    updatePortal(cell.x, cell.y, {
+    onSave({
       targetLayoutId,
       targetX: Math.max(0, Math.min(mapCols - 1, targetX)),
       targetY: Math.max(0, Math.min(mapRows - 1, targetY)),
@@ -66,7 +84,7 @@ export const PortalEditorModal = ({ cell, onClose }: PortalEditorModalProps) => 
   };
 
   const handleDelete = () => {
-    paintTile(cell.x, cell.y, 'portal', 'remove');
+    onDelete();
     onClose();
   };
 
@@ -95,9 +113,9 @@ export const PortalEditorModal = ({ cell, onClose }: PortalEditorModalProps) => 
 
         <section className="section-box">
           <h3 className="mb-2 section-title">Mapa destino</h3>
-          {savedLayouts.length === 0 ? (
+          {layoutOptions.length === 0 ? (
             <p className="text-xs text-dnd-muted">
-              Todavía no guardaste ningún layout de mapa. Guardá uno primero con el botón «Mapas» del mapa actual
+              Todavía no guardaste ningún layout de mapa. Guardá uno primero desde la biblioteca de mapas
               para poder conectar este portal.
             </p>
           ) : (
@@ -110,7 +128,7 @@ export const PortalEditorModal = ({ cell, onClose }: PortalEditorModalProps) => 
                 onChange={(e) => setTargetLayoutId(e.target.value)}
               >
                 <option value="">— Elegir mapa guardado —</option>
-                {savedLayouts.map((l) => (
+                {layoutOptions.map((l) => (
                   <option key={l.id} value={l.id}>
                     {l.name}
                   </option>
@@ -150,7 +168,7 @@ export const PortalEditorModal = ({ cell, onClose }: PortalEditorModalProps) => 
           </div>
         </section>
 
-        {tile?.targetLayoutId && (
+        {tile?.targetLayoutId ? (
           <button
             type="button"
             onClick={handleDelete}
@@ -158,8 +176,7 @@ export const PortalEditorModal = ({ cell, onClose }: PortalEditorModalProps) => 
           >
             <Trash2 size={13} className="mr-1.5 inline-block" /> Eliminar este portal
           </button>
-        )}
-        {!tile?.targetLayoutId && (
+        ) : (
           <button
             type="button"
             onClick={handleDelete}

@@ -1,0 +1,75 @@
+// ============================================================
+// Tests de edición pura de tiles (usada por la biblioteca de mapas
+// para editar un layout guardado sin tocar el mapa en vivo)
+// ============================================================
+
+import { describe, expect, it } from 'vitest';
+import { toggleDraftTile, removeDraftTileAt, applyPortalUpdate } from '../utils/tileDraft';
+import type { MapTile } from '../types';
+
+describe('toggleDraftTile', () => {
+  it('coloca un tile nuevo en una celda vacía', () => {
+    const tiles = toggleDraftTile([], 2, 3, 'wall');
+    expect(tiles).toEqual([{ x: 2, y: 3, type: 'wall' }]);
+  });
+
+  it('quita el tile si ya había uno del mismo tipo', () => {
+    const tiles = toggleDraftTile([{ x: 2, y: 3, type: 'wall' }], 2, 3, 'wall');
+    expect(tiles).toEqual([]);
+  });
+
+  it('reemplaza el tile si había uno de otro tipo', () => {
+    const tiles = toggleDraftTile([{ x: 2, y: 3, type: 'wall' }], 2, 3, 'trap');
+    expect(tiles).toEqual([{ x: 2, y: 3, type: 'trap' }]);
+  });
+
+  it('una puerta nace cerrada y alterna abierta/cerrada en vez de desaparecer', () => {
+    let tiles: MapTile[] = toggleDraftTile([], 1, 1, 'door');
+    expect(tiles).toEqual([{ x: 1, y: 1, type: 'door', open: false }]);
+
+    tiles = toggleDraftTile(tiles, 1, 1, 'door');
+    expect(tiles[0].open).toBe(true);
+
+    tiles = toggleDraftTile(tiles, 1, 1, 'door');
+    expect(tiles[0].open).toBe(false);
+  });
+
+  it('ignora celdas fuera de los límites activos del mapa', () => {
+    const tiles = toggleDraftTile([], -1, 0, 'wall');
+    expect(tiles).toEqual([]);
+  });
+});
+
+describe('removeDraftTileAt', () => {
+  it('quita cualquier tile en la celda sin importar el tipo', () => {
+    const tiles = removeDraftTileAt([{ x: 1, y: 1, type: 'portal', targetLayoutId: 'l1' }], 1, 1);
+    expect(tiles).toEqual([]);
+  });
+
+  it('no afecta otras celdas', () => {
+    const tiles = removeDraftTileAt(
+      [
+        { x: 1, y: 1, type: 'wall' },
+        { x: 2, y: 2, type: 'trap' },
+      ],
+      1,
+      1
+    );
+    expect(tiles).toEqual([{ x: 2, y: 2, type: 'trap' }]);
+  });
+});
+
+describe('applyPortalUpdate', () => {
+  it('actualiza el mapa destino de un portal existente', () => {
+    const tiles: MapTile[] = [{ x: 3, y: 4, type: 'portal' }];
+    const updated = applyPortalUpdate(tiles, 3, 4, { targetLayoutId: 'l2', targetX: 1, targetY: 1 });
+    expect(updated[0].targetLayoutId).toBe('l2');
+    expect(updated[0].targetX).toBe(1);
+  });
+
+  it('no afecta celdas que no son un portal', () => {
+    const tiles: MapTile[] = [{ x: 3, y: 4, type: 'wall' }];
+    const updated = applyPortalUpdate(tiles, 3, 4, { targetLayoutId: 'l2' });
+    expect(updated[0]).toEqual({ x: 3, y: 4, type: 'wall' });
+  });
+});

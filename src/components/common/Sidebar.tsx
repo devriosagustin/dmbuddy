@@ -15,6 +15,7 @@ import {
   Map as MapIcon,
   Shuffle,
   ScrollText,
+  Library,
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react';
@@ -33,6 +34,7 @@ const navItems = [
   { to: '/notes', label: 'Registro y Notas', icon: NotebookPen },
   { to: '/generador', label: 'Generador', icon: Shuffle },
   { to: '/misiones', label: 'Misiones', icon: ScrollText },
+  { to: '/mapas', label: 'Biblioteca de mapas', icon: Library },
 ];
 
 /** En modo jugador solo se muestra el mapa de combate (lectura) y el Party. */
