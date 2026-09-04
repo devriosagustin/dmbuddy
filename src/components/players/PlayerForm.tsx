@@ -2,7 +2,7 @@
 // Formulario de jugador (crear/editar)
 // ============================================================
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { BookOpen, Save, Sparkles, Upload } from 'lucide-react';
 import { Modal } from '../common/Modal';
 import { Button } from '../common/Button';
@@ -14,6 +14,7 @@ import type { SrdFeatEntry, SpeciesStatBonusOption } from '../../types/srd2024';
 import { usePlayerStore } from '../../store/playerStore';
 import { rollStats } from '../../utils/diceUtils';
 import { proficiencyAtLevel } from '../../utils/damageCalculator';
+import { bookMaxHp } from '../../utils/hpCalculator';
 import { spellcastingLimits, featSpellBoosts } from '../../utils/spellcastingRules';
 import { BASE_SRD_BUNDLE, SRD_CLASSES, SRD_SPECIES, SRD_WEAPONS, srdWeaponById } from '../../data/srd2024';
 import { weaponAttackModifier, weaponAttackBonus, weaponDamageFormula, weaponAbility, weaponDamageBonus } from '../../utils/weaponUtils';
@@ -71,6 +72,21 @@ export const PlayerForm = ({ player, onClose }: PlayerFormProps) => {
 
   const setStat = (key: keyof Player['stats'], value: number) =>
     setStats((s) => ({ ...s, [key]: value }));
+
+  // Al crear un personaje nuevo, los PG máximos (y actuales, a full) se
+  // recalculan "de libro" cada vez que cambia algo que los afecta: clase,
+  // nivel, Constitución o dotes (p. ej. Robusto). El campo sigue siendo un
+  // input editable: el DM puede pisar el valor calculado a mano en cualquier
+  // momento para una excepción fuera de las reglas — solo vuelve a
+  // recalcularse si alguno de esos datos cambia de nuevo. No se aplica al
+  // editar un personaje ya existente (para no pisar PG ya ajustados en
+  // partida, p. ej. por daño o por un cambio manual anterior del DM).
+  useEffect(() => {
+    if (player) return;
+    const recalculated = bookMaxHp(className, Math.max(1, Number(level) || 1), stats.con, feats);
+    setMaxHp(recalculated);
+    setHp(recalculated);
+  }, [player, className, level, stats.con, feats]);
 
   const toggleCantrip = (spell: Spell) =>
     setCantrips((prev) =>
@@ -259,6 +275,11 @@ export const PlayerForm = ({ player, onClose }: PlayerFormProps) => {
           <div>
             <label htmlFor="p-maxhp" className="label">PG máximo</label>
             <input id="p-maxhp" className={input} type="number" min="1" value={maxHp} onChange={(e) => setMaxHp(Number(e.target.value))} />
+            {!player && (
+              <p className="mt-1 text-[10px] text-dnd-muted">
+                Se recalcula solo según clase/nivel/CON/dotes. Editalo si querés algo fuera de las reglas.
+              </p>
+            )}
           </div>
           <div>
             <label htmlFor="p-ac" className="label">CA</label>
