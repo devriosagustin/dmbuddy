@@ -17,6 +17,7 @@ const PartyManager = lazy(() => import('./components/players/PartyManager'));
 const NpcManager = lazy(() => import('./components/npcs/NpcManager'));
 const DiceRoller = lazy(() => import('./components/dice/DiceRoller'));
 const NotesManager = lazy(() => import('./components/notes/NotesManager'));
+const RandomTablesPage = lazy(() => import('./components/tools/RandomTablesPage'));
 
 /**
  * Cargador que se muestra mientras se descarga cada sección.
@@ -125,6 +126,16 @@ export default function App() {
               <Suspense fallback={<PageLoader />}>
                 <DmOnlyRoute>
                   <NotesManager />
+                </DmOnlyRoute>
+              </Suspense>
+            }
+          />
+          <Route
+            path="/generador"
+            element={
+              <Suspense fallback={<PageLoader />}>
+                <DmOnlyRoute>
+                  <RandomTablesPage />
                 </DmOnlyRoute>
               </Suspense>
             }

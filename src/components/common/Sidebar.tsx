@@ -13,6 +13,7 @@ import {
   Dices,
   NotebookPen,
   Map as MapIcon,
+  Shuffle,
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react';
@@ -29,6 +30,7 @@ const navItems = [
   { to: '/reference', label: 'Biblioteca', icon: BookOpen },
   { to: '/dice', label: 'Dados', icon: Dices },
   { to: '/notes', label: 'Registro y Notas', icon: NotebookPen },
+  { to: '/generador', label: 'Generador', icon: Shuffle },
 ];
 
 /** En modo jugador solo se muestra el mapa de combate (lectura) y el Party. */
