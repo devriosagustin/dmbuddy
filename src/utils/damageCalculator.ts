@@ -76,23 +76,6 @@ export const calculateAverageDamage = (monster: Monster): number => {
 };
 
 /**
- * Estima el nivel de dificultad de un encuentro sumando los CR y XP.
- */
-export const estimateEncounterDifficulty = (xpTotal: number, partyLevel: number, partySize: number): 'Fácil' | 'Medio' | 'Difícil' | 'Mortal' => {
-  if (partySize === 0) return 'Fácil';
-  // Umbrales aproximados por adventurer level (DMG)
-  const perCharacter = xpTotal / partySize;
-  const medium = 0.5 * partyLevel * 25;
-  const hard = 0.75 * partyLevel * 25;
-  const deadly = 1.0 * partyLevel * 50;
-
-  if (perCharacter >= deadly) return 'Mortal';
-  if (perCharacter >= hard) return 'Difícil';
-  if (perCharacter >= medium) return 'Medio';
-  return 'Fácil';
-};
-
-/**
  * Bonus de competencia según nivel (simplificado 5e).
  */
 export const proficiencyAtLevel = (level: number): number => Math.floor((level + 7) / 4);

@@ -11,6 +11,11 @@ import { Modal } from '../common/Modal';
 import { Button } from '../common/Button';
 import { useCombatStore } from '../../store/combatStore';
 import { usePlayerStore } from '../../store/playerStore';
+import {
+  classifyEncounterDifficulty,
+  ENCOUNTER_DIFFICULTY_LABELS,
+  partyXpBudget,
+} from '../../utils/encounterBudget';
 
 interface StartEncounterModalProps {
   open: boolean;
@@ -31,6 +36,28 @@ export const StartEncounterModal = ({ open, onClose }: StartEncounterModalProps)
   const reset = () => {
     setSelectedCreatures([]);
     setSelectedPlayers([]);
+  };
+
+  // Presupuesto de XP del encuentro (reglas 2024, sin multiplicador por
+  // cantidad de monstruos): suma el XP de las criaturas hostiles elegidas y
+  // lo compara contra el presupuesto Baja/Moderada/Alta del party.
+  const monsterXp = mapCreatures
+    .filter((c) => selectedCreatures.includes(c.id) && (c.kind === 'monster' || c.npcRole === 'enemy'))
+    .reduce((sum, c) => sum + (c.xpReward ?? 0), 0);
+  // Si no se eligió a nadie del party todavía, se calcula con todo el
+  // roster (lo habitual es que participe el party completo).
+  const budgetPlayers = selectedPlayers.length > 0
+    ? players.filter((p) => selectedPlayers.includes(p.id))
+    : players;
+  const xpBudget = partyXpBudget(budgetPlayers.map((p) => p.level));
+  const difficulty =
+    budgetPlayers.length > 0 && monsterXp > 0 ? classifyEncounterDifficulty(monsterXp, xpBudget) : null;
+
+  const DIFFICULTY_STYLES: Record<string, string> = {
+    baja: 'border-emerald-500/50 bg-emerald-500/15 text-emerald-100',
+    moderada: 'border-amber-500/50 bg-amber-500/15 text-amber-100',
+    alta: 'border-orange-500/50 bg-orange-500/15 text-orange-100',
+    extrema: 'border-red-500/50 bg-red-500/15 text-red-100',
   };
 
   const canStart = selectedCreatures.length > 0;
@@ -128,6 +155,32 @@ export const StartEncounterModal = ({ open, onClose }: StartEncounterModalProps)
             </div>
           )}
         </div>
+      </div>
+
+      {/* Presupuesto de XP del encuentro (reglas 2024) */}
+      <div className="mt-3 rounded-lg border border-dnd-leather/30 bg-dnd-leather/5 p-3 text-xs">
+        {budgetPlayers.length === 0 ? (
+          <p className="text-dnd-muted">
+            Agrega personajes al party para calcular el presupuesto de XP del encuentro.
+          </p>
+        ) : (
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
+            <span className="font-bold text-dnd-text">
+              XP monstruos: <span className="text-dnd-gold">{monsterXp}</span>
+            </span>
+            <span className="text-dnd-muted">
+              Presupuesto ({budgetPlayers.length} personaje{budgetPlayers.length !== 1 ? 's' : ''}): Baja ≤{xpBudget.low} ·
+              Moderada ≤{xpBudget.moderate} · Alta ≤{xpBudget.high}
+            </span>
+            {difficulty && (
+              <span
+                className={`badge border font-bold ${DIFFICULTY_STYLES[difficulty]}`}
+              >
+                Dificultad: {ENCOUNTER_DIFFICULTY_LABELS[difficulty]}
+              </span>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="mt-4 flex justify-end gap-2 border-t border-dnd-leather/30 pt-3">

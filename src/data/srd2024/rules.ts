@@ -244,12 +244,12 @@ Al menos **8 horas** (6 de sueño si eres Elfo). Al final:
     'rule-encuentros',
     'Construcción de encuentros',
     'Encuentros equilibrados (presupuesto de XP)',
-    `Para diseñar encuentros equilibrados según las reglas 2024, compara el **presupuesto de desafío** del grupo con el de los monstruos.
+    `Para diseñar un encuentro de combate según las reglas 2024, compará el **presupuesto de XP** del grupo con la suma de XP de los monstruos. A diferencia de ediciones anteriores, **no hay multiplicador por cantidad de enemigos**: el XP se suma directo.
 
-- Cada monstruo aporta un **valor de desafío** (p. ej. CR 1 = 200 XP; CR 2 = 450 XP; CR 4 = 1.100 XP).
-- El **umbral por personaje** es una fracción del presupuesto total según el número de jugadores.
-- Ajustar la dificultad: ≥ +25% encima del presupuesto suele ser **mortal**; por debajo del 50%, **fácil**.
-- Regla práctica: 1 monstruo de CR igual al nivel medio por cada 3-4 jugadores es un buen punto de partida. Multiplicador por número de monstruos: un único monstruo x1,5; con muchos enemigos, cada uno cuenta menos (p. ej. x0,5 con 4 o más).`
+- **Paso 1 — Elegí una dificultad**: Baja (uno o dos sustos, el grupo sale sin bajas), Moderada (sin curación de por medio podría complicarse, chance remota de alguna muerte) o Alta (podría ser letal; requiere táctica y algo de suerte).
+- **Paso 2 — Calculá el presupuesto**: la tabla *Presupuesto de XP por personaje* da un valor por nivel (1-20) para Baja/Moderada/Alta. Sumá el valor correspondiente de cada personaje del grupo.
+- **Paso 3 — Gastá el presupuesto**: cada criatura tiene un valor de XP según su Valor de Desafío (p. ej. CR 1 = 200 XP; CR 2 = 450 XP; CR 4 = 1.100 XP). Sumá monstruos sin pasarte del presupuesto elegido.
+- Con más de dos criaturas por personaje aumenta el riesgo de una racha de suerte en contra; convienen algunas criaturas frágiles para compensar, sobre todo a nivel 1-2.`
   ),
 
   srd(
