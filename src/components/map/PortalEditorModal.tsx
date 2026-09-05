@@ -10,7 +10,7 @@
 // ============================================================
 
 import { useEffect, useState } from 'react';
-import { Save, Trash2 } from 'lucide-react';
+import { ExternalLink, Save, Trash2 } from 'lucide-react';
 import { Modal } from '../common/Modal';
 import { Button } from '../common/Button';
 import type { MapTile } from '../../types';
@@ -33,6 +33,12 @@ interface PortalEditorModalProps {
   onSave: (updates: PortalUpdate) => void;
   onDelete: () => void;
   onClose: () => void;
+  /**
+   * Ir al mapa destino dentro de la biblioteca de mapas (opcional: el mapa
+   * en vivo lo usa para navegar hasta /mapas con ese layout seleccionado;
+   * la propia biblioteca lo usa para cambiar de selección sin navegar).
+   */
+  onGoToLayout?: (layoutId: string) => void;
 }
 
 /**
@@ -49,6 +55,7 @@ export const PortalEditorModal = ({
   onSave,
   onDelete,
   onClose,
+  onGoToLayout,
 }: PortalEditorModalProps) => {
   const [targetLayoutId, setTargetLayoutId] = useState('');
   const [targetX, setTargetX] = useState(0);
@@ -69,10 +76,13 @@ export const PortalEditorModal = ({
 
   if (!cell) return null;
 
-  const handleSave = () => {
+  // Devuelve false (y avisa) si falta elegir mapa destino; si no, guarda y
+  // devuelve true. Usado tanto por "Guardar" como por "Ir al mapa" (que
+  // primero confirma los cambios pendientes antes de navegar).
+  const commitPortal = (): boolean => {
     if (!targetLayoutId) {
       alert('Elegí a qué mapa guardado conecta este portal.');
-      return;
+      return false;
     }
     onSave({
       targetLayoutId,
@@ -80,7 +90,19 @@ export const PortalEditorModal = ({
       targetY: Math.max(0, Math.min(mapRows - 1, targetY)),
       label: label.trim() || undefined,
     });
-    onClose();
+    return true;
+  };
+
+  const handleSave = () => {
+    if (commitPortal()) onClose();
+  };
+
+  const handleGoToLayout = () => {
+    if (!onGoToLayout) return;
+    if (commitPortal()) {
+      onGoToLayout(targetLayoutId);
+      onClose();
+    }
   };
 
   const handleDelete = () => {
@@ -188,6 +210,11 @@ export const PortalEditorModal = ({
 
         <div className="form-actions">
           <Button variant="ghost" onClick={onClose}>Cerrar</Button>
+          {onGoToLayout && targetLayoutId && (
+            <Button variant="secondary" onClick={handleGoToLayout} icon={<ExternalLink size={16} />}>
+              Ir al mapa
+            </Button>
+          )}
           <Button variant="primary" onClick={handleSave} icon={<Save size={16} />}>
             Guardar
           </Button>

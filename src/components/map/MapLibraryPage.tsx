@@ -8,11 +8,12 @@
 // ============================================================
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Copy, Download, FolderPlus, Play, Plus, Shuffle, Trash2, Upload } from 'lucide-react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { ArrowLeft, Copy, Download, FolderPlus, Network, Play, Plus, Shuffle, Trash2, Upload } from 'lucide-react';
 import { Button } from '../common/Button';
 import { PortalEditorModal } from './PortalEditorModal';
 import type { PortalUpdate } from './PortalEditorModal';
+import { MapConnectionsModal } from './MapConnectionsModal';
 import { useCombatStore } from '../../store/combatStore';
 import { useLayoutStore } from '../../store/layoutStore';
 import {
@@ -74,6 +75,7 @@ const tileVisual = (tile: MapTile | undefined): { baseClass: string; icon: strin
  */
 export const MapLibraryPage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
 
   // Mapa en vivo: solo se usa para "guardar el mapa actual como layout" y
   // para "cargar este layout en el mapa" — la edición de tiles de acá no lo
@@ -101,6 +103,7 @@ export const MapLibraryPage = () => {
   const [draftTileType, setDraftTileType] = useState<TileType>('wall');
   const [portalCell, setPortalCell] = useState<{ x: number; y: number } | null>(null);
   const [savedFlash, setSavedFlash] = useState(false);
+  const [connectionsLayoutId, setConnectionsLayoutId] = useState<string | null>(null);
 
   // Dimensionado de la vista previa: mismo criterio que el mapa en vivo
   // (CombatMap.tsx) — calcula el mayor tamaño con celdas cuadradas que cabe
@@ -135,6 +138,19 @@ export const MapLibraryPage = () => {
   const [templateSel, setTemplateSel] = useState('');
 
   const selectedLayout = savedLayouts.find((l) => l.id === selectedId) ?? null;
+
+  // Si se llega acá desde "Ir al mapa" del editor de un portal en el mapa en
+  // vivo, selecciona ese layout apenas se monta la página (una sola vez;
+  // limpia el state de navegación para no volver a disparar esto si el
+  // usuario navega hacia atrás y adelante).
+  useEffect(() => {
+    const incoming = (location.state as { selectLayoutId?: string } | null)?.selectLayoutId;
+    if (incoming) {
+      setSelectedId(incoming);
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Al cambiar de mapa seleccionado, recarga el borrador de tiles desde el
   // layout guardado (no depende de `selectedLayout` para no pisar ediciones
@@ -708,6 +724,20 @@ export const MapLibraryPage = () => {
               </div>
             )}
           </section>
+
+          <section className="section-box shrink-0 space-y-1.5">
+            <h3 className="section-title">Diagrama de conexiones</h3>
+            <Button
+              variant="secondary"
+              size="sm"
+              icon={<Network size={14} />}
+              onClick={() => selectedLayout && setConnectionsLayoutId(selectedLayout.id)}
+              disabled={!selectedLayout}
+              className="w-full"
+            >
+              Generar imagen
+            </Button>
+          </section>
         </aside>
 
         {/* DERECHA: mapa seleccionado, al tamaño real de la cuadrícula activa */}
@@ -860,6 +890,15 @@ export const MapLibraryPage = () => {
         onSave={handleSavePortal}
         onDelete={handleDeletePortal}
         onClose={() => setPortalCell(null)}
+        onGoToLayout={(layoutId) => setSelectedId(layoutId)}
+      />
+
+      <MapConnectionsModal
+        startLayoutId={connectionsLayoutId}
+        layouts={savedLayouts}
+        mapCols={mapCols}
+        mapRows={mapRows}
+        onClose={() => setConnectionsLayoutId(null)}
       />
     </div>
   );

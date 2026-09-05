@@ -533,6 +533,7 @@ export const MapExplorer = () => {
         onSave={handleSavePortal}
         onDelete={handleDeletePortal}
         onClose={() => setPortalCell(null)}
+        onGoToLayout={(layoutId) => navigate('/mapas', { state: { selectLayoutId: layoutId } })}
       />
       <CombatantActionsModal key={selected?.id ?? 'none'} combatant={selected} onClose={() => setSelected(null)} />
       <PlayerPartyDetail combatant={partyDetail} onClose={() => setPartyDetail(null)} />
