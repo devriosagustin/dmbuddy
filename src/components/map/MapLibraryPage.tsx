@@ -9,8 +9,9 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Copy, Download, FolderPlus, Network, Play, Plus, Shuffle, Trash2, Upload } from 'lucide-react';
+import { ArrowLeft, Copy, Download, FolderCog, FolderPlus, Network, Play, Plus, Shuffle, Trash2, Upload } from 'lucide-react';
 import { Button } from '../common/Button';
+import { Modal } from '../common/Modal';
 import { PortalEditorModal } from './PortalEditorModal';
 import type { PortalUpdate } from './PortalEditorModal';
 import { MapConnectionsModal } from './MapConnectionsModal';
@@ -104,6 +105,7 @@ export const MapLibraryPage = () => {
   const [portalCell, setPortalCell] = useState<{ x: number; y: number } | null>(null);
   const [savedFlash, setSavedFlash] = useState(false);
   const [connectionsLayoutId, setConnectionsLayoutId] = useState<string | null>(null);
+  const [showFolders, setShowFolders] = useState(false);
 
   // Dimensionado de la vista previa: mismo criterio que el mapa en vivo
   // (CombatMap.tsx) — calcula el mayor tamaño con celdas cuadradas que cabe
@@ -576,6 +578,16 @@ export const MapLibraryPage = () => {
           </div>
         </div>
         <div className="flex gap-2">
+          <Button
+            variant="secondary"
+            size="sm"
+            icon={<Network size={14} />}
+            onClick={() => selectedLayout && setConnectionsLayoutId(selectedLayout.id)}
+            disabled={!selectedLayout}
+            title={selectedLayout ? undefined : 'Elegí un mapa de la izquierda primero'}
+          >
+            Diagrama de conexiones
+          </Button>
           <Button variant="secondary" size="sm" icon={<Download size={14} />} onClick={handleExport}>
             Exportar
           </Button>
@@ -589,7 +601,16 @@ export const MapLibraryPage = () => {
         {/* IZQUIERDA: submenú de selección de mapas guardados */}
         <aside className="flex w-72 shrink-0 flex-col gap-3 overflow-y-auto pr-1">
           <section className="section-box space-y-2">
-            <h3 className="section-title">Nuevo mapa</h3>
+            <div className="flex items-center justify-between gap-2">
+              <h3 className="section-title">Nuevo mapa</h3>
+              <button
+                type="button"
+                onClick={() => setShowFolders(true)}
+                className="flex items-center gap-1 text-[11px] font-bold text-dnd-muted transition-colors hover:text-dnd-gold"
+              >
+                <FolderCog size={13} /> Carpetas
+              </button>
+            </div>
             <input
               className="input text-sm"
               placeholder="Nombre del mapa"
@@ -667,76 +688,6 @@ export const MapLibraryPage = () => {
                 ))}
               </>
             )}
-          </section>
-
-          <section className="section-box space-y-2">
-            <h3 className="section-title">Carpetas</h3>
-            <div className="flex gap-2">
-              <input
-                className="input h-8 min-w-0 flex-1 text-xs"
-                placeholder="Nueva carpeta (p. ej. Campaña A)"
-                value={newFolderName}
-                onChange={(e) => setNewFolderName(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    createFolder(newFolderName);
-                    setNewFolderName('');
-                  }
-                }}
-              />
-              <Button
-                variant="secondary"
-                size="sm"
-                icon={<FolderPlus size={14} />}
-                onClick={() => {
-                  createFolder(newFolderName);
-                  setNewFolderName('');
-                }}
-              />
-            </div>
-            {folders.length === 0 ? (
-              <p className="text-xs text-dnd-muted">Sin carpetas todavía.</p>
-            ) : (
-              <div className="max-h-32 space-y-1 overflow-y-auto">
-                {folders.map((f) => (
-                  <div key={f.id} className="flex items-center justify-between gap-2 rounded-md bg-dnd-leather/10 px-2 py-1">
-                    <input
-                      defaultValue={f.name}
-                      aria-label={`Renombrar ${f.name}`}
-                      className="input h-6 min-w-0 flex-1 px-1 text-[11px]"
-                      onBlur={(e) => {
-                        if (e.target.value.trim() && e.target.value !== f.name) renameFolder(f.id, e.target.value);
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
-                      }}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => deleteFolder(f.id)}
-                      aria-label={`Eliminar carpeta ${f.name}`}
-                      className="icon-btn"
-                    >
-                      <Trash2 size={13} />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </section>
-
-          <section className="section-box shrink-0 space-y-1.5">
-            <h3 className="section-title">Diagrama de conexiones</h3>
-            <Button
-              variant="secondary"
-              size="sm"
-              icon={<Network size={14} />}
-              onClick={() => selectedLayout && setConnectionsLayoutId(selectedLayout.id)}
-              disabled={!selectedLayout}
-              className="w-full"
-            >
-              Generar imagen
-            </Button>
           </section>
         </aside>
 
@@ -900,6 +851,72 @@ export const MapLibraryPage = () => {
         mapRows={mapRows}
         onClose={() => setConnectionsLayoutId(null)}
       />
+
+      <Modal
+        open={showFolders}
+        onClose={() => setShowFolders(false)}
+        title="Carpetas"
+        subtitle="Organizá tus mapas guardados en carpetas (p. ej. una por campaña)"
+        maxWidth="sm"
+      >
+        <div className="space-y-3">
+          <div className="flex gap-2">
+            <input
+              className="input h-9 min-w-0 flex-1 text-sm"
+              placeholder="Nueva carpeta (p. ej. Campaña A)"
+              value={newFolderName}
+              onChange={(e) => setNewFolderName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  createFolder(newFolderName);
+                  setNewFolderName('');
+                }
+              }}
+            />
+            <Button
+              variant="secondary"
+              size="sm"
+              icon={<FolderPlus size={14} />}
+              onClick={() => {
+                createFolder(newFolderName);
+                setNewFolderName('');
+              }}
+            />
+          </div>
+          {folders.length === 0 ? (
+            <p className="text-xs text-dnd-muted">Sin carpetas todavía.</p>
+          ) : (
+            <div className="max-h-72 space-y-1 overflow-y-auto">
+              {folders.map((f) => (
+                <div key={f.id} className="flex items-center justify-between gap-2 rounded-md bg-dnd-leather/10 px-2 py-1.5">
+                  <input
+                    defaultValue={f.name}
+                    aria-label={`Renombrar ${f.name}`}
+                    className="input h-7 min-w-0 flex-1 px-2 text-xs"
+                    onBlur={(e) => {
+                      if (e.target.value.trim() && e.target.value !== f.name) renameFolder(f.id, e.target.value);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => deleteFolder(f.id)}
+                    aria-label={`Eliminar carpeta ${f.name}`}
+                    className="icon-btn"
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          <div className="form-actions">
+            <Button variant="ghost" onClick={() => setShowFolders(false)}>Cerrar</Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };
