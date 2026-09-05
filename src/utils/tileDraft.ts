@@ -38,6 +38,36 @@ export const removeDraftTileAt = (tiles: MapTile[], x: number, y: number): MapTi
   tiles.filter((t) => !(t.x === x && t.y === y));
 
 /**
+ * Igual semántica que combatStore.paintTile: coloca/quita el tile de forma
+ * IDEMPOTENTE (a diferencia de toggleDraftTile, nunca alterna) — repetir la
+ * misma celda con el mismo modo no hace nada. Usado durante un trazo de
+ * arrastre continuo, donde el modo ('add'/'remove') se decide una sola vez
+ * al empezar el trazo y se repite en cada celda nueva que se visita. Las
+ * puertas quedan afuera del arrastre (se manejan aparte, con un solo click).
+ */
+export const paintDraftTile = (
+  tiles: MapTile[],
+  x: number,
+  y: number,
+  type: TileType,
+  mode: 'add' | 'remove'
+): MapTile[] => {
+  if (!inBounds(x, y)) return tiles;
+  const idx = tiles.findIndex((t) => t.x === x && t.y === y);
+  if (mode === 'remove') {
+    return idx >= 0 ? tiles.filter((t) => !(t.x === x && t.y === y)) : tiles;
+  }
+  if (idx >= 0) {
+    if (tiles[idx].type === type) return tiles;
+    const updated = [...tiles];
+    updated[idx] = type === 'door' ? { x, y, type, open: false } : { x, y, type };
+    return updated;
+  }
+  const tile: MapTile = type === 'door' ? { x, y, type, open: false } : { x, y, type };
+  return [...tiles, tile];
+};
+
+/**
  * Igual semántica que combatStore.updatePortal: actualiza los datos de un
  * portal ya colocado en esa celda. No hace nada si la celda no es un portal.
  */

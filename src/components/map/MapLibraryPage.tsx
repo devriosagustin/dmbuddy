@@ -27,6 +27,7 @@ import {
   applyPortalUpdate,
   ensurePortalTile,
   removeLinkedPortal,
+  paintDraftTile,
 } from '../../utils/tileDraft';
 import type { MapTile, TileType } from '../../types';
 
@@ -150,24 +151,95 @@ export const MapLibraryPage = () => {
 
   // Autoguarda los tiles editados de vuelta en el mismo layout (por nombre),
   // conservando sus criaturas y carpeta. Sin botón "Guardar" aparte: cada
-  // click en la cuadrícula queda guardado al toque, como en el mapa en vivo.
-  const persistDraft = (nextTiles: MapTile[]) => {
+  // edición en la cuadrícula queda guardada al toque, como en el mapa en
+  // vivo (un trazo de arrastre completo autoguarda una sola vez, al soltar).
+  const autosave = (tiles: MapTile[]) => {
     if (!selectedLayout) return;
-    setDraftTiles(nextTiles);
-    saveLayout(selectedLayout.name, nextTiles, selectedLayout.creatures, selectedLayout.folderId);
+    saveLayout(selectedLayout.name, tiles, selectedLayout.creatures, selectedLayout.folderId);
     setSavedFlash(true);
     window.setTimeout(() => setSavedFlash(false), 1000);
   };
 
-  const handleCellClick = (x: number, y: number) => {
-    if (!selectedLayout) return;
+  const persistDraft = (nextTiles: MapTile[]) => {
+    setDraftTiles(nextTiles);
+    autosave(nextTiles);
+  };
+
+  // Pintado continuo arrastrando el clic (igual que el mapa en vivo): en
+  // pointerdown se decide 'add' o 'remove' según el estado de esa celda y
+  // se repite en cada celda nueva que el puntero visita mientras el botón
+  // sigue abajo. Se autoguarda una sola vez al soltar, no en cada celda
+  // pintada. Puertas y portales quedan afuera del arrastre (un solo click,
+  // como antes): alternar una puerta o abrir el editor de un portal en
+  // cada celda de un trazo continuo no tiene sentido.
+  const gridRef = useRef<HTMLDivElement>(null);
+  const paintActionRef = useRef<'add' | 'remove' | null>(null);
+  const lastPaintedCellRef = useRef<{ x: number; y: number } | null>(null);
+  const strokeTilesRef = useRef<MapTile[] | null>(null);
+  const [hoverCell, setHoverCell] = useState<{ x: number; y: number } | null>(null);
+
+  const cellFromPointer = (e: React.PointerEvent, rect: DOMRect): { x: number; y: number } | null => {
+    if (rect.width <= 0 || rect.height <= 0) return null;
+    const cellW = rect.width / mapCols;
+    const cellH = rect.height / mapRows;
+    const x = Math.floor((e.clientX - rect.left) / cellW);
+    const y = Math.floor((e.clientY - rect.top) / cellH);
+    if (x < 0 || x >= mapCols || y < 0 || y >= mapRows) return null;
+    return { x, y };
+  };
+
+  const beginPaintStroke = (cell: { x: number; y: number }) => {
+    const existing = draftTiles.find((t) => t.x === cell.x && t.y === cell.y);
+    const action: 'add' | 'remove' = existing && existing.type === draftTileType ? 'remove' : 'add';
+    paintActionRef.current = action;
+    lastPaintedCellRef.current = cell;
+    const next = paintDraftTile(draftTiles, cell.x, cell.y, draftTileType, action);
+    strokeTilesRef.current = next;
+    setDraftTiles(next);
+  };
+
+  const continuePaintStroke = (cell: { x: number; y: number }) => {
+    const action = paintActionRef.current;
+    if (!action || !strokeTilesRef.current) return;
+    const last = lastPaintedCellRef.current;
+    if (last && last.x === cell.x && last.y === cell.y) return;
+    lastPaintedCellRef.current = cell;
+    const next = paintDraftTile(strokeTilesRef.current, cell.x, cell.y, draftTileType, action);
+    strokeTilesRef.current = next;
+    setDraftTiles(next);
+  };
+
+  const endPaintStroke = () => {
+    if (!paintActionRef.current) return;
+    paintActionRef.current = null;
+    lastPaintedCellRef.current = null;
+    const finalTiles = strokeTilesRef.current;
+    strokeTilesRef.current = null;
+    if (finalTiles) autosave(finalTiles);
+  };
+
+  const handleGridPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.button !== 0 || !selectedLayout) return;
+    const cell = cellFromPointer(e, e.currentTarget.getBoundingClientRect());
+    if (!cell) return;
     if (draftTileType === 'portal') {
-      const existing = draftTiles.find((t) => t.x === x && t.y === y && t.type === 'portal');
-      if (!existing) persistDraft(toggleDraftTile(draftTiles, x, y, 'portal'));
-      setPortalCell({ x, y });
+      const existing = draftTiles.find((t) => t.x === cell.x && t.y === cell.y && t.type === 'portal');
+      if (!existing) persistDraft(toggleDraftTile(draftTiles, cell.x, cell.y, 'portal'));
+      setPortalCell(cell);
       return;
     }
-    persistDraft(toggleDraftTile(draftTiles, x, y, draftTileType));
+    if (draftTileType === 'door') {
+      persistDraft(toggleDraftTile(draftTiles, cell.x, cell.y, 'door'));
+      return;
+    }
+    e.currentTarget.setPointerCapture(e.pointerId);
+    beginPaintStroke(cell);
+  };
+
+  const handleGridPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    const cell = cellFromPointer(e, e.currentTarget.getBoundingClientRect());
+    setHoverCell(cell);
+    if (cell) continuePaintStroke(cell);
   };
 
   // Contraparte del portal: al conectar el mapa A con el B, B recibe
@@ -598,13 +670,19 @@ export const MapLibraryPage = () => {
                 className="flex min-h-0 flex-1 items-center justify-center rounded-dnd-lg border border-dnd-leather/40 bg-dnd-ink/60 p-2"
               >
                 <div
-                  className="grid"
+                  ref={gridRef}
+                  className="grid touch-none select-none"
                   style={{
                     width: mapSize.w || '100%',
                     height: mapSize.h || '100%',
                     gridTemplateColumns: `repeat(${mapCols}, 1fr)`,
                     gridAutoRows: '1fr',
                   }}
+                  onPointerDown={handleGridPointerDown}
+                  onPointerMove={handleGridPointerMove}
+                  onPointerUp={endPaintStroke}
+                  role="grid"
+                  aria-label="Editor de tiles del mapa"
                 >
                   {Array.from({ length: mapCols * mapRows }, (_, i) => {
                     const x = i % mapCols;
@@ -612,14 +690,15 @@ export const MapLibraryPage = () => {
                     const tile = draftTiles.find((t) => t.x === x && t.y === y);
                     const creature = selectedLayout.creatures?.find((c) => c.x === x && c.y === y);
                     const { baseClass, icon } = tileVisual(tile);
+                    const isHover = hoverCell?.x === x && hoverCell?.y === y;
                     return (
-                      <button
+                      <div
                         key={i}
-                        type="button"
-                        onClick={() => handleCellClick(x, y)}
                         title={creature?.name}
                         className={`flex items-center justify-center border border-dnd-ink/40 ${
-                          baseClass || 'bg-dnd-leather/10 hover:bg-dnd-leather/25'
+                          baseClass || 'bg-dnd-leather/10'
+                        } ${tile ? 'ring-2 ring-inset ring-amber-300' : ''} ${
+                          isHover && !tile ? 'bg-dnd-gold/40' : ''
                         }`}
                       >
                         {icon ? (
@@ -627,40 +706,44 @@ export const MapLibraryPage = () => {
                         ) : creature ? (
                           <span className="text-[9px] leading-none">{creature.kind === 'monster' ? '👹' : '🧑'}</span>
                         ) : null}
-                      </button>
+                      </div>
                     );
                   })}
                 </div>
               </div>
 
-              <div className="flex flex-wrap items-center gap-2 border-t border-dnd-leather/30 pt-2">
-                <input
-                  className="input h-8 min-w-0 flex-1 text-xs"
-                  value={copyName}
-                  onChange={(e) => setCopyName(e.target.value)}
-                  placeholder="Nombre para la copia"
-                />
-                <Button variant="secondary" size="sm" icon={<Copy size={14} />} onClick={handleSaveAsCopy} disabled={!copyName.trim()}>
-                  Guardar como copia
-                </Button>
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-dnd-leather/30 pt-2">
+                <div className="flex min-w-0 items-center gap-1.5">
+                  <input
+                    className="input h-8 w-40 shrink text-xs"
+                    value={copyName}
+                    onChange={(e) => setCopyName(e.target.value)}
+                    placeholder="Nombre para la copia"
+                  />
+                  <Button variant="secondary" size="sm" icon={<Copy size={14} />} onClick={handleSaveAsCopy} disabled={!copyName.trim()}>
+                    Guardar copia
+                  </Button>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <select
+                    className="input h-8 w-36 text-xs"
+                    value={templateSel}
+                    onChange={(e) => setTemplateSel(e.target.value)}
+                    aria-label="Patrón de mapa a generar"
+                  >
+                    <option value="">— Patrón aleatorio —</option>
+                    {MAP_TEMPLATES.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.name}
+                      </option>
+                    ))}
+                  </select>
+                  <Button variant="secondary" size="sm" icon={<Shuffle size={14} />} onClick={handleRandomPattern}>
+                    Generar
+                  </Button>
+                </div>
                 <select
-                  className="input h-8 text-xs"
-                  value={templateSel}
-                  onChange={(e) => setTemplateSel(e.target.value)}
-                  aria-label="Patrón de mapa a generar"
-                >
-                  <option value="">— Patrón aleatorio —</option>
-                  {MAP_TEMPLATES.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.name}
-                    </option>
-                  ))}
-                </select>
-                <Button variant="secondary" size="sm" icon={<Shuffle size={14} />} onClick={handleRandomPattern}>
-                  Generar
-                </Button>
-                <select
-                  className="input h-8 text-xs"
+                  className="input h-8 w-36 text-xs"
                   value={selectedLayout.folderId ?? ''}
                   onChange={(e) => setMapFolder(selectedLayout.id, e.target.value || null)}
                   aria-label="Carpeta de este mapa"
@@ -672,7 +755,13 @@ export const MapLibraryPage = () => {
                     </option>
                   ))}
                 </select>
-                <Button variant="danger" size="sm" icon={<Trash2 size={14} />} onClick={handleDeleteSelected}>
+                <Button
+                  variant="danger"
+                  size="sm"
+                  icon={<Trash2 size={14} />}
+                  onClick={handleDeleteSelected}
+                  className="ml-auto"
+                >
                   Eliminar mapa
                 </Button>
               </div>

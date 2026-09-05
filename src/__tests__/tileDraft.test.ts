@@ -4,7 +4,14 @@
 // ============================================================
 
 import { describe, expect, it } from 'vitest';
-import { toggleDraftTile, removeDraftTileAt, applyPortalUpdate, ensurePortalTile, removeLinkedPortal } from '../utils/tileDraft';
+import {
+  toggleDraftTile,
+  removeDraftTileAt,
+  applyPortalUpdate,
+  ensurePortalTile,
+  removeLinkedPortal,
+  paintDraftTile,
+} from '../utils/tileDraft';
 import type { MapTile } from '../types';
 
 describe('toggleDraftTile', () => {
@@ -109,5 +116,37 @@ describe('removeLinkedPortal', () => {
   it('no afecta tiles que no son portal', () => {
     const tiles: MapTile[] = [{ x: 5, y: 5, type: 'wall' }];
     expect(removeLinkedPortal(tiles, 5, 5, 'origin', 1, 1)).toEqual(tiles);
+  });
+});
+
+describe('paintDraftTile', () => {
+  it('modo "add": coloca el tile si la celda está vacía', () => {
+    const tiles = paintDraftTile([], 2, 2, 'wall', 'add');
+    expect(tiles).toEqual([{ x: 2, y: 2, type: 'wall' }]);
+  });
+
+  it('modo "add": es idempotente, repetir la misma celda no la altera', () => {
+    const tiles: MapTile[] = [{ x: 2, y: 2, type: 'wall' }];
+    expect(paintDraftTile(tiles, 2, 2, 'wall', 'add')).toBe(tiles);
+  });
+
+  it('modo "add": reemplaza un tile de otro tipo', () => {
+    const tiles = paintDraftTile([{ x: 2, y: 2, type: 'trap' }], 2, 2, 'wall', 'add');
+    expect(tiles).toEqual([{ x: 2, y: 2, type: 'wall' }]);
+  });
+
+  it('modo "remove": quita el tile si está presente', () => {
+    const tiles = paintDraftTile([{ x: 2, y: 2, type: 'wall' }], 2, 2, 'wall', 'remove');
+    expect(tiles).toEqual([]);
+  });
+
+  it('modo "remove": no hace nada si la celda ya está vacía', () => {
+    const tiles: MapTile[] = [];
+    expect(paintDraftTile(tiles, 2, 2, 'wall', 'remove')).toBe(tiles);
+  });
+
+  it('ignora celdas fuera de los límites activos del mapa', () => {
+    const tiles: MapTile[] = [];
+    expect(paintDraftTile(tiles, -1, 0, 'wall', 'add')).toBe(tiles);
   });
 });
