@@ -48,3 +48,47 @@ export const applyPortalUpdate = (
   updates: { targetLayoutId?: string; targetX?: number; targetY?: number; label?: string }
 ): MapTile[] =>
   tiles.map((t) => (t.x === x && t.y === y && t.type === 'portal' ? { ...t, ...updates } : t));
+
+/**
+ * Asegura que haya un tile de portal (en blanco, sin configurar) en esa
+ * celda: si ya hay un portal ahí no hace nada; si hay un tile de otro tipo
+ * lo reemplaza; si está vacía, lo crea. Usado para colocar la contraparte
+ * de un portal bidireccional del lado del mapa destino.
+ */
+export const ensurePortalTile = (tiles: MapTile[], x: number, y: number): MapTile[] => {
+  const idx = tiles.findIndex((t) => t.x === x && t.y === y);
+  if (idx >= 0) {
+    if (tiles[idx].type === 'portal') return tiles;
+    const updated = [...tiles];
+    updated[idx] = { x, y, type: 'portal' };
+    return updated;
+  }
+  if (!inBounds(x, y)) return tiles;
+  return [...tiles, { x, y, type: 'portal' }];
+};
+
+/**
+ * Quita el portal en (x,y) SOLO si sigue apuntando de vuelta al origen
+ * indicado (mismo layout y celda). Evita borrar un portal que el usuario ya
+ * reconfiguró para conectar a otro lado. Usado para limpiar la contraparte
+ * de un portal bidireccional cuando el lado opuesto se borra o se retarget.
+ */
+export const removeLinkedPortal = (
+  tiles: MapTile[],
+  x: number,
+  y: number,
+  linkedLayoutId: string,
+  linkedX: number,
+  linkedY: number
+): MapTile[] =>
+  tiles.filter(
+    (t) =>
+      !(
+        t.x === x &&
+        t.y === y &&
+        t.type === 'portal' &&
+        t.targetLayoutId === linkedLayoutId &&
+        t.targetX === linkedX &&
+        t.targetY === linkedY
+      )
+  );

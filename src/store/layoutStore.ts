@@ -18,6 +18,13 @@ interface LayoutStore {
   folders: MapFolder[];
   /** Guarda (o actualiza por nombre) un layout de tiles y criaturas. */
   saveLayout: (name: string, tiles: LayoutTile[], creatures?: LayoutCreature[], folderId?: string) => MapLayout;
+  /**
+   * Reemplaza los tiles de un layout ya existente, identificado por id (no
+   * por nombre). Usado para sincronizar la contraparte de un portal
+   * bidireccional en OTRO layout sin pasar por el flujo de "guardar por
+   * nombre" (que está pensado para el layout que se está editando).
+   */
+  updateLayoutTiles: (id: string, tiles: LayoutTile[]) => void;
   savedLayout: (id: string) => MapLayout | undefined;
   deleteLayout: (id: string) => void;
   /** Asigna (o quita con null) un layout a una carpeta. */
@@ -53,6 +60,11 @@ export const useLayoutStore = create<LayoutStore>()(
           set((s) => ({ savedLayouts: [...s.savedLayouts, layout!] }));
         }
         return layout;
+      },
+      updateLayoutTiles: (id, tiles) => {
+        set((s) => ({
+          savedLayouts: s.savedLayouts.map((l) => (l.id === id ? { ...l, tiles } : l)),
+        }));
       },
       savedLayout: (id) => get().savedLayouts.find((l) => l.id === id),
       deleteLayout: (id) => {

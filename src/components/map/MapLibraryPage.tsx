@@ -7,7 +7,7 @@
 // el mapa en vivo de la sesión.
 // ============================================================
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Copy, Download, FolderPlus, Play, Plus, Shuffle, Trash2, Upload } from 'lucide-react';
 import { Button } from '../common/Button';
@@ -21,7 +21,13 @@ import {
   restoreTilesFromLayout,
   restoreCreaturesFromLayout,
 } from '../../utils/layoutPatterns';
-import { toggleDraftTile, removeDraftTileAt, applyPortalUpdate } from '../../utils/tileDraft';
+import {
+  toggleDraftTile,
+  removeDraftTileAt,
+  applyPortalUpdate,
+  ensurePortalTile,
+  removeLinkedPortal,
+} from '../../utils/tileDraft';
 import type { MapTile, TileType } from '../../types';
 
 const TILE_OPTIONS: { value: TileType; label: string }[] = [
@@ -86,12 +92,32 @@ export const MapLibraryPage = () => {
   const deleteFolder = useLayoutStore((s) => s.deleteFolder);
   const exportLayouts = useLayoutStore((s) => s.exportLayouts);
   const importLayouts = useLayoutStore((s) => s.importLayouts);
+  const updateLayoutTiles = useLayoutStore((s) => s.updateLayoutTiles);
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [draftTiles, setDraftTiles] = useState<MapTile[]>([]);
   const [draftTileType, setDraftTileType] = useState<TileType>('wall');
   const [portalCell, setPortalCell] = useState<{ x: number; y: number } | null>(null);
   const [savedFlash, setSavedFlash] = useState(false);
+
+  // Dimensionado de la vista previa: mismo criterio que el mapa en vivo
+  // (CombatMap.tsx) — calcula el mayor tamaño con celdas cuadradas que cabe
+  // en el área disponible, así el mapa completo se ve sin scroll aunque sea
+  // grande (antes quedaba amontonado dentro de un contenedor scrolleable).
+  const measureRef = useRef<HTMLDivElement>(null);
+  const [mapSize, setMapSize] = useState({ w: 0, h: 0 });
+
+  useEffect(() => {
+    const el = measureRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver((entries) => {
+      const { width, height } = entries[0].contentRect;
+      const cellSize = Math.max(1, Math.floor(Math.min(width / mapCols, height / mapRows)));
+      setMapSize({ w: cellSize * mapCols, h: cellSize * mapRows });
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [mapCols, mapRows]);
 
   const [newMapName, setNewMapName] = useState('');
   const [newMapFolder, setNewMapFolder] = useState('');
@@ -144,12 +170,130 @@ export const MapLibraryPage = () => {
     persistDraft(toggleDraftTile(draftTiles, x, y, draftTileType));
   };
 
+  // Contraparte del portal: al conectar el mapa A con el B, B recibe
+  // automáticamente un portal de vuelta hacia A en el punto de llegada
+  // elegido — la conexión es siempre de ida y vuelta, como pidió el
+  // usuario, sin tener que armar el segundo portal a mano del otro lado.
+  const upsertReciprocalPortal = (
+    layoutId: string,
+    tx: number,
+    ty: number,
+    originId: string,
+    ox: number,
+    oy: number,
+    label: string | undefined
+  ) => {
+    const target = savedLayouts.find((l) => l.id === layoutId);
+    if (!target) return;
+    const withPortal = ensurePortalTile(restoreTilesFromLayout(target), tx, ty);
+    updateLayoutTiles(
+      layoutId,
+      applyPortalUpdate(withPortal, tx, ty, { targetLayoutId: originId, targetX: ox, targetY: oy, label })
+    );
+  };
+
+  // Quita la contraparte en otro layout, pero solo si todavía apunta de
+  // vuelta a esta celda exacta (si el usuario ya la reconfiguró a mano para
+  // conectar a otro lado, no la toca).
+  const removeReciprocalPortal = (
+    layoutId: string,
+    tx: number | undefined,
+    ty: number | undefined,
+    originId: string,
+    ox: number,
+    oy: number
+  ) => {
+    if (tx === undefined || ty === undefined) return;
+    const target = savedLayouts.find((l) => l.id === layoutId);
+    if (!target) return;
+    updateLayoutTiles(layoutId, removeLinkedPortal(restoreTilesFromLayout(target), tx, ty, originId, ox, oy));
+  };
+
   const handleSavePortal = (updates: PortalUpdate) => {
-    if (portalCell) persistDraft(applyPortalUpdate(draftTiles, portalCell.x, portalCell.y, updates));
+    if (!portalCell || !selectedLayout) return;
+    const oldTile = draftTiles.find(
+      (t) => t.x === portalCell.x && t.y === portalCell.y && t.type === 'portal'
+    );
+
+    // Si el portal ya apuntaba a otro mapa y cambió de destino, limpia la
+    // contraparte vieja antes de armar la nueva.
+    if (
+      oldTile?.targetLayoutId &&
+      oldTile.targetLayoutId !== selectedLayout.id &&
+      (oldTile.targetLayoutId !== updates.targetLayoutId ||
+        oldTile.targetX !== updates.targetX ||
+        oldTile.targetY !== updates.targetY)
+    ) {
+      removeReciprocalPortal(
+        oldTile.targetLayoutId,
+        oldTile.targetX,
+        oldTile.targetY,
+        selectedLayout.id,
+        portalCell.x,
+        portalCell.y
+      );
+    }
+
+    let nextTiles = applyPortalUpdate(draftTiles, portalCell.x, portalCell.y, updates);
+
+    if (updates.targetLayoutId === selectedLayout.id) {
+      // Portal a otro punto del mismo mapa: la contraparte va en el mismo
+      // array de tiles, se autoguarda todo junto en un solo paso.
+      if (updates.targetX !== portalCell.x || updates.targetY !== portalCell.y) {
+        nextTiles = applyPortalUpdate(
+          ensurePortalTile(nextTiles, updates.targetX, updates.targetY),
+          updates.targetX,
+          updates.targetY,
+          { targetLayoutId: selectedLayout.id, targetX: portalCell.x, targetY: portalCell.y, label: updates.label }
+        );
+      }
+    } else {
+      upsertReciprocalPortal(
+        updates.targetLayoutId,
+        updates.targetX,
+        updates.targetY,
+        selectedLayout.id,
+        portalCell.x,
+        portalCell.y,
+        updates.label
+      );
+    }
+
+    persistDraft(nextTiles);
   };
 
   const handleDeletePortal = () => {
-    if (portalCell) persistDraft(removeDraftTileAt(draftTiles, portalCell.x, portalCell.y));
+    if (!portalCell || !selectedLayout) return;
+    const oldTile = draftTiles.find(
+      (t) => t.x === portalCell.x && t.y === portalCell.y && t.type === 'portal'
+    );
+    let nextTiles = removeDraftTileAt(draftTiles, portalCell.x, portalCell.y);
+
+    if (oldTile?.targetLayoutId) {
+      if (oldTile.targetLayoutId === selectedLayout.id) {
+        if (oldTile.targetX !== undefined && oldTile.targetY !== undefined) {
+          nextTiles = removeLinkedPortal(
+            nextTiles,
+            oldTile.targetX,
+            oldTile.targetY,
+            selectedLayout.id,
+            portalCell.x,
+            portalCell.y
+          );
+        }
+      } else {
+        removeReciprocalPortal(
+          oldTile.targetLayoutId,
+          oldTile.targetX,
+          oldTile.targetY,
+          selectedLayout.id,
+          portalCell.x,
+          portalCell.y
+        );
+      }
+    }
+
+    persistDraft(nextTiles);
   };
 
   const handleCreateBlank = () => {
@@ -449,10 +593,18 @@ export const MapLibraryPage = () => {
                 </div>
               </div>
 
-              <div className="min-h-0 flex-1 overflow-auto rounded-dnd-lg border border-dnd-leather/40 bg-dnd-ink/60 p-2">
+              <div
+                ref={measureRef}
+                className="flex min-h-0 flex-1 items-center justify-center rounded-dnd-lg border border-dnd-leather/40 bg-dnd-ink/60 p-2"
+              >
                 <div
-                  className="grid gap-px"
-                  style={{ gridTemplateColumns: `repeat(${mapCols}, minmax(16px, 1fr))` }}
+                  className="grid"
+                  style={{
+                    width: mapSize.w || '100%',
+                    height: mapSize.h || '100%',
+                    gridTemplateColumns: `repeat(${mapCols}, 1fr)`,
+                    gridAutoRows: '1fr',
+                  }}
                 >
                   {Array.from({ length: mapCols * mapRows }, (_, i) => {
                     const x = i % mapCols;
@@ -466,7 +618,7 @@ export const MapLibraryPage = () => {
                         type="button"
                         onClick={() => handleCellClick(x, y)}
                         title={creature?.name}
-                        className={`flex aspect-square items-center justify-center border border-dnd-ink/40 ${
+                        className={`flex items-center justify-center border border-dnd-ink/40 ${
                           baseClass || 'bg-dnd-leather/10 hover:bg-dnd-leather/25'
                         }`}
                       >
