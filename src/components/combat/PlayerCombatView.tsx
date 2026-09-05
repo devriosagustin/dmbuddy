@@ -224,9 +224,20 @@ export const PlayerCombatView = () => {
     });
   });
 
-  // Tiles visibles: muros y puertas siempre; trampa/tesoro/investigación solo si revelados.
+  // Tiles visibles: muros y puertas siempre; los portales aparecen solo
+  // cuando entran en el radio de visión (con línea de vista) de algún
+  // miembro del party, igual que los enemigos — no dependen del revelado
+  // manual del DM, para que se descubran solos al explorar. El resto
+  // (trampa/tesoro/investigación) sigue dependiendo del revelado manual.
   const visibleTiles = tiles.filter((t) => {
     if (t.type === 'wall' || t.type === 'door' || t.type === 'secretDoor') return true;
+    if (t.type === 'portal') {
+      return friendlies.some((f) => {
+        if (f.x === undefined || f.y === undefined) return false;
+        if (gridDistanceFeet({ x: f.x, y: f.y }, { x: t.x, y: t.y }) > visionRange) return false;
+        return hasLineOfSight(f.x, f.y, t.x, t.y, tiles);
+      });
+    }
     return isTileRevealed(snapshot, t.x, t.y);
   });
 
@@ -398,6 +409,9 @@ export const PlayerCombatView = () => {
                 } else if (tile.type === 'investigation') {
                   baseClass = 'bg-blue-600/50 flex items-center justify-center';
                   icon = '🔍';
+                } else if (tile.type === 'portal') {
+                  baseClass = 'bg-purple-700/50 flex items-center justify-center';
+                  icon = '🌀';
                 }
                 return (
                   <div key={i} className={baseClass}>

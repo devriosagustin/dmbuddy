@@ -28,6 +28,7 @@ import {
   ensurePortalTile,
   removeLinkedPortal,
   paintDraftTile,
+  moveDraftTile,
 } from '../../utils/tileDraft';
 import type { MapTile, TileType } from '../../types';
 
@@ -105,20 +106,27 @@ export const MapLibraryPage = () => {
   // (CombatMap.tsx) — calcula el mayor tamaño con celdas cuadradas que cabe
   // en el área disponible, así el mapa completo se ve sin scroll aunque sea
   // grande (antes quedaba amontonado dentro de un contenedor scrolleable).
-  const measureRef = useRef<HTMLDivElement>(null);
+  // A diferencia de CombatMap.tsx, este contenedor solo existe en el DOM
+  // cuando hay un mapa seleccionado (si no, se muestra el estado vacío), así
+  // que un `useRef` + efecto con dependencias [mapCols, mapRows] no alcanza:
+  // el efecto no vuelve a correr cuando el div recién aparece al elegir un
+  // mapa, y el ResizeObserver nunca llega a engancharse (mapSize se queda en
+  // 0 para siempre y el grid cae al fallback 100%/100%, estirándose según la
+  // forma del panel). Con un ref callback en estado, el efecto se vuelve a
+  // ejecutar apenas el nodo aparece o desaparece.
+  const [measureEl, setMeasureEl] = useState<HTMLDivElement | null>(null);
   const [mapSize, setMapSize] = useState({ w: 0, h: 0 });
 
   useEffect(() => {
-    const el = measureRef.current;
-    if (!el) return;
+    if (!measureEl) return;
     const ro = new ResizeObserver((entries) => {
       const { width, height } = entries[0].contentRect;
       const cellSize = Math.max(1, Math.floor(Math.min(width / mapCols, height / mapRows)));
       setMapSize({ w: cellSize * mapCols, h: cellSize * mapRows });
     });
-    ro.observe(el);
+    ro.observe(measureEl);
     return () => ro.disconnect();
-  }, [mapCols, mapRows]);
+  }, [measureEl, mapCols, mapRows]);
 
   const [newMapName, setNewMapName] = useState('');
   const [newMapFolder, setNewMapFolder] = useState('');
@@ -176,6 +184,12 @@ export const MapLibraryPage = () => {
   const paintActionRef = useRef<'add' | 'remove' | null>(null);
   const lastPaintedCellRef = useRef<{ x: number; y: number } | null>(null);
   const strokeTilesRef = useRef<MapTile[] | null>(null);
+  // Arrastrar un portal ya colocado (con la herramienta Portal elegida) lo
+  // reubica en vez de pintar: se decide recién en pointerup si hubo
+  // movimiento real (arrastre → reubicar) o no (click → abrir el editor).
+  const portalDragRef = useRef<{ from: { x: number; y: number }; startX: number; startY: number; moved: boolean } | null>(
+    null
+  );
   const [hoverCell, setHoverCell] = useState<{ x: number; y: number } | null>(null);
 
   const cellFromPointer = (e: React.PointerEvent, rect: DOMRect): { x: number; y: number } | null => {
@@ -224,7 +238,15 @@ export const MapLibraryPage = () => {
     if (!cell) return;
     if (draftTileType === 'portal') {
       const existing = draftTiles.find((t) => t.x === cell.x && t.y === cell.y && t.type === 'portal');
-      if (!existing) persistDraft(toggleDraftTile(draftTiles, cell.x, cell.y, 'portal'));
+      if (existing) {
+        // Podría ser un click (abrir el editor) o el inicio de un arrastre
+        // para reubicar el portal — se decide en pointerup según si hubo
+        // movimiento real de por medio.
+        e.currentTarget.setPointerCapture(e.pointerId);
+        portalDragRef.current = { from: cell, startX: e.clientX, startY: e.clientY, moved: false };
+        return;
+      }
+      persistDraft(toggleDraftTile(draftTiles, cell.x, cell.y, 'portal'));
       setPortalCell(cell);
       return;
     }
@@ -239,7 +261,31 @@ export const MapLibraryPage = () => {
   const handleGridPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
     const cell = cellFromPointer(e, e.currentTarget.getBoundingClientRect());
     setHoverCell(cell);
+    const portalDrag = portalDragRef.current;
+    if (portalDrag) {
+      if (!portalDrag.moved) {
+        const distance = Math.hypot(e.clientX - portalDrag.startX, e.clientY - portalDrag.startY);
+        if (distance > 6) portalDragRef.current = { ...portalDrag, moved: true };
+      }
+      return;
+    }
     if (cell) continuePaintStroke(cell);
+  };
+
+  const handleGridPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    const portalDrag = portalDragRef.current;
+    if (portalDrag) {
+      portalDragRef.current = null;
+      const cell = cellFromPointer(e, e.currentTarget.getBoundingClientRect());
+      if (!portalDrag.moved || !cell || (cell.x === portalDrag.from.x && cell.y === portalDrag.from.y)) {
+        // No hubo arrastre real: fue un click, abre el editor de este portal.
+        setPortalCell(portalDrag.from);
+      } else {
+        relocatePortal(portalDrag.from, cell);
+      }
+      return;
+    }
+    endPaintStroke();
   };
 
   // Contraparte del portal: al conectar el mapa A con el B, B recibe
@@ -279,6 +325,40 @@ export const MapLibraryPage = () => {
     const target = savedLayouts.find((l) => l.id === layoutId);
     if (!target) return;
     updateLayoutTiles(layoutId, removeLinkedPortal(restoreTilesFromLayout(target), tx, ty, originId, ox, oy));
+  };
+
+  // Arrastrar un portal ya colocado lo reubica sin perder su configuración
+  // (mapa destino, punto de llegada, nombre) en vez de tener que borrarlo y
+  // recrearlo — a ciegas por coordenadas es difícil acertar la celda exacta
+  // donde va a quedar. Si tenía una contraparte (en este mismo mapa o en
+  // otro), se reapunta hacia la nueva celda para que la conexión no se rompa.
+  const relocatePortal = (from: { x: number; y: number }, to: { x: number; y: number }) => {
+    if (!selectedLayout || (from.x === to.x && from.y === to.y)) return;
+    const oldTile = draftTiles.find((t) => t.x === from.x && t.y === from.y && t.type === 'portal');
+    if (!oldTile) return;
+
+    let nextTiles = moveDraftTile(draftTiles, from, to);
+
+    if (oldTile.targetLayoutId && oldTile.targetX !== undefined && oldTile.targetY !== undefined) {
+      if (oldTile.targetLayoutId === selectedLayout.id) {
+        nextTiles = applyPortalUpdate(nextTiles, oldTile.targetX, oldTile.targetY, {
+          targetX: to.x,
+          targetY: to.y,
+        });
+      } else {
+        upsertReciprocalPortal(
+          oldTile.targetLayoutId,
+          oldTile.targetX,
+          oldTile.targetY,
+          selectedLayout.id,
+          to.x,
+          to.y,
+          oldTile.label
+        );
+      }
+    }
+
+    persistDraft(nextTiles);
   };
 
   const handleSavePortal = (updates: PortalUpdate) => {
@@ -666,7 +746,7 @@ export const MapLibraryPage = () => {
               </div>
 
               <div
-                ref={measureRef}
+                ref={setMeasureEl}
                 className="flex min-h-0 flex-1 items-center justify-center rounded-dnd-lg border border-dnd-leather/40 bg-dnd-ink/60 p-2"
               >
                 <div
@@ -680,7 +760,7 @@ export const MapLibraryPage = () => {
                   }}
                   onPointerDown={handleGridPointerDown}
                   onPointerMove={handleGridPointerMove}
-                  onPointerUp={endPaintStroke}
+                  onPointerUp={handleGridPointerUp}
                   role="grid"
                   aria-label="Editor de tiles del mapa"
                 >
@@ -691,15 +771,16 @@ export const MapLibraryPage = () => {
                     const creature = selectedLayout.creatures?.find((c) => c.x === x && c.y === y);
                     const { baseClass, icon } = tileVisual(tile);
                     const isHover = hoverCell?.x === x && hoverCell?.y === y;
+                    const isDraggablePortal = draftTileType === 'portal' && tile?.type === 'portal';
                     return (
                       <div
                         key={i}
-                        title={creature?.name}
+                        title={creature?.name ?? (isDraggablePortal ? 'Arrastrá para reubicar el portal' : undefined)}
                         className={`flex items-center justify-center border border-dnd-ink/40 ${
                           baseClass || 'bg-dnd-leather/10'
                         } ${tile ? 'ring-2 ring-inset ring-amber-300' : ''} ${
                           isHover && !tile ? 'bg-dnd-gold/40' : ''
-                        }`}
+                        } ${isDraggablePortal ? 'cursor-grab active:cursor-grabbing' : ''}`}
                       >
                         {icon ? (
                           <span className="text-[9px] leading-none text-white/90">{icon}</span>

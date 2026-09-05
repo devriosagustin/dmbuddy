@@ -3,11 +3,13 @@
 // ============================================================
 
 import { useState } from 'react';
-import { Save } from 'lucide-react';
+import { Dices, Save } from 'lucide-react';
 import { Modal } from '../common/Modal';
 import { Button } from '../common/Button';
 import type { Npc, NpcRole } from '../../types';
 import { useNpcStore } from '../../store/npcStore';
+import { NPC_NAME_TABLES } from '../../data/randomTables';
+import { rollNpcName } from '../../utils/randomTables';
 
 interface NpcFormProps {
   npc: Npc | null; // null = crear nuevo
@@ -39,6 +41,11 @@ export const NpcForm = ({ npc, onClose }: NpcFormProps) => {
       notes: '',
     }
   );
+
+  // Especie usada solo para sesgar el generador de nombre aleatorio de
+  // acá abajo — no se guarda con el NPC (el registro de NPC no tiene campo
+  // de especie).
+  const [nameSpecies, setNameSpecies] = useState('');
 
   const setField = <K extends keyof Npc>(key: K, value: Npc[K]) =>
     setForm((f) => ({ ...f, [key]: value }));
@@ -82,15 +89,37 @@ export const NpcForm = ({ npc, onClose }: NpcFormProps) => {
           <div className="grid grid-cols-2 gap-3">
             <div className="col-span-2">
               <label htmlFor="n-name" className="label">Nombre *</label>
-              <input
-                id="n-name"
-                className={input}
-                value={form.name}
-                onChange={(e) => setField('name', e.target.value)}
-                placeholder="P. ej. Pelagia, la posadera"
-                aria-required="true"
-                autoFocus
-              />
+              <div className="flex gap-2">
+                <input
+                  id="n-name"
+                  className={`${input} flex-1`}
+                  value={form.name}
+                  onChange={(e) => setField('name', e.target.value)}
+                  placeholder="P. ej. Pelagia, la posadera"
+                  aria-required="true"
+                  autoFocus
+                />
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  icon={<Dices size={14} />}
+                  onClick={() => setField('name', rollNpcName(nameSpecies || undefined).name)}
+                  aria-label="Generar nombre aleatorio"
+                >
+                  Azar
+                </Button>
+              </div>
+              <select
+                className="input mt-1.5 h-7 text-[11px]"
+                value={nameSpecies}
+                onChange={(e) => setNameSpecies(e.target.value)}
+                aria-label="Especie para el nombre aleatorio"
+              >
+                <option value="">🎲 Especie al azar entre todas</option>
+                {NPC_NAME_TABLES.map((t) => (
+                  <option key={t.speciesId} value={t.speciesId}>{t.speciesLabel}</option>
+                ))}
+              </select>
             </div>
             <div className="col-span-2">
               <label htmlFor="n-role" className="label">Rol</label>

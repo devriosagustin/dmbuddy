@@ -1,18 +1,19 @@
 // ============================================================
-// Generador aleatorio: nombres de NPC, ganchos de aventura,
-// complicaciones y botín. Tablas curadas a mano (sin IA) — ver
-// src/data/randomTables.ts.
+// Generador aleatorio: ganchos de aventura, complicaciones y
+// botín. Tablas curadas a mano (sin IA) — ver src/data/randomTables.ts.
+// (El generador de nombres de NPC vive en el formulario "Nuevo NPC",
+// dentro de la pestaña NPC — con esas tres pestañas separadas la barra
+// lateral se hacía demasiado larga.)
 // ============================================================
 
 import { useState } from 'react';
 import { Check, Copy, Dices, Save, ScrollText, Skull, Sparkles } from 'lucide-react';
 import { Button } from '../common/Button';
 import { useNoteStore } from '../../store/noteStore';
-import { NPC_NAME_TABLES } from '../../data/randomTables';
 import type { LootTier } from '../../data/randomTables';
 import { LOOT_TIER_LABELS } from '../../data/randomTables';
-import { rollAdventureHook, rollComplication, rollLoot, rollNpcName } from '../../utils/randomTables';
-import type { RolledLoot, RolledNpcName } from '../../utils/randomTables';
+import { rollAdventureHook, rollComplication, rollLoot } from '../../utils/randomTables';
+import type { RolledLoot } from '../../utils/randomTables';
 
 /** Copia texto al portapapeles y devuelve si funcionó (puede fallar sin permisos). */
 const copyText = async (text: string): Promise<boolean> => {
@@ -48,9 +49,6 @@ const CopyButton = ({ text }: { text: string }) => {
 export const RandomTablesPage = () => {
   const addNote = useNoteStore((s) => s.addNote);
 
-  const [npcSpecies, setNpcSpecies] = useState('');
-  const [npcResult, setNpcResult] = useState<RolledNpcName | null>(null);
-
   const [hookResult, setHookResult] = useState<string | null>(null);
   const [complicationResult, setComplicationResult] = useState<string | null>(null);
 
@@ -72,47 +70,6 @@ export const RandomTablesPage = () => {
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        {/* Nombres de NPC */}
-        <section className="section-box space-y-3">
-          <h3 className="flex items-center gap-1.5 section-title">
-            <Sparkles size={14} aria-hidden="true" /> Nombre de NPC
-          </h3>
-          <div>
-            <label htmlFor="rt-species" className="label">Especie (opcional)</label>
-            <select
-              id="rt-species"
-              className="input text-sm"
-              value={npcSpecies}
-              onChange={(e) => setNpcSpecies(e.target.value)}
-            >
-              <option value="">Al azar entre todas</option>
-              {NPC_NAME_TABLES.map((t) => (
-                <option key={t.speciesId} value={t.speciesId}>{t.speciesLabel}</option>
-              ))}
-            </select>
-          </div>
-          <Button icon={<Dices size={16} />} onClick={() => setNpcResult(rollNpcName(npcSpecies || undefined))}>
-            {npcResult ? 'Tirar otra vez' : 'Tirar nombre'}
-          </Button>
-          {npcResult && (
-            <div className="rounded-lg bg-dnd-ink/40 p-3">
-              <p className="font-bold text-dnd-text">{npcResult.name}</p>
-              <p className="text-[11px] text-dnd-muted">{npcResult.speciesLabel}</p>
-              <div className="mt-2 flex gap-2">
-                <CopyButton text={npcResult.name} />
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  icon={<Save size={14} />}
-                  onClick={() => saveNote(npcResult.name, `Especie: ${npcResult.speciesLabel}`, 'NPCs')}
-                >
-                  Guardar en notas
-                </Button>
-              </div>
-            </div>
-          )}
-        </section>
-
         {/* Ganchos de aventura */}
         <section className="section-box space-y-3">
           <h3 className="flex items-center gap-1.5 section-title">

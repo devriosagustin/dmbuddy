@@ -15,7 +15,6 @@ const MonsterManager = lazy(() => import('./components/monsters/MonsterManager')
 const ReferenceLibrary = lazy(() => import('./components/reference/ReferenceLibrary'));
 const PartyManager = lazy(() => import('./components/players/PartyManager'));
 const NpcManager = lazy(() => import('./components/npcs/NpcManager'));
-const DiceRoller = lazy(() => import('./components/dice/DiceRoller'));
 const NotesManager = lazy(() => import('./components/notes/NotesManager'));
 const RandomTablesPage = lazy(() => import('./components/tools/RandomTablesPage'));
 const QuestManager = lazy(() => import('./components/quests/QuestManager'));
@@ -108,16 +107,6 @@ export default function App() {
               <Suspense fallback={<PageLoader />}>
                 <DmOnlyRoute>
                   <ReferenceLibrary />
-                </DmOnlyRoute>
-              </Suspense>
-            }
-          />
-          <Route
-            path="/dice"
-            element={
-              <Suspense fallback={<PageLoader />}>
-                <DmOnlyRoute>
-                  <DiceRoller />
                 </DmOnlyRoute>
               </Suspense>
             }

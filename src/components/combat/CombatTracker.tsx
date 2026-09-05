@@ -10,6 +10,7 @@ import { motion } from 'framer-motion';
 import {
   ChevronLeft,
   ChevronRight,
+  Dices,
   Flag,
   Map as MapIcon,
   Play,
@@ -19,10 +20,12 @@ import {
   UserPlus,
 } from 'lucide-react';
 import { Button } from '../common/Button';
+import { Modal } from '../common/Modal';
 import { InitiativeOrder } from './InitiativeOrder';
 import { CombatLog } from './CombatLog';
 import { AddCombatantModal } from './AddCombatantModal';
 import { CombatantActionsModal } from './CombatantActionsModal';
+import { DiceRoller } from '../dice/DiceRoller';
 import { useCombatStore } from '../../store/combatStore';
 import type { Combatant } from '../../types';
 
@@ -47,6 +50,7 @@ export const CombatTracker = () => {
 
   const [showAdd, setShowAdd] = useState(false);
   const [selected, setSelected] = useState<Combatant | null>(null);
+  const [showDice, setShowDice] = useState(false);
 
   // Ordenar por iniciativa (descendente)
   const sorted = useMemo(
@@ -79,6 +83,13 @@ export const CombatTracker = () => {
           >
             <MapIcon size={14} /> Mapa
           </Link>
+          <button
+            type="button"
+            onClick={() => setShowDice(true)}
+            className="flex items-center gap-1 rounded-lg border border-dnd-leather/40 px-2.5 py-1 text-xs font-bold text-dnd-muted transition-colors hover:border-dnd-gold/50 hover:text-dnd-gold"
+          >
+            <Dices size={14} /> Dados
+          </button>
 
           {isActive ? (
             <p className="truncate text-sm text-dnd-muted">
@@ -190,6 +201,9 @@ export const CombatTracker = () => {
       {/* Modales */}
       <AddCombatantModal open={showAdd} onClose={() => setShowAdd(false)} />
       <CombatantActionsModal key={selected?.id ?? 'none'} combatant={selected} onClose={() => setSelected(null)} />
+      <Modal open={showDice} onClose={() => setShowDice(false)} maxWidth="2xl">
+        <DiceRoller />
+      </Modal>
     </div>
   );
 };

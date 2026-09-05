@@ -38,6 +38,29 @@ export const removeDraftTileAt = (tiles: MapTile[], x: number, y: number): MapTi
   tiles.filter((t) => !(t.x === x && t.y === y));
 
 /**
+ * Mueve el tile en (from) a (to), conservando todos sus datos (tipo,
+ * abierta/cerrada, destino de portal, etiqueta). Si ya había otro tile en
+ * la celda destino, se sobrescribe (igual criterio que colocar un tile
+ * nuevo encima de otro). No hace nada si no hay tile en el origen, o si
+ * origen y destino son la misma celda.
+ */
+export const moveDraftTile = (
+  tiles: MapTile[],
+  from: { x: number; y: number },
+  to: { x: number; y: number }
+): MapTile[] => {
+  if (from.x === to.x && from.y === to.y) return tiles;
+  const tile = tiles.find((t) => t.x === from.x && t.y === from.y);
+  if (!tile) return tiles;
+  if (!inBounds(to.x, to.y)) return tiles;
+  const moved = { ...tile, x: to.x, y: to.y };
+  const rest = tiles.filter(
+    (t) => !(t.x === from.x && t.y === from.y) && !(t.x === to.x && t.y === to.y)
+  );
+  return [...rest, moved];
+};
+
+/**
  * Igual semántica que combatStore.paintTile: coloca/quita el tile de forma
  * IDEMPOTENTE (a diferencia de toggleDraftTile, nunca alterna) — repetir la
  * misma celda con el mismo modo no hace nada. Usado durante un trazo de

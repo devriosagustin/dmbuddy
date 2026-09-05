@@ -11,6 +11,7 @@ import {
   ensurePortalTile,
   removeLinkedPortal,
   paintDraftTile,
+  moveDraftTile,
 } from '../utils/tileDraft';
 import type { MapTile } from '../types';
 
@@ -148,5 +149,37 @@ describe('paintDraftTile', () => {
   it('ignora celdas fuera de los límites activos del mapa', () => {
     const tiles: MapTile[] = [];
     expect(paintDraftTile(tiles, -1, 0, 'wall', 'add')).toBe(tiles);
+  });
+});
+
+describe('moveDraftTile', () => {
+  it('mueve el tile conservando sus datos', () => {
+    const tiles: MapTile[] = [{ x: 1, y: 1, type: 'portal', targetLayoutId: 'l1', targetX: 2, targetY: 2, label: 'Puerta' }];
+    const moved = moveDraftTile(tiles, { x: 1, y: 1 }, { x: 5, y: 5 });
+    expect(moved).toEqual([{ x: 5, y: 5, type: 'portal', targetLayoutId: 'l1', targetX: 2, targetY: 2, label: 'Puerta' }]);
+  });
+
+  it('sobrescribe cualquier tile que ya estuviera en la celda destino', () => {
+    const tiles: MapTile[] = [
+      { x: 1, y: 1, type: 'portal' },
+      { x: 5, y: 5, type: 'wall' },
+    ];
+    const moved = moveDraftTile(tiles, { x: 1, y: 1 }, { x: 5, y: 5 });
+    expect(moved).toEqual([{ x: 5, y: 5, type: 'portal' }]);
+  });
+
+  it('no hace nada si origen y destino son la misma celda', () => {
+    const tiles: MapTile[] = [{ x: 1, y: 1, type: 'wall' }];
+    expect(moveDraftTile(tiles, { x: 1, y: 1 }, { x: 1, y: 1 })).toBe(tiles);
+  });
+
+  it('no hace nada si no hay tile en el origen', () => {
+    const tiles: MapTile[] = [];
+    expect(moveDraftTile(tiles, { x: 1, y: 1 }, { x: 2, y: 2 })).toBe(tiles);
+  });
+
+  it('ignora un destino fuera de los límites activos del mapa', () => {
+    const tiles: MapTile[] = [{ x: 1, y: 1, type: 'wall' }];
+    expect(moveDraftTile(tiles, { x: 1, y: 1 }, { x: -1, y: 0 })).toBe(tiles);
   });
 });
