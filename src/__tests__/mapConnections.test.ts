@@ -94,4 +94,42 @@ describe('buildMapDiagram', () => {
     expect(diagram.nodes).toEqual([{ id: 'a', name: 'Mapa A', col: 0, row: 0 }]);
     expect(diagram.edges).toEqual([]);
   });
+
+  it('el resultado no depende de qué mapa se usa como partida, aunque el portal de ida y el de vuelta miren a bordes distintos (bug reportado: el mismo grupo de mapas quedaba con una forma distinta según desde dónde se generaba el diagrama)', () => {
+    // "forest" tiene su portal a "pasillo" contra el borde inferior (Sur);
+    // "pasillo" tiene su portal a "forest" contra el borde izquierdo (Oeste)
+    // en vez del borde superior que "correspondería" — a propósito, para
+    // que las dos lecturas de dirección no coincidan y haya que desempatar.
+    const layouts: MapLayout[] = [
+      { id: 'forest', name: 'Forest', tiles: [{ x: 5, y: ROWS - 1, type: 'portal', targetLayoutId: 'pasillo' }] },
+      { id: 'pasillo', name: 'Pasillo', tiles: [{ x: 0, y: 4, type: 'portal', targetLayoutId: 'forest' }] },
+    ];
+
+    const fromForest = buildMapDiagram('forest', layouts, COLS, ROWS);
+    const fromPasillo = buildMapDiagram('pasillo', layouts, COLS, ROWS);
+
+    const posA = Object.fromEntries(fromForest.nodes.map((n) => [n.id, n]));
+    const posB = Object.fromEntries(fromPasillo.nodes.map((n) => [n.id, n]));
+
+    const offsetFromForestStart = {
+      col: posA.pasillo.col - posA.forest.col,
+      row: posA.pasillo.row - posA.forest.row,
+    };
+    const offsetFromPasilloStart = {
+      col: posB.pasillo.col - posB.forest.col,
+      row: posB.pasillo.row - posB.forest.row,
+    };
+
+    expect(offsetFromPasilloStart).toEqual(offsetFromForestStart);
+  });
+
+  it('cuando el portal de ida y el de vuelta coinciden en dirección, esa dirección se usa sin importar el desempate', () => {
+    const layouts: MapLayout[] = [
+      { id: 'a', name: 'Mapa A', tiles: [{ x: COLS - 1, y: 4, type: 'portal', targetLayoutId: 'b' }] },
+      { id: 'b', name: 'Mapa B', tiles: [{ x: 0, y: 4, type: 'portal', targetLayoutId: 'a' }] },
+    ];
+    const diagram = buildMapDiagram('a', layouts, COLS, ROWS);
+    const byId = Object.fromEntries(diagram.nodes.map((n) => [n.id, n]));
+    expect(byId.b).toMatchObject({ col: 1, row: 0 });
+  });
 });
