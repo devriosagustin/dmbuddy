@@ -23,6 +23,8 @@ import {
   restoreTilesFromLayout,
   restoreCreaturesFromLayout,
 } from '../../utils/layoutPatterns';
+import { MAP_COLS, MAP_ROWS } from '../../utils/mapUtils';
+import { MAP_SIZE_PRESETS, presetForSize } from '../../utils/mapSize';
 import {
   toggleDraftTile,
   removeDraftTileAt,
@@ -80,17 +82,21 @@ export const MapLibraryPage = () => {
 
   // Mapa en vivo: solo se usa para "guardar el mapa actual como layout" y
   // para "cargar este layout en el mapa" — la edición de tiles de acá no lo
-  // toca hasta que el usuario elige explícitamente cargarlo.
-  const mapCols = useCombatStore((s) => s.mapCols);
-  const mapRows = useCombatStore((s) => s.mapRows);
+  // toca hasta que el usuario elige explícitamente cargarlo. Nombrado
+  // "live" para no confundirlo con el tamaño del mapa SELECCIONADO acá
+  // abajo, que es el que de verdad importa para esta página.
+  const liveMapCols = useCombatStore((s) => s.mapCols);
+  const liveMapRows = useCombatStore((s) => s.mapRows);
   const liveTiles = useCombatStore((s) => s.tiles);
   const liveMapCreatures = useCombatStore((s) => s.mapCreatures);
   const setLiveTiles = useCombatStore((s) => s.setTiles);
+  const setLiveMapSize = useCombatStore((s) => s.setMapSize);
 
   const savedLayouts = useLayoutStore((s) => s.savedLayouts);
   const folders = useLayoutStore((s) => s.folders);
   const saveLayout = useLayoutStore((s) => s.saveLayout);
   const deleteLayout = useLayoutStore((s) => s.deleteLayout);
+  const resizeLayout = useLayoutStore((s) => s.resizeLayout);
   const setMapFolder = useLayoutStore((s) => s.setMapFolder);
   const createFolder = useLayoutStore((s) => s.createFolder);
   const renameFolder = useLayoutStore((s) => s.renameFolder);
@@ -106,6 +112,15 @@ export const MapLibraryPage = () => {
   const [savedFlash, setSavedFlash] = useState(false);
   const [connectionsLayoutId, setConnectionsLayoutId] = useState<string | null>(null);
   const [showFolders, setShowFolders] = useState(false);
+  const [newMapSizeId, setNewMapSizeId] = useState<string>('standard');
+
+  const selectedLayout = savedLayouts.find((l) => l.id === selectedId) ?? null;
+  // Tamaño propio del mapa seleccionado (nunca el del mapa en vivo): cada
+  // mapa guardado respeta su propio tamaño, así que cambiar de uno a otro
+  // de distinto tamaño no rompe nada — la cuadrícula, el pintado de tiles y
+  // el diagrama de conexiones siguen siempre a estos dos valores.
+  const mapCols = selectedLayout?.mapCols ?? MAP_COLS;
+  const mapRows = selectedLayout?.mapRows ?? MAP_ROWS;
 
   // Dimensionado de la vista previa: mismo criterio que el mapa en vivo
   // (CombatMap.tsx) — calcula el mayor tamaño con celdas cuadradas que cabe
@@ -138,8 +153,6 @@ export const MapLibraryPage = () => {
   const [copyName, setCopyName] = useState('');
   const [newFolderName, setNewFolderName] = useState('');
   const [templateSel, setTemplateSel] = useState('');
-
-  const selectedLayout = savedLayouts.find((l) => l.id === selectedId) ?? null;
 
   // Si se llega acá desde "Ir al mapa" del editor de un portal en el mapa en
   // vivo, selecciona ese layout apenas se monta la página (una sola vez;
@@ -469,7 +482,8 @@ export const MapLibraryPage = () => {
   const handleCreateBlank = () => {
     const name = newMapName.trim();
     if (!name) return;
-    const layout = saveLayout(name, [], [], newMapFolder || undefined);
+    const preset = MAP_SIZE_PRESETS.find((p) => p.id === newMapSizeId) ?? MAP_SIZE_PRESETS[1];
+    const layout = saveLayout(name, [], [], newMapFolder || undefined, { cols: preset.cols, rows: preset.rows });
     setNewMapName('');
     setNewMapFolder('');
     setSelectedId(layout.id);
@@ -493,7 +507,12 @@ export const MapLibraryPage = () => {
       npcRole: c.npcRole,
       xpReward: c.xpReward,
     }));
-    const layout = saveLayout(name, savedTiles, creatures, newMapFolder || undefined);
+    // El mapa actual guarda su propio tamaño activo, no el que tuviera
+    // seleccionado antes en esta biblioteca.
+    const layout = saveLayout(name, savedTiles, creatures, newMapFolder || undefined, {
+      cols: liveMapCols,
+      rows: liveMapRows,
+    });
     setNewMapName('');
     setNewMapFolder('');
     setSelectedId(layout.id);
@@ -501,6 +520,10 @@ export const MapLibraryPage = () => {
 
   const handleLoadIntoLiveMap = () => {
     if (!selectedLayout) return;
+    // Adopta el tamaño propio de este layout ANTES de reemplazar los tiles
+    // del mapa en vivo: si no, `setTiles` recorta cualquier tile fuera de
+    // los límites (todavía) viejos del mapa en vivo.
+    setLiveMapSize(mapCols, mapRows);
     setLiveTiles(restoreTilesFromLayout(selectedLayout));
     useCombatStore.setState({ mapCreatures: restoreCreaturesFromLayout(selectedLayout) });
     navigate('/map');
@@ -510,8 +533,20 @@ export const MapLibraryPage = () => {
     if (!selectedLayout) return;
     const name = copyName.trim();
     if (!name) return;
-    const layout = saveLayout(name, draftTiles, selectedLayout.creatures, selectedLayout.folderId);
+    const layout = saveLayout(name, draftTiles, selectedLayout.creatures, selectedLayout.folderId, {
+      cols: mapCols,
+      rows: mapRows,
+    });
     setSelectedId(layout.id);
+  };
+
+  // Cambia el tamaño propio del mapa seleccionado: recorta del lado del
+  // store (tiles/criaturas fuera del límite nuevo) y resincroniza el
+  // borrador de tiles en edición con el resultado.
+  const handleResizeSelected = (cols: number, rows: number) => {
+    if (!selectedLayout) return;
+    const updated = resizeLayout(selectedLayout.id, cols, rows);
+    if (updated) setDraftTiles(restoreTilesFromLayout(updated));
   };
 
   const handleDeleteSelected = () => {
@@ -617,6 +652,19 @@ export const MapLibraryPage = () => {
               value={newMapName}
               onChange={(e) => setNewMapName(e.target.value)}
             />
+            <select
+              className="input h-8 text-xs"
+              value={newMapSizeId}
+              onChange={(e) => setNewMapSizeId(e.target.value)}
+              aria-label="Tamaño del nuevo mapa"
+              title="Tamaño para «En blanco» — «Desde el mapa actual» copia el tamaño del mapa en vivo"
+            >
+              {MAP_SIZE_PRESETS.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.label}
+                </option>
+              ))}
+            </select>
             {folders.length > 0 && (
               <select
                 className="input h-8 text-xs"
@@ -703,11 +751,32 @@ export const MapLibraryPage = () => {
                 <div className="min-w-0">
                   <h3 className="truncate font-fantasy text-lg font-bold text-dnd-gold">{selectedLayout.name}</h3>
                   <p className="text-[11px] text-dnd-muted">
-                    {mapCols}×{mapRows} celdas (mismo tamaño que el mapa activo)
+                    {mapCols}×{mapRows} celdas
                     {savedFlash && <span className="ml-2 text-emerald-400">✓ Guardado</span>}
                   </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
+                  <select
+                    className="input h-8 text-xs"
+                    value={presetForSize(mapCols, mapRows)?.id ?? 'custom'}
+                    onChange={(e) => {
+                      const preset = MAP_SIZE_PRESETS.find((p) => p.id === e.target.value);
+                      if (preset) handleResizeSelected(preset.cols, preset.rows);
+                    }}
+                    aria-label="Tamaño de este mapa"
+                    title="Cambiar el tamaño de este mapa guardado"
+                  >
+                    {presetForSize(mapCols, mapRows) === null && (
+                      <option value="custom">
+                        Personalizado {mapCols}×{mapRows}
+                      </option>
+                    )}
+                    {MAP_SIZE_PRESETS.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.label}
+                      </option>
+                    ))}
+                  </select>
                   <select
                     className="input h-8 text-xs"
                     value={draftTileType}
@@ -835,9 +904,7 @@ export const MapLibraryPage = () => {
       <PortalEditorModal
         cell={portalCell}
         tile={portalCell ? draftTiles.find((t) => t.x === portalCell.x && t.y === portalCell.y && t.type === 'portal') : undefined}
-        layoutOptions={savedLayouts.map((l) => ({ id: l.id, name: l.name }))}
-        mapCols={mapCols}
-        mapRows={mapRows}
+        layoutOptions={savedLayouts.map((l) => ({ id: l.id, name: l.name, cols: l.mapCols ?? MAP_COLS, rows: l.mapRows ?? MAP_ROWS }))}
         onSave={handleSavePortal}
         onDelete={handleDeletePortal}
         onClose={() => setPortalCell(null)}
@@ -847,8 +914,6 @@ export const MapLibraryPage = () => {
       <MapConnectionsModal
         startLayoutId={connectionsLayoutId}
         layouts={savedLayouts}
-        mapCols={mapCols}
-        mapRows={mapRows}
         onClose={() => setConnectionsLayoutId(null)}
       />
 

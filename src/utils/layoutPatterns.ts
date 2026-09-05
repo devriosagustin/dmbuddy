@@ -45,6 +45,14 @@ export interface MapLayout {
   creatures?: LayoutCreature[];
   /** Carpeta en la que se agrupa el layout (undefined = sin carpeta). */
   folderId?: string;
+  /**
+   * Tamaño propio de este mapa guardado (columnas/filas). Si falta (layouts
+   * viejos, o creados antes de esta función), se asume el tamaño por
+   * defecto (MAP_COLS/MAP_ROWS) — nunca el tamaño del mapa en vivo, que
+   * puede ser distinto y cambiar en cualquier momento.
+   */
+  mapCols?: number;
+  mapRows?: number;
 }
 
 /** Carpeta/conjunto para organizar layouts de mapa por sesión o campaña. */

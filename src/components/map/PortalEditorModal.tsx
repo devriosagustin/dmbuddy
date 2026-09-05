@@ -13,6 +13,7 @@ import { useEffect, useState } from 'react';
 import { ExternalLink, Save, Trash2 } from 'lucide-react';
 import { Modal } from '../common/Modal';
 import { Button } from '../common/Button';
+import { MAP_COLS, MAP_ROWS } from '../../utils/mapUtils';
 import type { MapTile } from '../../types';
 
 export interface PortalUpdate {
@@ -26,10 +27,13 @@ interface PortalEditorModalProps {
   cell: { x: number; y: number } | null;
   /** Tile actual en esa celda (para precargar el formulario si ya estaba configurado). */
   tile: MapTile | undefined;
-  /** Mapas guardados entre los que se puede elegir como destino. */
-  layoutOptions: { id: string; name: string }[];
-  mapCols: number;
-  mapRows: number;
+  /**
+   * Mapas guardados entre los que se puede elegir como destino, cada uno
+   * con su propio tamaño (cols/rows): el punto de llegada se valida y se
+   * acota contra el tamaño del mapa DESTINO elegido, no contra el del mapa
+   * donde está este portal — pueden ser mapas de tamaños distintos.
+   */
+  layoutOptions: { id: string; name: string; cols: number; rows: number }[];
   onSave: (updates: PortalUpdate) => void;
   onDelete: () => void;
   onClose: () => void;
@@ -50,8 +54,6 @@ export const PortalEditorModal = ({
   cell,
   tile,
   layoutOptions,
-  mapCols,
-  mapRows,
   onSave,
   onDelete,
   onClose,
@@ -62,19 +64,41 @@ export const PortalEditorModal = ({
   const [targetY, setTargetY] = useState(0);
   const [label, setLabel] = useState('');
 
+  // Tamaño del mapa DESTINO elegido (no del mapa donde vive este portal):
+  // el punto de llegada se ubica y se acota contra la cuadrícula a la que
+  // en verdad se está apuntando. Sin un destino elegido todavía, usa el
+  // tamaño por defecto solo como referencia visual (el botón Guardar exige
+  // elegir un destino de todos modos).
+  const targetDims = layoutOptions.find((o) => o.id === targetLayoutId);
+  const targetCols = targetDims?.cols ?? MAP_COLS;
+  const targetRows = targetDims?.rows ?? MAP_ROWS;
+
   // Al abrir el editor para una celda (nueva o existente), precarga su
   // configuración actual. No depende de `tile` para no resetear el
   // formulario mientras el usuario está editando la misma celda.
   useEffect(() => {
     if (!cell) return;
-    setTargetLayoutId(tile?.targetLayoutId ?? '');
-    setTargetX(tile?.targetX ?? Math.floor(mapCols / 2));
-    setTargetY(tile?.targetY ?? Math.floor(mapRows / 2));
+    const initialTargetId = tile?.targetLayoutId ?? '';
+    const initialDims = layoutOptions.find((o) => o.id === initialTargetId);
+    setTargetLayoutId(initialTargetId);
+    setTargetX(tile?.targetX ?? Math.floor((initialDims?.cols ?? MAP_COLS) / 2));
+    setTargetY(tile?.targetY ?? Math.floor((initialDims?.rows ?? MAP_ROWS) / 2));
     setLabel(tile?.label ?? '');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cell?.x, cell?.y]);
 
   if (!cell) return null;
+
+  // Al cambiar de mapa destino, acota el punto de llegada ya elegido a la
+  // cuadrícula del mapa nuevo (que puede ser de otro tamaño) en vez de
+  // dejarlo apuntando a una celda que ni siquiera existe ahí.
+  const handleTargetLayoutChange = (id: string) => {
+    setTargetLayoutId(id);
+    const dims = layoutOptions.find((o) => o.id === id);
+    if (!dims) return;
+    setTargetX((x) => Math.min(x, dims.cols - 1));
+    setTargetY((y) => Math.min(y, dims.rows - 1));
+  };
 
   // Devuelve false (y avisa) si falta elegir mapa destino; si no, guarda y
   // devuelve true. Usado tanto por "Guardar" como por "Ir al mapa" (que
@@ -86,8 +110,8 @@ export const PortalEditorModal = ({
     }
     onSave({
       targetLayoutId,
-      targetX: Math.max(0, Math.min(mapCols - 1, targetX)),
-      targetY: Math.max(0, Math.min(mapRows - 1, targetY)),
+      targetX: Math.max(0, Math.min(targetCols - 1, targetX)),
+      targetY: Math.max(0, Math.min(targetRows - 1, targetY)),
       label: label.trim() || undefined,
     });
     return true;
@@ -147,7 +171,7 @@ export const PortalEditorModal = ({
                 id="portal-target"
                 className={input}
                 value={targetLayoutId}
-                onChange={(e) => setTargetLayoutId(e.target.value)}
+                onChange={(e) => handleTargetLayoutChange(e.target.value)}
               >
                 <option value="">— Elegir mapa guardado —</option>
                 {layoutOptions.map((l) => (
@@ -169,7 +193,7 @@ export const PortalEditorModal = ({
                 id="portal-x"
                 type="number"
                 min="0"
-                max={mapCols - 1}
+                max={targetCols - 1}
                 className={input}
                 value={targetX}
                 onChange={(e) => setTargetX(Number(e.target.value))}
@@ -181,7 +205,7 @@ export const PortalEditorModal = ({
                 id="portal-y"
                 type="number"
                 min="0"
-                max={mapRows - 1}
+                max={targetRows - 1}
                 className={input}
                 value={targetY}
                 onChange={(e) => setTargetY(Number(e.target.value))}

@@ -40,6 +40,7 @@ import { usePlayerStore } from '../../store/playerStore';
 import { useSessionStore } from '../../store/sessionStore';
 import { useFullscreen } from '../../hooks/useFullscreen';
 import { restoreTilesFromLayout, restoreCreaturesFromLayout } from '../../utils/layoutPatterns';
+import { MAP_COLS, MAP_ROWS } from '../../utils/mapUtils';
 import { mapCreatureToCombatant, playerToCombatant } from '../../utils/combatUtils';
 import { findConfiguredPortal } from '../../utils/mapPortals';
 import { RollRequestModal } from '../session/RollRequestModal';
@@ -212,10 +213,18 @@ export const MapExplorer = () => {
       });
       return;
     }
+    // El mapa destino puede tener su propio tamaño guardado, distinto del
+    // mapa en vivo actual: hay que adoptarlo ANTES de reemplazar los tiles,
+    // así `setTiles` (que descarta lo que quede fuera de los límites
+    // activos) usa el tamaño correcto y no recorta un mapa más grande al
+    // tamaño chico del que se estaba explorando.
+    const targetCols = layout.mapCols ?? MAP_COLS;
+    const targetRows = layout.mapRows ?? MAP_ROWS;
+    setMapSize(targetCols, targetRows);
     setTiles(restoreTilesFromLayout(layout));
     useCombatStore.setState({ mapCreatures: restoreCreaturesFromLayout(layout) });
-    const entryX = Math.max(0, Math.min(mapCols - 1, portal.targetX ?? Math.floor(mapCols / 2)));
-    const entryY = Math.max(0, Math.min(mapRows - 1, portal.targetY ?? Math.floor(mapRows / 2)));
+    const entryX = Math.max(0, Math.min(targetCols - 1, portal.targetX ?? Math.floor(targetCols / 2)));
+    const entryY = Math.max(0, Math.min(targetRows - 1, portal.targetY ?? Math.floor(targetRows / 2)));
     for (const t of partyTokens) setPartyToken(t.playerId, entryX, entryY);
     useCombatStore.getState().addLogEntry({
       type: 'custom',
@@ -527,9 +536,7 @@ export const MapExplorer = () => {
       <PortalEditorModal
         cell={portalCell}
         tile={portalCell ? tiles.find((t) => t.x === portalCell.x && t.y === portalCell.y && t.type === 'portal') : undefined}
-        layoutOptions={savedLayouts.map((l) => ({ id: l.id, name: l.name }))}
-        mapCols={mapCols}
-        mapRows={mapRows}
+        layoutOptions={savedLayouts.map((l) => ({ id: l.id, name: l.name, cols: l.mapCols ?? MAP_COLS, rows: l.mapRows ?? MAP_ROWS }))}
         onSave={handleSavePortal}
         onDelete={handleDeletePortal}
         onClose={() => setPortalCell(null)}

@@ -16,8 +16,20 @@ const makeId = (): string => {
 interface LayoutStore {
   savedLayouts: MapLayout[];
   folders: MapFolder[];
-  /** Guarda (o actualiza por nombre) un layout de tiles y criaturas. */
-  saveLayout: (name: string, tiles: LayoutTile[], creatures?: LayoutCreature[], folderId?: string) => MapLayout;
+  /**
+   * Guarda (o actualiza por nombre) un layout de tiles y criaturas. `size`
+   * es opcional: al crear un mapa nuevo fija su tamaño propio (si se omite,
+   * queda sin tamaño guardado y se asume el default en todos lados); al
+   * actualizar uno existente, solo lo pisa si se pasa explícitamente —
+   * autoguardar tiles editados no debe borrar el tamaño ya elegido.
+   */
+  saveLayout: (
+    name: string,
+    tiles: LayoutTile[],
+    creatures?: LayoutCreature[],
+    folderId?: string,
+    size?: { cols: number; rows: number }
+  ) => MapLayout;
   /**
    * Reemplaza los tiles de un layout ya existente, identificado por id (no
    * por nombre). Usado para sincronizar la contraparte de un portal
@@ -25,6 +37,14 @@ interface LayoutStore {
    * nombre" (que está pensado para el layout que se está editando).
    */
   updateLayoutTiles: (id: string, tiles: LayoutTile[]) => void;
+  /**
+   * Cambia el tamaño propio de un layout guardado (columnas/filas), sacando
+   * de la cuadrícula nueva cualquier tile o criatura que haya quedado fuera
+   * de sus límites. Devuelve el layout actualizado (o undefined si no
+   * existe) para que quien llame pueda resincronizar su copia local de los
+   * tiles en edición.
+   */
+  resizeLayout: (id: string, cols: number, rows: number) => MapLayout | undefined;
   savedLayout: (id: string) => MapLayout | undefined;
   deleteLayout: (id: string) => void;
   /** Asigna (o quita con null) un layout a una carpeta. */
@@ -46,17 +66,32 @@ export const useLayoutStore = create<LayoutStore>()(
     (set, get) => ({
       savedLayouts: [],
       folders: [],
-      saveLayout: (name, tiles, creatures, folderId) => {
+      saveLayout: (name, tiles, creatures, folderId, size) => {
         const trimmed = name.trim() || 'Layout sin nombre';
         const existing = get().savedLayouts.find((l) => l.name === trimmed);
         let layout: MapLayout;
         if (existing) {
-          layout = { ...existing, tiles, creatures, folderId: folderId ?? existing.folderId };
+          layout = {
+            ...existing,
+            tiles,
+            creatures,
+            folderId: folderId ?? existing.folderId,
+            mapCols: size?.cols ?? existing.mapCols,
+            mapRows: size?.rows ?? existing.mapRows,
+          };
           set((s) => ({
             savedLayouts: s.savedLayouts.map((l) => (l.id === existing.id ? layout! : l)),
           }));
         } else {
-          layout = { id: makeId(), name: trimmed, tiles, creatures, folderId: folderId || undefined };
+          layout = {
+            id: makeId(),
+            name: trimmed,
+            tiles,
+            creatures,
+            folderId: folderId || undefined,
+            mapCols: size?.cols,
+            mapRows: size?.rows,
+          };
           set((s) => ({ savedLayouts: [...s.savedLayouts, layout!] }));
         }
         return layout;
@@ -65,6 +100,25 @@ export const useLayoutStore = create<LayoutStore>()(
         set((s) => ({
           savedLayouts: s.savedLayouts.map((l) => (l.id === id ? { ...l, tiles } : l)),
         }));
+      },
+      resizeLayout: (id, cols, rows) => {
+        const nCols = Math.max(8, Math.round(cols));
+        const nRows = Math.max(8, Math.round(rows));
+        let updated: MapLayout | undefined;
+        set((s) => ({
+          savedLayouts: s.savedLayouts.map((l) => {
+            if (l.id !== id) return l;
+            const tiles = (l.tiles ?? []).filter((t) => t.x >= 0 && t.x < nCols && t.y >= 0 && t.y < nRows);
+            const creatures = (l.creatures ?? []).map((c) => ({
+              ...c,
+              x: Math.min(nCols - 1, Math.max(0, c.x)),
+              y: Math.min(nRows - 1, Math.max(0, c.y)),
+            }));
+            updated = { ...l, tiles, creatures, mapCols: nCols, mapRows: nRows };
+            return updated;
+          }),
+        }));
+        return updated;
       },
       savedLayout: (id) => get().savedLayouts.find((l) => l.id === id),
       deleteLayout: (id) => {

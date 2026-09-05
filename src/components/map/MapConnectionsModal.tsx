@@ -15,23 +15,23 @@ import { Modal } from '../common/Modal';
 import { Button } from '../common/Button';
 import type { MapLayout } from '../../utils/layoutPatterns';
 import { restoreTilesFromLayout } from '../../utils/layoutPatterns';
-import { buildMapDiagram } from '../../utils/mapConnections';
+import { buildMapDiagram, layoutDims } from '../../utils/mapConnections';
 import type { MapTile, TileType } from '../../types';
 
 interface MapConnectionsModalProps {
   /** Mapa de partida; null = modal cerrado. */
   startLayoutId: string | null;
   layouts: MapLayout[];
-  mapCols: number;
-  mapRows: number;
   onClose: () => void;
 }
 
 // Tamaño máximo de la miniatura de cuadrícula dentro de cada caja: el
-// tamaño de celda real sale de encajar mapCols×mapRows ahí adentro (mismo
-// criterio de "la cuadrícula más grande con celdas cuadradas que entra en
-// el área" que usa el mapa en vivo), así que con mapas muy grandes las
-// celdas se ven chicas pero el layout se sigue reconociendo.
+// tamaño de celda real sale de encajar las columnas/filas PROPIAS de cada
+// mapa ahí adentro (mismo criterio de "la cuadrícula más grande con celdas
+// cuadradas que entra en el área" que usa el mapa en vivo). Como cada mapa
+// guardado puede tener su propio tamaño, cada caja del diagrama termina con
+// un ancho/alto distinto según cuántas celdas tenga ese mapa — así la
+// diferencia de tamaño entre mapas se nota a simple vista en el diagrama.
 const MAX_MAP_W = 220;
 const MAX_MAP_H = 130;
 const MAP_PAD = 8;
@@ -109,13 +109,13 @@ const drawMiniMap = (
  * PNG. El cálculo de posiciones vive en utils/mapConnections.ts (puro,
  * testeado aparte); acá solo se dibuja sobre un <canvas>.
  */
-export const MapConnectionsModal = ({ startLayoutId, layouts, mapCols, mapRows, onClose }: MapConnectionsModalProps) => {
+export const MapConnectionsModal = ({ startLayoutId, layouts, onClose }: MapConnectionsModalProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [pngUrl, setPngUrl] = useState<string | null>(null);
 
   const diagram = useMemo(
-    () => (startLayoutId ? buildMapDiagram(startLayoutId, layouts, mapCols, mapRows) : null),
-    [startLayoutId, layouts, mapCols, mapRows]
+    () => (startLayoutId ? buildMapDiagram(startLayoutId, layouts) : null),
+    [startLayoutId, layouts]
   );
 
   useEffect(() => {
@@ -127,11 +127,20 @@ export const MapConnectionsModal = ({ startLayoutId, layouts, mapCols, mapRows, 
     if (!canvas) return;
 
     const layoutById = new Map(layouts.map((l) => [l.id, l]));
-    const cellSize = Math.max(1, Math.floor(Math.min(MAX_MAP_W / mapCols, MAX_MAP_H / mapRows)));
-    const mapW = cellSize * mapCols;
-    const mapH = cellSize * mapRows;
-    const boxW = mapW + MAP_PAD * 2;
-    const boxH = mapH + MAP_PAD * 2 + LABEL_H;
+
+    // Caja de cada mapa a SU PROPIO tamaño: un mapa grande (p. ej. 44×24)
+    // ocupa una caja más grande que uno chico (20×12) — así la diferencia
+    // de tamaño entre mapas conectados se nota en el diagrama, en vez de
+    // forzar a todos a la misma cuadrícula compartida.
+    const boxByNode = new Map(
+      diagram.nodes.map((node) => {
+        const { cols, rows } = layoutDims(layoutById.get(node.id));
+        const cellSize = Math.max(1, Math.floor(Math.min(MAX_MAP_W / cols, MAX_MAP_H / rows)));
+        const mapW = cellSize * cols;
+        const mapH = cellSize * rows;
+        return [node.id, { cols, rows, cellSize, mapW, mapH, boxW: mapW + MAP_PAD * 2, boxH: mapH + MAP_PAD * 2 + LABEL_H }];
+      })
+    );
 
     const cols = diagram.nodes.map((n) => n.col);
     const rows = diagram.nodes.map((n) => n.row);
@@ -140,21 +149,51 @@ export const MapConnectionsModal = ({ startLayoutId, layouts, mapCols, mapRows, 
     const minRow = Math.min(...rows);
     const maxRow = Math.max(...rows);
 
-    const width = (maxCol - minCol + 1) * (boxW + GAP) - GAP + OUTER_PADDING * 2;
-    const height = (maxRow - minRow + 1) * (boxH + GAP) - GAP + OUTER_PADDING * 2 + TITLE_H;
+    // Cada columna/fila de la cuadrícula de mapas puede alojar cajas de
+    // distinto tamaño (varios mapas pueden compartir columna o fila); el
+    // ancho de esa columna y el alto de esa fila son el máximo entre las
+    // cajas que caen ahí, y cada caja se centra dentro de su celda.
+    const colWidth = new Map<number, number>();
+    const rowHeight = new Map<number, number>();
+    diagram.nodes.forEach((node) => {
+      const box = boxByNode.get(node.id)!;
+      colWidth.set(node.col, Math.max(colWidth.get(node.col) ?? 0, box.boxW));
+      rowHeight.set(node.row, Math.max(rowHeight.get(node.row) ?? 0, box.boxH));
+    });
+
+    const colOffset = new Map<number, number>();
+    let acc = OUTER_PADDING;
+    for (let c = minCol; c <= maxCol; c++) {
+      colOffset.set(c, acc);
+      acc += (colWidth.get(c) ?? 0) + GAP;
+    }
+    const width = acc - GAP + OUTER_PADDING;
+
+    const rowOffset = new Map<number, number>();
+    acc = TITLE_H + OUTER_PADDING;
+    for (let r = minRow; r <= maxRow; r++) {
+      rowOffset.set(r, acc);
+      acc += (rowHeight.get(r) ?? 0) + GAP;
+    }
+    const height = acc - GAP + OUTER_PADDING;
+
     canvas.width = width;
     canvas.height = height;
 
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const boxTopLeft = (col: number, row: number) => ({
-      x: OUTER_PADDING + (col - minCol) * (boxW + GAP),
-      y: TITLE_H + OUTER_PADDING + (row - minRow) * (boxH + GAP),
-    });
-    const center = (col: number, row: number) => {
-      const p = boxTopLeft(col, row);
-      return { x: p.x + boxW / 2, y: p.y + boxH / 2 };
+    const boxTopLeft = (node: { id: string; col: number; row: number }) => {
+      const box = boxByNode.get(node.id)!;
+      return {
+        x: (colOffset.get(node.col) ?? 0) + ((colWidth.get(node.col) ?? box.boxW) - box.boxW) / 2,
+        y: (rowOffset.get(node.row) ?? 0) + ((rowHeight.get(node.row) ?? box.boxH) - box.boxH) / 2,
+      };
+    };
+    const center = (node: { id: string; col: number; row: number }) => {
+      const box = boxByNode.get(node.id)!;
+      const p = boxTopLeft(node);
+      return { x: p.x + box.boxW / 2, y: p.y + box.boxH / 2 };
     };
 
     // Fondo con el mismo tono oscuro de la app.
@@ -173,8 +212,8 @@ export const MapConnectionsModal = ({ startLayoutId, layouts, mapCols, mapRows, 
       const a = diagram.nodes.find((n) => n.id === edge.a);
       const b = diagram.nodes.find((n) => n.id === edge.b);
       if (!a || !b) return;
-      const ca = center(a.col, a.row);
-      const cb = center(b.col, b.row);
+      const ca = center(a);
+      const cb = center(b);
       ctx.beginPath();
       ctx.moveTo(ca.x, ca.y);
       ctx.lineTo(cb.x, cb.y);
@@ -189,7 +228,8 @@ export const MapConnectionsModal = ({ startLayoutId, layouts, mapCols, mapRows, 
     // Caja de cada mapa: fondo + miniatura de su cuadrícula + nombre,
     // resaltando el elegido como punto de partida.
     diagram.nodes.forEach((node) => {
-      const { x, y } = boxTopLeft(node.col, node.row);
+      const box = boxByNode.get(node.id)!;
+      const { x, y } = boxTopLeft(node);
       const isStart = node.id === startLayoutId;
       const radius = 10;
 
@@ -198,27 +238,27 @@ export const MapConnectionsModal = ({ startLayoutId, layouts, mapCols, mapRows, 
       ctx.lineWidth = isStart ? 3 : 2;
       ctx.beginPath();
       ctx.moveTo(x + radius, y);
-      ctx.arcTo(x + boxW, y, x + boxW, y + boxH, radius);
-      ctx.arcTo(x + boxW, y + boxH, x, y + boxH, radius);
-      ctx.arcTo(x, y + boxH, x, y, radius);
-      ctx.arcTo(x, y, x + boxW, y, radius);
+      ctx.arcTo(x + box.boxW, y, x + box.boxW, y + box.boxH, radius);
+      ctx.arcTo(x + box.boxW, y + box.boxH, x, y + box.boxH, radius);
+      ctx.arcTo(x, y + box.boxH, x, y, radius);
+      ctx.arcTo(x, y, x + box.boxW, y, radius);
       ctx.closePath();
       ctx.fill();
       ctx.stroke();
 
       const layout = layoutById.get(node.id);
       if (layout) {
-        drawMiniMap(ctx, restoreTilesFromLayout(layout), x + MAP_PAD, y + MAP_PAD, cellSize, mapCols, mapRows);
+        drawMiniMap(ctx, restoreTilesFromLayout(layout), x + MAP_PAD, y + MAP_PAD, box.cellSize, box.cols, box.rows);
       }
 
       ctx.fillStyle = '#f1e6d0';
       ctx.font = 'bold 13px Georgia, serif';
       ctx.textAlign = 'center';
-      wrapCenteredText(ctx, node.name, x + boxW / 2, y + MAP_PAD + mapH + LABEL_H / 2 + 2, boxW - 16, 15);
+      wrapCenteredText(ctx, node.name, x + box.boxW / 2, y + MAP_PAD + box.mapH + LABEL_H / 2 + 2, box.boxW - 16, 15);
     });
 
     setPngUrl(canvas.toDataURL('image/png'));
-  }, [diagram, startLayoutId, layouts, mapCols, mapRows]);
+  }, [diagram, startLayoutId, layouts]);
 
   const handleDownload = () => {
     if (!pngUrl) return;

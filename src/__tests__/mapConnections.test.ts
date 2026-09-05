@@ -29,24 +29,26 @@ describe('portalDirection', () => {
 
 describe('buildMapDiagram', () => {
   it('devuelve vacío si el mapa de partida no existe en la lista', () => {
-    expect(buildMapDiagram('missing', [], COLS, ROWS)).toEqual({ nodes: [], edges: [] });
+    expect(buildMapDiagram('missing', [])).toEqual({ nodes: [], edges: [] });
   });
 
   it('ubica una cadena de mapas siguiendo la dirección de cada portal', () => {
     const layouts: MapLayout[] = [
-      { id: 'a', name: 'Mapa A', tiles: [{ x: COLS - 1, y: 4, type: 'portal', targetLayoutId: 'b' }] },
+      { id: 'a', name: 'Mapa A', mapCols: COLS, mapRows: ROWS, tiles: [{ x: COLS - 1, y: 4, type: 'portal', targetLayoutId: 'b' }] },
       {
         id: 'b',
         name: 'Mapa B',
+        mapCols: COLS,
+        mapRows: ROWS,
         tiles: [
           { x: 0, y: 4, type: 'portal', targetLayoutId: 'a' },
           { x: COLS - 1, y: 4, type: 'portal', targetLayoutId: 'c' },
         ],
       },
-      { id: 'c', name: 'Mapa C', tiles: [{ x: 0, y: 4, type: 'portal', targetLayoutId: 'b' }] },
+      { id: 'c', name: 'Mapa C', mapCols: COLS, mapRows: ROWS, tiles: [{ x: 0, y: 4, type: 'portal', targetLayoutId: 'b' }] },
     ];
 
-    const diagram = buildMapDiagram('a', layouts, COLS, ROWS);
+    const diagram = buildMapDiagram('a', layouts);
 
     const byId = Object.fromEntries(diagram.nodes.map((n) => [n.id, n]));
     expect(byId.a).toMatchObject({ col: 0, row: 0 });
@@ -60,16 +62,18 @@ describe('buildMapDiagram', () => {
       {
         id: 'a',
         name: 'Mapa A',
+        mapCols: COLS,
+        mapRows: ROWS,
         tiles: [
           { x: COLS - 1, y: 2, type: 'portal', targetLayoutId: 'b' },
           { x: COLS - 1, y: 5, type: 'portal', targetLayoutId: 'c' },
         ],
       },
-      { id: 'b', name: 'Mapa B', tiles: [] },
-      { id: 'c', name: 'Mapa C', tiles: [] },
+      { id: 'b', name: 'Mapa B', mapCols: COLS, mapRows: ROWS, tiles: [] },
+      { id: 'c', name: 'Mapa C', mapCols: COLS, mapRows: ROWS, tiles: [] },
     ];
 
-    const diagram = buildMapDiagram('a', layouts, COLS, ROWS);
+    const diagram = buildMapDiagram('a', layouts);
     const byId = Object.fromEntries(diagram.nodes.map((n) => [n.id, n]));
 
     expect(byId.a).toMatchObject({ col: 0, row: 0 });
@@ -79,18 +83,24 @@ describe('buildMapDiagram', () => {
 
   it('ignora un portal que apunta al mismo mapa (no genera arista ni intenta ubicarse)', () => {
     const layouts: MapLayout[] = [
-      { id: 'a', name: 'Mapa A', tiles: [{ x: COLS - 1, y: 4, type: 'portal', targetLayoutId: 'a', targetX: 0, targetY: 0 }] },
+      {
+        id: 'a',
+        name: 'Mapa A',
+        mapCols: COLS,
+        mapRows: ROWS,
+        tiles: [{ x: COLS - 1, y: 4, type: 'portal', targetLayoutId: 'a', targetX: 0, targetY: 0 }],
+      },
     ];
-    const diagram = buildMapDiagram('a', layouts, COLS, ROWS);
+    const diagram = buildMapDiagram('a', layouts);
     expect(diagram.nodes).toEqual([{ id: 'a', name: 'Mapa A', col: 0, row: 0 }]);
     expect(diagram.edges).toEqual([]);
   });
 
   it('ignora un portal que apunta a un mapa que ya no existe', () => {
     const layouts: MapLayout[] = [
-      { id: 'a', name: 'Mapa A', tiles: [{ x: COLS - 1, y: 4, type: 'portal', targetLayoutId: 'mapa-borrado' }] },
+      { id: 'a', name: 'Mapa A', mapCols: COLS, mapRows: ROWS, tiles: [{ x: COLS - 1, y: 4, type: 'portal', targetLayoutId: 'mapa-borrado' }] },
     ];
-    const diagram = buildMapDiagram('a', layouts, COLS, ROWS);
+    const diagram = buildMapDiagram('a', layouts);
     expect(diagram.nodes).toEqual([{ id: 'a', name: 'Mapa A', col: 0, row: 0 }]);
     expect(diagram.edges).toEqual([]);
   });
@@ -101,12 +111,12 @@ describe('buildMapDiagram', () => {
     // en vez del borde superior que "correspondería" — a propósito, para
     // que las dos lecturas de dirección no coincidan y haya que desempatar.
     const layouts: MapLayout[] = [
-      { id: 'forest', name: 'Forest', tiles: [{ x: 5, y: ROWS - 1, type: 'portal', targetLayoutId: 'pasillo' }] },
-      { id: 'pasillo', name: 'Pasillo', tiles: [{ x: 0, y: 4, type: 'portal', targetLayoutId: 'forest' }] },
+      { id: 'forest', name: 'Forest', mapCols: COLS, mapRows: ROWS, tiles: [{ x: 5, y: ROWS - 1, type: 'portal', targetLayoutId: 'pasillo' }] },
+      { id: 'pasillo', name: 'Pasillo', mapCols: COLS, mapRows: ROWS, tiles: [{ x: 0, y: 4, type: 'portal', targetLayoutId: 'forest' }] },
     ];
 
-    const fromForest = buildMapDiagram('forest', layouts, COLS, ROWS);
-    const fromPasillo = buildMapDiagram('pasillo', layouts, COLS, ROWS);
+    const fromForest = buildMapDiagram('forest', layouts);
+    const fromPasillo = buildMapDiagram('pasillo', layouts);
 
     const posA = Object.fromEntries(fromForest.nodes.map((n) => [n.id, n]));
     const posB = Object.fromEntries(fromPasillo.nodes.map((n) => [n.id, n]));
@@ -125,11 +135,47 @@ describe('buildMapDiagram', () => {
 
   it('cuando el portal de ida y el de vuelta coinciden en dirección, esa dirección se usa sin importar el desempate', () => {
     const layouts: MapLayout[] = [
-      { id: 'a', name: 'Mapa A', tiles: [{ x: COLS - 1, y: 4, type: 'portal', targetLayoutId: 'b' }] },
-      { id: 'b', name: 'Mapa B', tiles: [{ x: 0, y: 4, type: 'portal', targetLayoutId: 'a' }] },
+      { id: 'a', name: 'Mapa A', mapCols: COLS, mapRows: ROWS, tiles: [{ x: COLS - 1, y: 4, type: 'portal', targetLayoutId: 'b' }] },
+      { id: 'b', name: 'Mapa B', mapCols: COLS, mapRows: ROWS, tiles: [{ x: 0, y: 4, type: 'portal', targetLayoutId: 'a' }] },
     ];
-    const diagram = buildMapDiagram('a', layouts, COLS, ROWS);
+    const diagram = buildMapDiagram('a', layouts);
     const byId = Object.fromEntries(diagram.nodes.map((n) => [n.id, n]));
     expect(byId.b).toMatchObject({ col: 1, row: 0 });
+  });
+
+  it('un mapa sin mapCols/mapRows guardado (layout viejo) usa el tamaño por defecto en vez de romper', () => {
+    const layouts: MapLayout[] = [
+      { id: 'a', name: 'Mapa A', tiles: [{ x: 27, y: 4, type: 'portal', targetLayoutId: 'b' }] },
+      { id: 'b', name: 'Mapa B', tiles: [{ x: 0, y: 4, type: 'portal', targetLayoutId: 'a' }] },
+    ];
+    const diagram = buildMapDiagram('a', layouts);
+    const byId = Object.fromEntries(diagram.nodes.map((n) => [n.id, n]));
+    expect(byId.b).toMatchObject({ col: 1, row: 0 });
+  });
+
+  it('respeta el tamaño propio de cada mapa: dos mapas de tamaños muy distintos igual se ubican por el borde de su propio portal', () => {
+    // "chico" es 20×12 y su portal está pegado al borde derecho (columna
+    // 19 de 20): con el tamaño de "grande" (44×24) esa misma columna caería
+    // cerca del centro y se leería como una dirección distinta. Cada mapa
+    // debe normalizarse contra SU PROPIO tamaño.
+    const layouts: MapLayout[] = [
+      {
+        id: 'chico',
+        name: 'Mapa chico',
+        mapCols: 20,
+        mapRows: 12,
+        tiles: [{ x: 19, y: 6, type: 'portal', targetLayoutId: 'grande' }],
+      },
+      {
+        id: 'grande',
+        name: 'Mapa grande',
+        mapCols: 44,
+        mapRows: 24,
+        tiles: [{ x: 0, y: 12, type: 'portal', targetLayoutId: 'chico' }],
+      },
+    ];
+    const diagram = buildMapDiagram('chico', layouts);
+    const byId = Object.fromEntries(diagram.nodes.map((n) => [n.id, n]));
+    expect(byId.grande).toMatchObject({ col: 1, row: 0 });
   });
 });

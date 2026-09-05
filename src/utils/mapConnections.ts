@@ -13,10 +13,23 @@
 // vuelta no necesariamente quedan en bordes "opuestos" entre sí — sin este
 // desempate, generar el diagrama desde un mapa u otro podía dar formas
 // distintas para el mismo grupo de mapas.
+//
+// Cada mapa guardado puede tener su propio tamaño (mapCols/mapRows en
+// MapLayout); todo el cálculo de dirección normaliza la posición de un
+// portal contra el tamaño de SU PROPIO mapa (layoutDims), nunca contra un
+// tamaño compartido — así el diagrama no se rompe al mezclar mapas chicos
+// y grandes.
 // ============================================================
 
 import type { MapLayout } from './layoutPatterns';
 import { restoreTilesFromLayout } from './layoutPatterns';
+import { MAP_COLS, MAP_ROWS } from './mapUtils';
+
+/** Tamaño propio de un layout, o el default si nunca se le asignó uno. */
+export const layoutDims = (layout: MapLayout | undefined): { cols: number; rows: number } => ({
+  cols: layout?.mapCols ?? MAP_COLS,
+  rows: layout?.mapRows ?? MAP_ROWS,
+});
 
 export type CardinalDir = 'N' | 'S' | 'E' | 'W';
 
@@ -103,19 +116,26 @@ const resolveDirection = (
   aId: string,
   bId: string,
   links: Map<string, Map<string, PortalLink>>,
-  cols: number,
-  rows: number
+  byId: Map<string, MapLayout>
 ): CardinalDir => {
   const aToB = links.get(aId)?.get(bId);
   const bToA = links.get(bId)?.get(aId);
 
-  const dirFromA = aToB ? portalDirection(aToB.x, aToB.y, cols, rows) : undefined;
-  const dirFromB = bToA ? OPPOSITE_DIR[portalDirection(bToA.x, bToA.y, cols, rows)] : undefined;
+  // Cada portal se normaliza contra el tamaño de SU PROPIO mapa: el punto
+  // (x,y) de un portal en un mapa de 44×24 no significa lo mismo que el
+  // mismo (x,y) en uno de 20×12, así que mezclar un tamaño compartido acá
+  // daba direcciones erróneas apenas dos mapas conectados tenían tamaños
+  // distintos.
+  const aDims = layoutDims(byId.get(aId));
+  const bDims = layoutDims(byId.get(bId));
+
+  const dirFromA = aToB ? portalDirection(aToB.x, aToB.y, aDims.cols, aDims.rows) : undefined;
+  const dirFromB = bToA ? OPPOSITE_DIR[portalDirection(bToA.x, bToA.y, bDims.cols, bDims.rows)] : undefined;
 
   if (dirFromA && dirFromB) {
     if (dirFromA === dirFromB) return dirFromA;
-    const confA = edgeConfidence(aToB!.x, aToB!.y, cols, rows);
-    const confB = edgeConfidence(bToA!.x, bToA!.y, cols, rows);
+    const confA = edgeConfidence(aToB!.x, aToB!.y, aDims.cols, aDims.rows);
+    const confB = edgeConfidence(bToA!.x, bToA!.y, bDims.cols, bDims.rows);
     if (confA !== confB) return confA > confB ? dirFromA : dirFromB;
     return aId < bId ? dirFromA : dirFromB;
   }
@@ -128,12 +148,7 @@ const resolveDirection = (
  * cada uno. Si dos mapas terminarían en la misma celda, el segundo se
  * corre en la misma dirección hasta encontrar una celda libre.
  */
-export const buildMapDiagram = (
-  startId: string,
-  layouts: MapLayout[],
-  cols: number,
-  rows: number
-): MapDiagram => {
+export const buildMapDiagram = (startId: string, layouts: MapLayout[]): MapDiagram => {
   const byId = new Map(layouts.map((l) => [l.id, l]));
   if (!byId.has(startId)) return { nodes: [], edges: [] };
 
@@ -182,7 +197,7 @@ export const buildMapDiagram = (
       if (visited.has(targetId)) continue;
       visited.add(targetId);
 
-      const dir = resolveDirection(currentId, targetId, links, cols, rows);
+      const dir = resolveDirection(currentId, targetId, links, byId);
       const { dc, dr } = DIR_OFFSET[dir];
       let col = pos.col + dc;
       let row = pos.row + dr;
