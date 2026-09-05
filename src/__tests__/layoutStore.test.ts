@@ -146,4 +146,82 @@ describe('Layout Store', () => {
     const { setLayoutBackground } = useLayoutStore.getState();
     expect(() => setLayoutBackground('no-existe', 'lava')).not.toThrow();
   });
+
+  it('addLayoutCreature agrega una criatura a un layout guardado sin tocar sus tiles', () => {
+    const { saveLayout, addLayoutCreature, savedLayout } = useLayoutStore.getState();
+    const layout = saveLayout('Cripta', [{ x: 0, y: 0, type: 'wall' }]);
+
+    addLayoutCreature(layout.id, {
+      name: 'Esqueleto',
+      kind: 'monster',
+      x: 3,
+      y: 4,
+      hp: 13,
+      maxHp: 13,
+      tempHp: 0,
+      armorClass: 13,
+      speed: 30,
+    });
+
+    const updated = savedLayout(layout.id)!;
+    expect(updated.creatures).toHaveLength(1);
+    expect(updated.creatures![0].name).toBe('Esqueleto');
+    expect(updated.tiles).toEqual([{ x: 0, y: 0, type: 'wall' }]);
+  });
+
+  it('addLayoutCreature acumula varias criaturas sin pisar las anteriores', () => {
+    const { saveLayout, addLayoutCreature, savedLayout } = useLayoutStore.getState();
+    const layout = saveLayout('Guarida', []);
+
+    addLayoutCreature(layout.id, {
+      name: 'Goblin 1',
+      kind: 'monster',
+      x: 1,
+      y: 1,
+      hp: 7,
+      maxHp: 7,
+      tempHp: 0,
+      armorClass: 15,
+      speed: 30,
+    });
+    addLayoutCreature(layout.id, {
+      name: 'Goblin 2',
+      kind: 'monster',
+      x: 2,
+      y: 1,
+      hp: 7,
+      maxHp: 7,
+      tempHp: 0,
+      armorClass: 15,
+      speed: 30,
+    });
+
+    expect(savedLayout(layout.id)!.creatures).toHaveLength(2);
+  });
+
+  it('removeLayoutCreature quita solo la criatura en esa casilla', () => {
+    const { saveLayout, removeLayoutCreature, savedLayout } = useLayoutStore.getState();
+    const layout = saveLayout('Torre', [], [
+      { name: 'Mago', kind: 'npc', x: 5, y: 5, hp: 20, maxHp: 20, tempHp: 0, armorClass: 12, speed: 30 },
+      { name: 'Guardia', kind: 'npc', x: 6, y: 5, hp: 15, maxHp: 15, tempHp: 0, armorClass: 16, speed: 30 },
+    ]);
+
+    removeLayoutCreature(layout.id, 5, 5);
+
+    const updated = savedLayout(layout.id)!;
+    expect(updated.creatures).toHaveLength(1);
+    expect(updated.creatures![0].name).toBe('Guardia');
+  });
+
+  it('removeLayoutCreature no rompe si no hay ninguna criatura en esa casilla o el id no existe', () => {
+    const { saveLayout, removeLayoutCreature, savedLayout } = useLayoutStore.getState();
+    const layout = saveLayout('Establo', [], [
+      { name: 'Caballo', kind: 'npc', x: 1, y: 1, hp: 15, maxHp: 15, tempHp: 0, armorClass: 10, speed: 40 },
+    ]);
+
+    expect(() => removeLayoutCreature(layout.id, 9, 9)).not.toThrow();
+    expect(savedLayout(layout.id)!.creatures).toHaveLength(1);
+
+    expect(() => removeLayoutCreature('no-existe', 1, 1)).not.toThrow();
+  });
 });

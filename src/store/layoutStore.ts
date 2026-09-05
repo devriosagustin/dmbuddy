@@ -40,6 +40,15 @@ interface LayoutStore {
    */
   updateLayoutTiles: (id: string, tiles: LayoutTile[]) => void;
   /**
+   * Agrega una criatura (monstruo o NPC) a un layout guardado, identificado
+   * por id. Usado por el botón "Añadir" de la biblioteca de mapas para
+   * precargar NPCs/monstruos en un mapa guardado sin tener que cargarlo
+   * primero en el mapa en vivo.
+   */
+  addLayoutCreature: (id: string, creature: LayoutCreature) => void;
+  /** Quita de un layout guardado la criatura ubicada en (x, y), si hay alguna. */
+  removeLayoutCreature: (id: string, x: number, y: number) => void;
+  /**
    * Cambia el tamaño propio de un layout guardado (columnas/filas), sacando
    * de la cuadrícula nueva cualquier tile o criatura que haya quedado fuera
    * de sus límites. Devuelve el layout actualizado (o undefined si no
@@ -105,6 +114,20 @@ export const useLayoutStore = create<LayoutStore>()(
       updateLayoutTiles: (id, tiles) => {
         set((s) => ({
           savedLayouts: s.savedLayouts.map((l) => (l.id === id ? { ...l, tiles } : l)),
+        }));
+      },
+      addLayoutCreature: (id, creature) => {
+        set((s) => ({
+          savedLayouts: s.savedLayouts.map((l) =>
+            l.id === id ? { ...l, creatures: [...(l.creatures ?? []), creature] } : l
+          ),
+        }));
+      },
+      removeLayoutCreature: (id, x, y) => {
+        set((s) => ({
+          savedLayouts: s.savedLayouts.map((l) =>
+            l.id === id ? { ...l, creatures: (l.creatures ?? []).filter((c) => !(c.x === x && c.y === y)) } : l
+          ),
         }));
       },
       resizeLayout: (id, cols, rows) => {

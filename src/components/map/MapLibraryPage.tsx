@@ -9,12 +9,13 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Copy, Download, FolderCog, FolderPlus, Network, Play, Plus, Shuffle, Trash2, Upload } from 'lucide-react';
+import { ArrowLeft, Copy, Download, FolderCog, FolderPlus, Network, Play, Plus, Shuffle, Trash2, Upload, UserPlus } from 'lucide-react';
 import { Button } from '../common/Button';
 import { Modal } from '../common/Modal';
 import { PortalEditorModal } from './PortalEditorModal';
 import type { PortalUpdate } from './PortalEditorModal';
 import { MapConnectionsModal } from './MapConnectionsModal';
+import { AddLayoutCreatureModal } from './AddLayoutCreatureModal';
 import { useCombatStore } from '../../store/combatStore';
 import { useLayoutStore } from '../../store/layoutStore';
 import {
@@ -119,6 +120,7 @@ export const MapLibraryPage = () => {
   const [portalCell, setPortalCell] = useState<{ x: number; y: number } | null>(null);
   const [savedFlash, setSavedFlash] = useState(false);
   const [connectionsLayoutId, setConnectionsLayoutId] = useState<string | null>(null);
+  const [showAddCreature, setShowAddCreature] = useState(false);
   const [showFolders, setShowFolders] = useState(false);
   const [newMapSizeId, setNewMapSizeId] = useState<string>('standard');
   const [newMapBackgroundId, setNewMapBackgroundId] = useState<string>(DEFAULT_MAP_BACKGROUND);
@@ -872,6 +874,14 @@ export const MapLibraryPage = () => {
                       </option>
                     ))}
                   </select>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    icon={<UserPlus size={14} />}
+                    onClick={() => setShowAddCreature(true)}
+                  >
+                    Añadir NPC/monstruo
+                  </Button>
                   <Button variant="primary" size="sm" icon={<Play size={14} />} onClick={handleLoadIntoLiveMap}>
                     Cargar en el mapa
                   </Button>
@@ -1004,6 +1014,16 @@ export const MapLibraryPage = () => {
         layouts={savedLayouts}
         onClose={() => setConnectionsLayoutId(null)}
       />
+
+      {selectedLayout && (
+        <AddLayoutCreatureModal
+          open={showAddCreature}
+          onClose={() => setShowAddCreature(false)}
+          layout={selectedLayout}
+          cols={mapCols}
+          rows={mapRows}
+        />
+      )}
 
       <Modal
         open={showFolders}
