@@ -5,8 +5,9 @@
 // ============================================================
 
 import { describe, expect, it } from 'vitest';
-import { restoreTilesFromLayout, restoreCreaturesFromLayout } from '../utils/layoutPatterns';
+import { restoreTilesFromLayout, restoreCreaturesFromLayout, randomLayout, MAP_TEMPLATES } from '../utils/layoutPatterns';
 import type { MapLayout } from '../utils/layoutPatterns';
+import { activeCols, activeRows, setActiveMapSize } from '../utils/mapUtils';
 
 describe('restoreTilesFromLayout', () => {
   it('reconstruye tiles con su tipo y config completa, incluida la de un portal', () => {
@@ -87,5 +88,35 @@ describe('restoreCreaturesFromLayout', () => {
   it('devuelve una lista vacía si el layout no tiene criaturas', () => {
     const layout: MapLayout = { id: 'l1', name: 'Vacío' };
     expect(restoreCreaturesFromLayout(layout)).toEqual([]);
+  });
+});
+
+describe('randomLayout', () => {
+  it('genera el patrón a la medida del tamaño pedido, sin salirse de esos límites', () => {
+    for (const template of MAP_TEMPLATES) {
+      const { tiles } = randomLayout(template.id, { cols: 20, rows: 12 });
+      for (const t of tiles) {
+        expect(t.x).toBeGreaterThanOrEqual(0);
+        expect(t.x).toBeLessThan(20);
+        expect(t.y).toBeGreaterThanOrEqual(0);
+        expect(t.y).toBeLessThan(12);
+      }
+    }
+  });
+
+  it('respeta un tamaño más grande que el default sin recortar de más', () => {
+    const { tiles } = randomLayout('fort', { cols: 44, rows: 24 });
+    // El fuerte dibuja su muralla pegada al borde real del mapa (cols-2,
+    // rows-2): si el generador ignorara el tamaño pedido y usara el
+    // default (28×16), la muralla quedaría muy lejos del borde real.
+    expect(tiles.some((t) => t.x >= 40)).toBe(true);
+    expect(tiles.some((t) => t.y >= 20)).toBe(true);
+  });
+
+  it('no deja el tamaño activo global alterado después de generar', () => {
+    setActiveMapSize(28, 16);
+    randomLayout('arena', { cols: 20, rows: 12 });
+    expect(activeCols).toBe(28);
+    expect(activeRows).toBe(16);
   });
 });

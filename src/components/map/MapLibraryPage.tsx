@@ -558,7 +558,10 @@ export const MapLibraryPage = () => {
 
   const handleRandomPattern = () => {
     if (!selectedLayout) return;
-    const { tiles } = randomLayout(templateSel || undefined);
+    // El patrón se genera a la medida real de ESTE mapa (mapCols/mapRows),
+    // no del mapa en vivo — si no, en un mapa guardado de otro tamaño el
+    // patrón salía recortado o dejaba la mitad de la cuadrícula vacía.
+    const { tiles } = randomLayout(templateSel || undefined, { cols: mapCols, rows: mapRows });
     persistDraft(tiles);
   };
 
@@ -757,7 +760,7 @@ export const MapLibraryPage = () => {
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                   <select
-                    className="input h-8 text-xs"
+                    className="input h-8 w-36 shrink-0 text-xs"
                     value={presetForSize(mapCols, mapRows)?.id ?? 'custom'}
                     onChange={(e) => {
                       const preset = MAP_SIZE_PRESETS.find((p) => p.id === e.target.value);
@@ -778,7 +781,7 @@ export const MapLibraryPage = () => {
                     ))}
                   </select>
                   <select
-                    className="input h-8 text-xs"
+                    className="input h-8 w-32 shrink-0 text-xs"
                     value={draftTileType}
                     onChange={(e) => setDraftTileType(e.target.value as TileType)}
                     aria-label="Tipo de tile a colocar"

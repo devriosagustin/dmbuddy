@@ -2,7 +2,7 @@
 // Patrones y generador de layouts de mapa (barreras)
 // ============================================================
 
-import { activeCols, activeRows } from './mapUtils';
+import { activeCols, activeRows, setActiveMapSize } from './mapUtils';
 import type { MapTile, MapCreature } from '../types';
 
 export interface LayoutCreature {
@@ -457,22 +457,39 @@ const shuffle = <T,>(arr: T[]): T[] => {
   return a;
 };
 
-export function randomLayout(templateId?: string): GeneratedLayout {
-  let pick: MapTemplate[];
-  if (templateId) {
-    const t = MAP_TEMPLATES.find((x) => x.id === templateId);
-    pick = t ? [t] : [MAP_TEMPLATES[Math.floor(Math.random() * MAP_TEMPLATES.length)]];
-  } else {
-    pick = shuffle(MAP_TEMPLATES).slice(0, 1 + Math.floor(Math.random() * 2));
+/**
+ * Genera un patrón aleatorio (o de una plantilla elegida). `size`, si se
+ * pasa, es el tamaño del mapa para el que se está generando — TODAS las
+ * plantillas usan `activeCols`/`activeRows` (utils/mapUtils.ts) para
+ * ubicar sus salas/muros/pilares, que normalmente reflejan el mapa en
+ * vivo; al generar para un mapa guardado de otro tamaño hay que adoptar
+ * temporalmente SU tamaño (y restaurar el de antes al terminar) para que
+ * el patrón salga a la medida real del mapa, no recortado ni desperdiciando
+ * la mitad de la cuadrícula.
+ */
+export function randomLayout(templateId?: string, size?: { cols: number; rows: number }): GeneratedLayout {
+  const prevCols = activeCols;
+  const prevRows = activeRows;
+  if (size) setActiveMapSize(size.cols, size.rows);
+  try {
+    let pick: MapTemplate[];
+    if (templateId) {
+      const t = MAP_TEMPLATES.find((x) => x.id === templateId);
+      pick = t ? [t] : [MAP_TEMPLATES[Math.floor(Math.random() * MAP_TEMPLATES.length)]];
+    } else {
+      pick = shuffle(MAP_TEMPLATES).slice(0, 1 + Math.floor(Math.random() * 2));
+    }
+    const tiles = dedupeTiles(pick.flatMap((g) => g.fn()));
+    return {
+      name: templateId
+        ? pick[0].name
+        : `Aleatorio · ${pick.map((g) => g.name.split(' ')[0]).join(' + ')}`,
+      tiles,
+      barriers: tiles.filter((t) => t.type === 'wall').map((t) => ({ x: t.x, y: t.y })),
+    };
+  } finally {
+    if (size) setActiveMapSize(prevCols, prevRows);
   }
-  const tiles = dedupeTiles(pick.flatMap((g) => g.fn()));
-  return {
-    name: templateId
-      ? pick[0].name
-      : `Aleatorio · ${pick.map((g) => g.name.split(' ')[0]).join(' + ')}`,
-    tiles,
-    barriers: tiles.filter((t) => t.type === 'wall').map((t) => ({ x: t.x, y: t.y })),
-  };
 }
 
 // Deduplica tiles conservando la prioridad (muro < puerta < trampa < tesoro).
