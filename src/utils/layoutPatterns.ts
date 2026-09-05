@@ -28,7 +28,7 @@ export interface LayoutCreature {
 export interface LayoutTile {
   x: number;
   y: number;
-  type: 'wall' | 'door' | 'secretDoor' | 'trap' | 'treasure' | 'investigation' | 'portal';
+  type: 'wall' | 'door' | 'secretDoor' | 'trap' | 'treasure' | 'investigation' | 'portal' | 'campfire';
   /** Solo para "door": true = abierta (no bloquea), false/undefined = cerrada. */
   open?: boolean;
   /** Solo para "portal": id del MapLayout destino, casilla de llegada y nombre opcional. */

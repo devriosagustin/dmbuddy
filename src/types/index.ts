@@ -194,7 +194,7 @@ export interface Quest {
 export interface CombatLogEntry {
   id: string;
   timestamp: Date;
-  type: 'initiative' | 'damage' | 'heal' | 'status' | 'death' | 'custom' | 'xp' | 'move' | 'chat' | 'roll';
+  type: 'initiative' | 'damage' | 'heal' | 'status' | 'death' | 'custom' | 'xp' | 'move' | 'chat' | 'roll' | 'rest';
   message: string;
   combatantId?: string;
   details?: unknown;
@@ -445,7 +445,7 @@ export interface PendingEncounter {
   partyTokens: PartyToken[];
 }
 
-export type TileType = 'wall' | 'door' | 'secretDoor' | 'trap' | 'treasure' | 'investigation' | 'portal';
+export type TileType = 'wall' | 'door' | 'secretDoor' | 'trap' | 'treasure' | 'investigation' | 'portal' | 'campfire';
 
 export interface MapTile {
   x: number;

@@ -45,6 +45,7 @@ const TILE_OPTIONS: { value: TileType; label: string }[] = [
   { value: 'trap', label: '✚ Trampa' },
   { value: 'treasure', label: '🟨 Tesoro' },
   { value: 'investigation', label: '🔍 Investigación' },
+  { value: 'campfire', label: '🔥 Fogata (descanso)' },
   { value: 'portal', label: '🌀 Portal a otro mapa' },
 ];
 
@@ -66,6 +67,8 @@ const tileVisual = (tile: MapTile | undefined): { baseClass: string; icon: strin
       return { baseClass: 'bg-yellow-600/50', icon: '🟨' };
     case 'investigation':
       return { baseClass: 'bg-blue-600/50', icon: '🔍' };
+    case 'campfire':
+      return { baseClass: 'bg-orange-600/50', icon: '🔥' };
     case 'portal':
       return { baseClass: 'bg-purple-700/50', icon: tile.targetLayoutId ? '🌀' : '❔' };
     default:

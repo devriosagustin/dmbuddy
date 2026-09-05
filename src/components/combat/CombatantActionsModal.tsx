@@ -874,7 +874,7 @@ export const CombatantActionsModal = ({ combatant, onClose }: CombatantActionsMo
       </div>
       </Modal>
 
-      <SrdDetailPanel entry={openSpellEntry} onClose={() => setOpenSpellEntry(null)} />
+      <SrdDetailPanel entry={openSpellEntry} onClose={() => setOpenSpellEntry(null)} hideDamageRoll />
       <SrdDetailPanel entry={openFeatEntry} onClose={() => setOpenFeatEntry(null)} />
     </>
   );

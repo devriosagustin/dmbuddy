@@ -44,6 +44,7 @@ export type CoreSlice = Pick<
   | 'removeStatusEffect'
   | 'tickStatusEffects'
   | 'addLogEntry'
+  | 'declareRest'
   | 'endCombat'
   | 'resetCombat'
   | 'startEncounter'
@@ -399,6 +400,17 @@ export const createCoreSlice: StateCreator<CombatStore, [], [], CoreSlice> = (se
     set((state) => ({
       combatLog: [...state.combatLog, fullEntry].slice(-100),
     }));
+  },
+
+  // Declara un descanso corto o largo del grupo. Solo deja constancia en el
+  // registro — la recuperación de PG, dados de golpe o espacios de conjuro
+  // queda a criterio del DM (se aplica a mano, como el resto de los ajustes
+  // de PG), tal como corresponde según la regla que decida usar en su mesa.
+  declareRest: (kind) => {
+    get().addLogEntry({
+      type: 'rest',
+      message: kind === 'short' ? '🔥 El grupo hace un descanso corto.' : '🌙 El grupo hace un descanso largo.',
+    });
   },
 
   endCombat: () => {

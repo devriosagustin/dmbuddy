@@ -216,6 +216,8 @@ export const tileContactEntries = (
     entries.push({ type: 'move', message: `🔍 ${name} investiga en (${x},${y}) — ¡Descubre algo!` });
   } else if (destTile?.type === 'treasure') {
     entries.push({ type: 'move', message: `💰 ${name} encuentra un TESORO en (${x},${y})` });
+  } else if (destTile?.type === 'campfire') {
+    entries.push({ type: 'move', message: `🔥 ${name} llega a una fogata en (${x},${y}) — se puede descansar aquí` });
   }
   const adjacent = [
     { x: x - 1, y },

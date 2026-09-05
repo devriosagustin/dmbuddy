@@ -49,6 +49,7 @@ const TILE_FILL: Record<TileType, string> = {
   trap: 'rgba(153, 27, 27, 0.65)',
   treasure: 'rgba(202, 138, 4, 0.75)',
   investigation: 'rgba(37, 99, 235, 0.7)',
+  campfire: 'rgba(234, 88, 12, 0.7)',
   portal: 'rgba(126, 34, 206, 0.75)',
 };
 const OPEN_DOOR_FILL = 'rgba(4, 120, 87, 0.5)';

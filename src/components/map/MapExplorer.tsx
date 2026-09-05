@@ -100,6 +100,7 @@ export const MapExplorer = () => {
     setPartyToken,
     removePartyToken,
     clearMap,
+    declareRest,
   } = useCombatStore();
   const players = usePlayerStore((s) => s.players);
   const remotePlayers = useSessionStore((s) => s.remotePlayers);
@@ -441,6 +442,7 @@ export const MapExplorer = () => {
             onPortalClick={handlePortalClick}
             onPaintTile={paintTile}
             onClearTiles={clearTiles}
+            onDeclareRest={declareRest}
             onOpenMapLibrary={() => navigate('/mapas')}
             onSelect={setSelectedTokenId}
             onOpenActions={handleOpenActions}

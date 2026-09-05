@@ -238,6 +238,10 @@ describe('tileContactEntries', () => {
     const treasure = tileContactEntries([{ x: 5, y: 5, type: 'treasure' }], 'Aragorn', 5, 5);
     expect(treasure).toHaveLength(1);
     expect(treasure[0].message).toContain('encuentra un TESORO');
+
+    const campfire = tileContactEntries([{ x: 5, y: 5, type: 'campfire' }], 'Aragorn', 5, 5);
+    expect(campfire).toHaveLength(1);
+    expect(campfire[0].message).toContain('fogata');
   });
 
   it('ignora tiles que no son especiales (muro, puerta, portal)', () => {

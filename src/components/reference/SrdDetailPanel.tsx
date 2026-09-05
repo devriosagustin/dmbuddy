@@ -20,6 +20,15 @@ import type { SrdRecord, SrdSpellEntry, SrdMonsterEntry } from '../../types/srd2
 interface SrdDetailPanelProps {
   entry: SrdRecord | null;
   onClose: () => void;
+  /**
+   * Oculta el botón de tirada rápida del bloque de conjuro. Se usa desde el
+   * modal de acciones de combate, donde ya existe un botón "Lanzar" en la
+   * fila del conjuro que sí valida alcance/línea de visión, aplica el daño
+   * o curación al objetivo Y lo registra en el log — tener acá una segunda
+   * tirada que no hace nada de eso es confuso y es justo lo que no quedaba
+   * registrado.
+   */
+  hideDamageRoll?: boolean;
 }
 
 const Meta = ({ label, value }: { label: string; value: string }) => (
@@ -40,7 +49,7 @@ const Stat = ({ label, value }: { label: string; value: number }) => (
 );
 
 /** Encabezado con ficha técnica de un conjuro + tirada rápida. */
-const SpellBlock = ({ spell }: { spell: SrdSpellEntry }) => {
+const SpellBlock = ({ spell, hideDamageRoll }: { spell: SrdSpellEntry; hideDamageRoll?: boolean }) => {
   const { roll } = useDice();
   const [last, setLast] = useState<string | null>(null);
 
@@ -59,7 +68,7 @@ const SpellBlock = ({ spell }: { spell: SrdSpellEntry }) => {
         <span className="text-xs text-dnd-gold">
           Clases: <span className="text-dnd-text">{spell.classes.join(', ')}</span>
         </span>
-        {spell.damageRolls && (
+        {spell.damageRolls && !hideDamageRoll && (
           <Button
             variant="secondary"
             size="sm"
@@ -150,7 +159,7 @@ const MonsterBlock = ({ monster }: { monster: SrdMonsterEntry }) => {
 /**
  * Modal con el detalle completo de una entrada de referencia.
  */
-export const SrdDetailPanel = ({ entry, onClose }: SrdDetailPanelProps) => {
+export const SrdDetailPanel = ({ entry, onClose, hideDamageRoll }: SrdDetailPanelProps) => {
   if (!entry) return null;
 
   const categoryLabel = SRD_CATEGORIES[entry.category].label;
@@ -171,7 +180,7 @@ export const SrdDetailPanel = ({ entry, onClose }: SrdDetailPanelProps) => {
           ))}
         </div>
 
-        {entry.category === 'spells' && <SpellBlock spell={entry} />}
+        {entry.category === 'spells' && <SpellBlock spell={entry} hideDamageRoll={hideDamageRoll} />}
         {entry.category === 'monsters' && <MonsterBlock monster={entry} />}
         {entry.category === 'classes' && (
           <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">

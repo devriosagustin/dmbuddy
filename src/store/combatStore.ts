@@ -51,6 +51,7 @@ export interface CombatStore extends CombatState {  // Acciones
   removeStatusEffect: (id: string, effectId: string) => void;
   tickStatusEffects: () => void;
   addLogEntry: (entry: Omit<CombatLogEntry, 'id' | 'timestamp'>) => void;
+  declareRest: (kind: 'short' | 'long') => void;
   endCombat: () => void;
   resetCombat: () => void;
   /** Coloca una criatura persistente en el mapa (monstruo/NPC). */

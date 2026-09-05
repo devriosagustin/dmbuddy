@@ -636,3 +636,19 @@ describe('Combat Store - contacto de tiles especiales (trampa/tesoro/investigaci
     expect(useCombatStore.getState().combatLog.length).toBe(before);
   });
 });
+
+describe('Combat Store - descanso (fogata)', () => {
+  it('declareRest registra un descanso corto', () => {
+    useCombatStore.getState().declareRest('short');
+    const entry = useCombatStore.getState().combatLog.at(-1);
+    expect(entry?.type).toBe('rest');
+    expect(entry?.message).toContain('descanso corto');
+  });
+
+  it('declareRest registra un descanso largo', () => {
+    useCombatStore.getState().declareRest('long');
+    const entry = useCombatStore.getState().combatLog.at(-1);
+    expect(entry?.type).toBe('rest');
+    expect(entry?.message).toContain('descanso largo');
+  });
+});

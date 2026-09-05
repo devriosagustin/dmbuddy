@@ -80,6 +80,8 @@ interface CombatMapProps {
   /** Id del patrón de fondo de la cuadrícula (ver MAP_BACKGROUNDS). */
   mapBackground: string;
   onMapBackground: (id: string) => void;
+  /** Declara un descanso corto o largo del grupo (queda registrado en el log). */
+  onDeclareRest: (kind: 'short' | 'long') => void;
 }
 
 interface DragState {
@@ -103,7 +105,7 @@ const SAME = <T,>(a: T, b: T) => JSON.stringify(a) === JSON.stringify(b);
 const RANGE_PRESETS = [5, 10, 15, 30, 60, 90, 120];
 const AOE_PRESETS = [5, 10, 15, 20, 30, 60];
 
-export const CombatMap = ({ participants, activeId, nextId, selectedId, tiles, tileType, onTileTypeChange, tileMode, onToggleTileMode, onToggleTile, onPortalClick, onPaintTile, onClearTiles, onOpenMapLibrary, onOpenActions, onMove, onSelect, cols, rows, onMapSizeChange, visionRange, onVisionRange, revealedTileKeys, revealedEnemyIds, onToggleRevealTile, onToggleRevealEnemy, mapBackground, onMapBackground }: CombatMapProps) => {
+export const CombatMap = ({ participants, activeId, nextId, selectedId, tiles, tileType, onTileTypeChange, tileMode, onToggleTileMode, onToggleTile, onPortalClick, onPaintTile, onClearTiles, onOpenMapLibrary, onOpenActions, onMove, onSelect, cols, rows, onMapSizeChange, visionRange, onVisionRange, revealedTileKeys, revealedEnemyIds, onToggleRevealTile, onToggleRevealEnemy, mapBackground, onMapBackground, onDeclareRest }: CombatMapProps) => {
   const gridRef = useRef<HTMLDivElement>(null);
   const [mode, setMode] = useState<Mode>('move');
   const [drag, setDrag] = useState<DragState | null>(null);
@@ -127,6 +129,8 @@ export const CombatMap = ({ participants, activeId, nextId, selectedId, tiles, t
 
   // Desplegable de cortina de guerra (radio de visión y revelados).
   const [fogOpen, setFogOpen] = useState(false);
+  // Desplegable de descanso (corto/largo).
+  const [restOpen, setRestOpen] = useState(false);
 
   // Dimensionado del mapa: calcula el mayor tamaño con celdas cuadradas que
   // cabe en el área disponible (así no hay scroll y todo se ve completo).
@@ -402,6 +406,49 @@ export const CombatMap = ({ participants, activeId, nextId, selectedId, tiles, t
               </div>
             )}
           </div>
+          <div className="relative flex items-center">
+            <button
+              type="button"
+              onClick={() => setRestOpen((v) => !v)}
+              aria-expanded={restOpen}
+              className={`rounded-full px-2.5 py-1 text-[11px] font-bold transition-colors ${
+                restOpen
+                  ? 'bg-orange-500 text-white'
+                  : 'bg-dnd-leather/30 text-dnd-muted hover:text-dnd-text'
+              }`}
+            >
+              🔥 Descanso
+            </button>
+            {restOpen && (
+              <div className="absolute left-0 top-full z-50 mt-1 w-52 rounded-dnd-lg border border-orange-500/30 bg-dnd-ink p-2 shadow-xl">
+                <p className="mb-1.5 px-1 text-[10px] text-dnd-muted">
+                  Queda registrado en el log. La recuperación de PG/recursos la decide el DM.
+                </p>
+                <div className="flex flex-col gap-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onDeclareRest('short');
+                      setRestOpen(false);
+                    }}
+                    className="rounded-lg bg-dnd-leather/30 px-2 py-1 text-left text-[11px] font-bold text-dnd-text transition-colors hover:bg-orange-500/30"
+                  >
+                    🔥 Descanso corto
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onDeclareRest('long');
+                      setRestOpen(false);
+                    }}
+                    className="rounded-lg bg-dnd-leather/30 px-2 py-1 text-left text-[11px] font-bold text-dnd-text transition-colors hover:bg-orange-500/30"
+                  >
+                    🌙 Descanso largo
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
           <button
             type="button"
             onClick={onToggleTileMode}
@@ -428,6 +475,7 @@ export const CombatMap = ({ participants, activeId, nextId, selectedId, tiles, t
                 <option value="trap">✚ Trampa</option>
                 <option value="treasure">🟨 Tesoro</option>
                 <option value="investigation">🔍 Investigación</option>
+                <option value="campfire">🔥 Fogata (descanso)</option>
                 <option value="portal">🌀 Portal a otro mapa</option>
               </select>
               <button
@@ -632,6 +680,9 @@ export const CombatMap = ({ participants, activeId, nextId, selectedId, tiles, t
               } else if (tile.type === 'investigation') {
                 baseClass = 'bg-blue-600/50 flex items-center justify-center';
                 icon = '🔍';
+              } else if (tile.type === 'campfire') {
+                baseClass = 'bg-orange-600/50 flex items-center justify-center';
+                icon = '🔥';
               } else if (tile.type === 'portal') {
                 // Portal configurado (con mapa destino) vs recién colocado y
                 // sin configurar todavía (el DM tiene que elegir el mapa).
