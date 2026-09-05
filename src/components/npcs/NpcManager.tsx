@@ -19,16 +19,15 @@ const ROLE_META: Record<Npc['role'], { label: string; icon: string; badge: strin
 /**
  * Pantalla principal de NPC de la aplicación.
  */
+/**
+ * Vista de pantalla: lista de NPC o su ficha (creación/edición).
+ */
+type NpcView = { type: 'list' } | { type: 'form'; npc: Npc | null };
+
 export const NpcManager = () => {
   const npcs = useNpcStore((s) => s.npcs);
   const removeNpc = useNpcStore((s) => s.removeNpc);
-  const [formTarget, setFormTarget] = useState<Npc | null>(null);
-  const [formOpen, setFormOpen] = useState(false);
-
-  const startNew = () => {
-    setFormTarget(null);
-    setFormOpen(true);
-  };
+  const [view, setView] = useState<NpcView>({ type: 'list' });
 
   return (
     <div className="mx-auto max-w-5xl space-y-4">
@@ -41,11 +40,17 @@ export const NpcManager = () => {
             como una ficha más.
           </p>
         </div>
-        <Button variant="primary" onClick={startNew} icon={<Plus size={16} />} className="shrink-0">
+        <Button variant="primary" onClick={() => setView({ type: 'form', npc: null })} icon={<Plus size={16} />} className="shrink-0">
           Nuevo NPC
         </Button>
       </div>
 
+      {view.type === 'form' && (
+        <NpcForm npc={view.npc} onBack={() => setView({ type: 'list' })} />
+      )}
+
+      {view.type === 'list' && (
+      <>
       {npcs.length === 0 ? (
         <div className="section-box flex flex-col items-center gap-2 py-10 text-center">
           <UserRound size={32} className="text-dnd-muted" aria-hidden="true" />
@@ -72,10 +77,7 @@ export const NpcManager = () => {
                   </div>
                   <div className="flex shrink-0 items-center gap-1">
                     <button
-                      onClick={() => {
-                        setFormTarget(npc);
-                        setFormOpen(true);
-                      }}
+                      onClick={() => setView({ type: 'form', npc })}
                       aria-label={`Editar a ${npc.name}`}
                       className="icon-btn"
                     >
@@ -119,15 +121,7 @@ export const NpcManager = () => {
           })}
         </div>
       )}
-
-      {formOpen && (
-        <NpcForm
-          npc={formTarget}
-          onClose={() => {
-            setFormOpen(false);
-            setFormTarget(null);
-          }}
-        />
+      </>
       )}
     </div>
   );

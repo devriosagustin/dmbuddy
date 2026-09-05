@@ -1,19 +1,22 @@
 // ============================================================
-// Formulario de creación/edición de NPC (rehén o aliado)
+// Formulario de creación/edición de NPC (rehén o aliado).
+// Página completa (sin modal), como la ficha de personaje: alterna
+// con la lista de NPC desde el propio NpcManager.
 // ============================================================
 
 import { useState } from 'react';
-import { Dices, Save } from 'lucide-react';
+import { ArrowLeft, Dices, Save, Shuffle } from 'lucide-react';
 import { Modal } from '../common/Modal';
 import { Button } from '../common/Button';
 import type { Npc, NpcRole } from '../../types';
 import { useNpcStore } from '../../store/npcStore';
 import { NPC_NAME_TABLES } from '../../data/randomTables';
 import { rollNpcName } from '../../utils/randomTables';
+import { RandomTablesPage } from '../tools/RandomTablesPage';
 
 interface NpcFormProps {
   npc: Npc | null; // null = crear nuevo
-  onClose: () => void;
+  onBack: () => void;
 }
 
 const ROLE_OPTIONS: { value: NpcRole; label: string; hint: string; icon: string }[] = [
@@ -24,9 +27,11 @@ const ROLE_OPTIONS: { value: NpcRole; label: string; hint: string; icon: string 
 ];
 
 /**
- * Formulario para crear o editar un NPC en la sección NPC.
+ * Página para crear o editar un NPC en la sección NPC. Incluye acceso al
+ * generador aleatorio (ganchos, complicaciones, botín) en un panel propio,
+ * para no necesitar una pestaña separada en la barra lateral.
  */
-export const NpcForm = ({ npc, onClose }: NpcFormProps) => {
+export const NpcForm = ({ npc, onBack }: NpcFormProps) => {
   const { addNpc, updateNpc } = useNpcStore();
 
   const [form, setForm] = useState<Npc>(
@@ -46,6 +51,7 @@ export const NpcForm = ({ npc, onClose }: NpcFormProps) => {
   // acá abajo — no se guarda con el NPC (el registro de NPC no tiene campo
   // de especie).
   const [nameSpecies, setNameSpecies] = useState('');
+  const [showGenerator, setShowGenerator] = useState(false);
 
   const setField = <K extends keyof Npc>(key: K, value: Npc[K]) =>
     setForm((f) => ({ ...f, [key]: value }));
@@ -69,19 +75,36 @@ export const NpcForm = ({ npc, onClose }: NpcFormProps) => {
     } else {
       addNpc(cleaned);
     }
-    onClose();
+    onBack();
   };
 
   const input = 'input text-sm';
+  const isNew = !npc;
 
   return (
-    <Modal
-      open
-      onClose={onClose}
-      title={npc ? `Editar: ${npc.name}` : 'Nuevo NPC'}
-      subtitle="Los NPC pueden ser rehenes que liberar o aliados que ayudan al party"
-      maxWidth="md"
-    >
+    <div className="page">
+      <div className="page-header">
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="sm" onClick={onBack} icon={<ArrowLeft size={15} />} aria-label="Volver a la lista de NPC">
+            Volver
+          </Button>
+          <div>
+            <h2 className="page-title">{isNew ? 'Nuevo NPC' : `Editar: ${npc.name}`}</h2>
+            <p className="text-sm text-dnd-muted">
+              Los NPC pueden ser rehenes que liberar o aliados que ayudan al party
+            </p>
+          </div>
+        </div>
+        <div className="page-actions">
+          <Button variant="secondary" size="sm" icon={<Shuffle size={15} />} onClick={() => setShowGenerator(true)}>
+            Generador aleatorio
+          </Button>
+          <Button variant="primary" size="sm" onClick={handleSave} icon={<Save size={15} />}>
+            {isNew ? 'Crear NPC' : 'Guardar cambios'}
+          </Button>
+        </div>
+      </div>
+
       <div className="space-y-5">
         {/* Datos básicos */}
         <section className="section-box">
@@ -215,12 +238,17 @@ export const NpcForm = ({ npc, onClose }: NpcFormProps) => {
 
         {/* Guardar */}
         <div className="form-actions">
-          <Button variant="ghost" onClick={onClose}>Cancelar</Button>
+          <Button variant="ghost" onClick={onBack}>Cancelar</Button>
           <Button variant="primary" onClick={handleSave} icon={<Save size={16} />}>
-            {npc ? 'Guardar cambios' : 'Crear NPC'}
+            {isNew ? 'Crear NPC' : 'Guardar cambios'}
           </Button>
         </div>
       </div>
-    </Modal>
+
+      {/* Generador aleatorio: ganchos, complicaciones y botín, sin salir de esta página */}
+      <Modal open={showGenerator} onClose={() => setShowGenerator(false)} maxWidth="2xl">
+        <RandomTablesPage />
+      </Modal>
+    </div>
   );
 };

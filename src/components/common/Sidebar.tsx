@@ -12,8 +12,6 @@ import {
   UserRound,
   NotebookPen,
   Map as MapIcon,
-  Shuffle,
-  ScrollText,
   Library,
   ChevronLeft,
   ChevronRight,
@@ -30,8 +28,6 @@ const navItems = [
   { to: '/npcs', label: 'NPC', icon: UserRound },
   { to: '/reference', label: 'Biblioteca', icon: BookOpen },
   { to: '/notes', label: 'Registro y Notas', icon: NotebookPen },
-  { to: '/generador', label: 'Generador', icon: Shuffle },
-  { to: '/misiones', label: 'Misiones', icon: ScrollText },
   { to: '/mapas', label: 'Biblioteca de mapas', icon: Library },
 ];
 

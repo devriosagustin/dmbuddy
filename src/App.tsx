@@ -16,8 +16,6 @@ const ReferenceLibrary = lazy(() => import('./components/reference/ReferenceLibr
 const PartyManager = lazy(() => import('./components/players/PartyManager'));
 const NpcManager = lazy(() => import('./components/npcs/NpcManager'));
 const NotesManager = lazy(() => import('./components/notes/NotesManager'));
-const RandomTablesPage = lazy(() => import('./components/tools/RandomTablesPage'));
-const QuestManager = lazy(() => import('./components/quests/QuestManager'));
 const MapLibraryPage = lazy(() => import('./components/map/MapLibraryPage'));
 
 /**
@@ -117,26 +115,6 @@ export default function App() {
               <Suspense fallback={<PageLoader />}>
                 <DmOnlyRoute>
                   <NotesManager />
-                </DmOnlyRoute>
-              </Suspense>
-            }
-          />
-          <Route
-            path="/generador"
-            element={
-              <Suspense fallback={<PageLoader />}>
-                <DmOnlyRoute>
-                  <RandomTablesPage />
-                </DmOnlyRoute>
-              </Suspense>
-            }
-          />
-          <Route
-            path="/misiones"
-            element={
-              <Suspense fallback={<PageLoader />}>
-                <DmOnlyRoute>
-                  <QuestManager />
                 </DmOnlyRoute>
               </Suspense>
             }

@@ -60,6 +60,9 @@ export const createMapSlice: StateCreator<CombatStore, [], [], MapSlice> = (set,
     const { tiles } = get();
     const idx = tiles.findIndex((t) => t.x === x && t.y === y);
     if (idx >= 0) {
+      // Un portal solo se quita desde su modal (botón «Eliminar»): ninguna
+      // otra herramienta de tile puede pisarlo ni borrarlo por accidente.
+      if (tiles[idx].type === 'portal' && type !== 'portal') return;
       // Si ya existe un tile del mismo tipo, lo quita (toggle off).
       // Si es de otro tipo, lo reemplaza.
       if (tiles[idx].type === type) {
@@ -87,6 +90,9 @@ export const createMapSlice: StateCreator<CombatStore, [], [], MapSlice> = (set,
     if (!inBounds(x, y)) return;
     const { tiles } = get();
     const idx = tiles.findIndex((t) => t.x === x && t.y === y);
+    // Un portal solo se quita desde su modal (botón «Eliminar»): un trazo de
+    // pintado con otra herramienta no puede pisarlo ni borrarlo.
+    if (idx >= 0 && tiles[idx].type === 'portal' && type !== 'portal') return;
     if (mode === 'remove') {
       if (idx >= 0) {
         set({ tiles: tiles.filter((t) => !(t.x === x && t.y === y)) });

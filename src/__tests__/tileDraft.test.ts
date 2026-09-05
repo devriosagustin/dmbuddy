@@ -46,6 +46,11 @@ describe('toggleDraftTile', () => {
     const tiles = toggleDraftTile([], -1, 0, 'wall');
     expect(tiles).toEqual([]);
   });
+
+  it('no toca un portal existente si se usa otra herramienta de tile', () => {
+    const tiles: MapTile[] = [{ x: 2, y: 3, type: 'portal', targetLayoutId: 'l1', targetX: 0, targetY: 0 }];
+    expect(toggleDraftTile(tiles, 2, 3, 'wall')).toBe(tiles);
+  });
 });
 
 describe('removeDraftTileAt', () => {
@@ -149,6 +154,16 @@ describe('paintDraftTile', () => {
   it('ignora celdas fuera de los límites activos del mapa', () => {
     const tiles: MapTile[] = [];
     expect(paintDraftTile(tiles, -1, 0, 'wall', 'add')).toBe(tiles);
+  });
+
+  it('modo "add": no pisa un portal existente con otra herramienta', () => {
+    const tiles: MapTile[] = [{ x: 2, y: 2, type: 'portal', targetLayoutId: 'l1', targetX: 0, targetY: 0 }];
+    expect(paintDraftTile(tiles, 2, 2, 'wall', 'add')).toBe(tiles);
+  });
+
+  it('modo "remove": no borra un portal existente con otra herramienta', () => {
+    const tiles: MapTile[] = [{ x: 2, y: 2, type: 'portal', targetLayoutId: 'l1', targetX: 0, targetY: 0 }];
+    expect(paintDraftTile(tiles, 2, 2, 'wall', 'remove')).toBe(tiles);
   });
 });
 

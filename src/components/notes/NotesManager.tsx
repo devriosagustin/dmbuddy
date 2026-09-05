@@ -7,6 +7,7 @@ import {
   CalendarPlus,
   FileText,
   Heart,
+  History,
   NotebookPen,
   Plus,
   Search,
@@ -23,6 +24,7 @@ import { NOTE_CATEGORIES, SESSION_PREP_TEMPLATE, useNoteStore } from '../../stor
 import type { Note, NoteCategory } from '../../types';
 import { MarkdownPreview } from './MarkdownPreview';
 import { CombatLog } from '../combat/CombatLog';
+import { QuestManager } from '../quests/QuestManager';
 
 const CATEGORY_ICONS: Record<NoteCategory, string> = {
   Campaign: '📜',
@@ -46,7 +48,7 @@ export const NotesManager = () => {
 
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState<'all' | NoteCategory>('all');
-  const [tab, setTab] = useState<'notas' | 'registro'>('notas');
+  const [tab, setTab] = useState<'notas' | 'registro' | 'misiones'>('notas');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [draftTitle, setDraftTitle] = useState('');
   const [draftContent, setDraftContent] = useState('');
@@ -190,13 +192,25 @@ const selectClass = 'select';
           onClick={() => setTab('registro')}
           className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition-colors ${tab === 'registro' ? 'bg-dnd-gold text-dnd-ink' : 'text-dnd-muted hover:text-dnd-text'}`}
         >
-          <ScrollText size={15} aria-hidden="true" /> Registro
+          <History size={15} aria-hidden="true" /> Registro
+        </button>
+        <button
+          role="tab"
+          aria-selected={tab === 'misiones'}
+          onClick={() => setTab('misiones')}
+          className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition-colors ${tab === 'misiones' ? 'bg-dnd-gold text-dnd-ink' : 'text-dnd-muted hover:text-dnd-text'}`}
+        >
+          <ScrollText size={15} aria-hidden="true" /> Misiones
         </button>
       </div>
 
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
       {tab === 'registro' ? (
         <CombatLog defaultExpanded />
+      ) : tab === 'misiones' ? (
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          <QuestManager />
+        </div>
       ) : (
       <div className="grid min-h-0 flex-1 gap-4 overflow-hidden lg:grid-cols-[320px_1fr]">
         {/* Lista de notas */}

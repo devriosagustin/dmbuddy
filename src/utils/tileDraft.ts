@@ -16,6 +16,9 @@ import { inBounds } from './mapUtils';
 export const toggleDraftTile = (tiles: MapTile[], x: number, y: number, type: TileType): MapTile[] => {
   const idx = tiles.findIndex((t) => t.x === x && t.y === y);
   if (idx >= 0) {
+    // Un portal solo se quita desde su modal (botón «Eliminar»): ninguna
+    // otra herramienta de tile puede pisarlo ni borrarlo por accidente.
+    if (tiles[idx].type === 'portal' && type !== 'portal') return tiles;
     if (tiles[idx].type === type) {
       if (type === 'door') {
         const updated = [...tiles];
@@ -77,6 +80,9 @@ export const paintDraftTile = (
 ): MapTile[] => {
   if (!inBounds(x, y)) return tiles;
   const idx = tiles.findIndex((t) => t.x === x && t.y === y);
+  // Un portal solo se quita desde su modal (botón «Eliminar»): un trazo de
+  // pintado con otra herramienta no puede pisarlo ni borrarlo.
+  if (idx >= 0 && tiles[idx].type === 'portal' && type !== 'portal') return tiles;
   if (mode === 'remove') {
     return idx >= 0 ? tiles.filter((t) => !(t.x === x && t.y === y)) : tiles;
   }
