@@ -3,6 +3,10 @@
 // la disposición de los mapas guardados que conectan por portales con el
 // mapa elegido, ubicando cada mapa vecino según el borde donde está el
 // portal que lo conecta (derecha → a la derecha, abajo → abajo, etc.).
+// Cada mapa se dibuja como una miniatura de su cuadrícula real (muros y
+// el resto de los tiles, con los mismos colores que el editor) en vez de
+// solo un recuadro con el nombre, para poder reconocer el layout de un
+// vistazo.
 // ============================================================
 
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -10,7 +14,9 @@ import { ImageDown } from 'lucide-react';
 import { Modal } from '../common/Modal';
 import { Button } from '../common/Button';
 import type { MapLayout } from '../../utils/layoutPatterns';
+import { restoreTilesFromLayout } from '../../utils/layoutPatterns';
 import { buildMapDiagram } from '../../utils/mapConnections';
+import type { MapTile, TileType } from '../../types';
 
 interface MapConnectionsModalProps {
   /** Mapa de partida; null = modal cerrado. */
@@ -21,11 +27,31 @@ interface MapConnectionsModalProps {
   onClose: () => void;
 }
 
-const BOX_W = 210;
-const BOX_H = 120;
-const GAP = 70;
-const PADDING = 30;
+// Tamaño máximo de la miniatura de cuadrícula dentro de cada caja: el
+// tamaño de celda real sale de encajar mapCols×mapRows ahí adentro (mismo
+// criterio de "la cuadrícula más grande con celdas cuadradas que entra en
+// el área" que usa el mapa en vivo), así que con mapas muy grandes las
+// celdas se ven chicas pero el layout se sigue reconociendo.
+const MAX_MAP_W = 220;
+const MAX_MAP_H = 130;
+const MAP_PAD = 8;
+const LABEL_H = 24;
+const GAP = 60;
+const OUTER_PADDING = 30;
 const TITLE_H = 50;
+
+/** Mismos colores que tileVisual() en MapLibraryPage.tsx, para que la miniatura se vea igual que el editor. */
+const TILE_FILL: Record<TileType, string> = {
+  wall: '#2c1810',
+  secretDoor: '#2c1810',
+  door: '#452a0a',
+  trap: 'rgba(153, 27, 27, 0.65)',
+  treasure: 'rgba(202, 138, 4, 0.75)',
+  investigation: 'rgba(37, 99, 235, 0.7)',
+  portal: 'rgba(126, 34, 206, 0.75)',
+};
+const FLOOR_FILL = 'rgba(139, 69, 19, 0.12)';
+const OPEN_DOOR_FILL = 'rgba(4, 120, 87, 0.5)';
 
 /** Corta `text` en varias líneas que entren en `maxWidth`, centradas en (cx, cy). */
 const wrapCenteredText = (
@@ -53,6 +79,31 @@ const wrapCenteredText = (
   lines.forEach((line, i) => ctx.fillText(line, cx, startY + i * lineHeight));
 };
 
+/** Dibuja la miniatura de la cuadrícula de un mapa (muros y demás tiles) dentro del rectángulo (x,y,w,h). */
+const drawMiniMap = (
+  ctx: CanvasRenderingContext2D,
+  tiles: MapTile[],
+  x: number,
+  y: number,
+  cellSize: number,
+  cols: number,
+  rows: number
+) => {
+  ctx.fillStyle = FLOOR_FILL;
+  ctx.fillRect(x, y, cellSize * cols, cellSize * rows);
+
+  for (const tile of tiles) {
+    const fill = tile.type === 'door' && tile.open ? OPEN_DOOR_FILL : TILE_FILL[tile.type];
+    if (!fill) continue;
+    ctx.fillStyle = fill;
+    ctx.fillRect(x + tile.x * cellSize, y + tile.y * cellSize, cellSize, cellSize);
+  }
+
+  ctx.strokeStyle = 'rgba(218, 165, 32, 0.35)';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(x + 0.5, y + 0.5, cellSize * cols - 1, cellSize * rows - 1);
+};
+
 /**
  * Modal con la vista previa del diagrama y un botón para descargarlo como
  * PNG. El cálculo de posiciones vive en utils/mapConnections.ts (puro,
@@ -75,6 +126,13 @@ export const MapConnectionsModal = ({ startLayoutId, layouts, mapCols, mapRows, 
     const canvas = canvasRef.current;
     if (!canvas) return;
 
+    const layoutById = new Map(layouts.map((l) => [l.id, l]));
+    const cellSize = Math.max(1, Math.floor(Math.min(MAX_MAP_W / mapCols, MAX_MAP_H / mapRows)));
+    const mapW = cellSize * mapCols;
+    const mapH = cellSize * mapRows;
+    const boxW = mapW + MAP_PAD * 2;
+    const boxH = mapH + MAP_PAD * 2 + LABEL_H;
+
     const cols = diagram.nodes.map((n) => n.col);
     const rows = diagram.nodes.map((n) => n.row);
     const minCol = Math.min(...cols);
@@ -82,18 +140,22 @@ export const MapConnectionsModal = ({ startLayoutId, layouts, mapCols, mapRows, 
     const minRow = Math.min(...rows);
     const maxRow = Math.max(...rows);
 
-    const width = (maxCol - minCol + 1) * (BOX_W + GAP) - GAP + PADDING * 2;
-    const height = (maxRow - minRow + 1) * (BOX_H + GAP) - GAP + PADDING * 2 + TITLE_H;
+    const width = (maxCol - minCol + 1) * (boxW + GAP) - GAP + OUTER_PADDING * 2;
+    const height = (maxRow - minRow + 1) * (boxH + GAP) - GAP + OUTER_PADDING * 2 + TITLE_H;
     canvas.width = width;
     canvas.height = height;
 
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const center = (col: number, row: number) => ({
-      x: PADDING + (col - minCol) * (BOX_W + GAP) + BOX_W / 2,
-      y: TITLE_H + PADDING + (row - minRow) * (BOX_H + GAP) + BOX_H / 2,
+    const boxTopLeft = (col: number, row: number) => ({
+      x: OUTER_PADDING + (col - minCol) * (boxW + GAP),
+      y: TITLE_H + OUTER_PADDING + (row - minRow) * (boxH + GAP),
     });
+    const center = (col: number, row: number) => {
+      const p = boxTopLeft(col, row);
+      return { x: p.x + boxW / 2, y: p.y + boxH / 2 };
+    };
 
     // Fondo con el mismo tono oscuro de la app.
     ctx.fillStyle = '#181210';
@@ -124,11 +186,10 @@ export const MapConnectionsModal = ({ startLayoutId, layouts, mapCols, mapRows, 
       }
     });
 
-    // Caja de cada mapa, resaltando el elegido como punto de partida.
+    // Caja de cada mapa: fondo + miniatura de su cuadrícula + nombre,
+    // resaltando el elegido como punto de partida.
     diagram.nodes.forEach((node) => {
-      const c = center(node.col, node.row);
-      const x = c.x - BOX_W / 2;
-      const y = c.y - BOX_H / 2;
+      const { x, y } = boxTopLeft(node.col, node.row);
       const isStart = node.id === startLayoutId;
       const radius = 10;
 
@@ -137,22 +198,27 @@ export const MapConnectionsModal = ({ startLayoutId, layouts, mapCols, mapRows, 
       ctx.lineWidth = isStart ? 3 : 2;
       ctx.beginPath();
       ctx.moveTo(x + radius, y);
-      ctx.arcTo(x + BOX_W, y, x + BOX_W, y + BOX_H, radius);
-      ctx.arcTo(x + BOX_W, y + BOX_H, x, y + BOX_H, radius);
-      ctx.arcTo(x, y + BOX_H, x, y, radius);
-      ctx.arcTo(x, y, x + BOX_W, y, radius);
+      ctx.arcTo(x + boxW, y, x + boxW, y + boxH, radius);
+      ctx.arcTo(x + boxW, y + boxH, x, y + boxH, radius);
+      ctx.arcTo(x, y + boxH, x, y, radius);
+      ctx.arcTo(x, y, x + boxW, y, radius);
       ctx.closePath();
       ctx.fill();
       ctx.stroke();
 
+      const layout = layoutById.get(node.id);
+      if (layout) {
+        drawMiniMap(ctx, restoreTilesFromLayout(layout), x + MAP_PAD, y + MAP_PAD, cellSize, mapCols, mapRows);
+      }
+
       ctx.fillStyle = '#f1e6d0';
-      ctx.font = 'bold 16px Georgia, serif';
+      ctx.font = 'bold 13px Georgia, serif';
       ctx.textAlign = 'center';
-      wrapCenteredText(ctx, node.name, c.x, c.y, BOX_W - 24, 20);
+      wrapCenteredText(ctx, node.name, x + boxW / 2, y + MAP_PAD + mapH + LABEL_H / 2 + 2, boxW - 16, 15);
     });
 
     setPngUrl(canvas.toDataURL('image/png'));
-  }, [diagram, startLayoutId]);
+  }, [diagram, startLayoutId, layouts, mapCols, mapRows]);
 
   const handleDownload = () => {
     if (!pngUrl) return;
@@ -167,7 +233,7 @@ export const MapConnectionsModal = ({ startLayoutId, layouts, mapCols, mapRows, 
       open={!!startLayoutId}
       onClose={onClose}
       title="Diagrama de conexiones"
-      subtitle="Disposición de los mapas conectados por portal al mapa elegido"
+      subtitle="Disposición de los mapas conectados por portal al mapa elegido, con su layout real"
       maxWidth="4xl"
     >
       <div className="space-y-3">
