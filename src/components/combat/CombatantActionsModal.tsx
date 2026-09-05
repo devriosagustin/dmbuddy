@@ -17,6 +17,7 @@ import { abilityModifier } from '../../utils/diceUtils';
 import { useDice } from '../../hooks/useDice';
 import { srdSpellByTitle, srdWeaponById, srdFeatByTitle } from '../../data/srd2024';
 import { gridDistanceFeet } from '../../utils/mapUtils';
+import { spellReachIssue } from '../../utils/spellRange';
 import { combatantTypeLabel } from '../../utils/combatUtils';
 import type { SrdWeaponEntry } from '../../data/srd2024';
 import { weaponAttackBonus, weaponDamageBonus } from '../../utils/weaponUtils';
@@ -55,6 +56,7 @@ interface CombatantActionsModalProps {
 export const CombatantActionsModal = ({ combatant, onClose }: CombatantActionsModalProps) => {
   const { updateHP, removeCombatant, addStatusEffect, removeStatusEffect, setInitiative, setSpeed, updateCombatant } = useCombatStore();
   const participants = useCombatStore((s) => s.participants);
+  const tiles = useCombatStore((s) => s.tiles);
   const turn = useCombatStore((s) => s.turn);
   const monsters = useMonsterStore((s) => s.monsters);
   const npcs = useNpcStore((s) => s.npcs);
@@ -130,6 +132,13 @@ export const CombatantActionsModal = ({ combatant, onClose }: CombatantActionsMo
           ? live.find((p) => p.id === turnTarget.id)
           : undefined) ?? live.find((p) => p.id !== combatant.id) ?? live[0];
   const target = participants.find((p) => p.id === targetId && !p.isDead) ?? defaultTarget;
+  const targetPos = target && target.x !== undefined && target.y !== undefined ? { x: target.x, y: target.y } : null;
+
+  // Motivo (si lo hay) por el que el objetivo elegido está fuera de
+  // alcance o sin línea de visión para un conjuro con ese `range` — null
+  // si se puede lanzar. Sin posición de lanzador y/o objetivo (fichas sin
+  // colocar en el mapa) no se puede evaluar nada, así que no se bloquea.
+  const spellIssue = (range: string): string | null => spellReachIssue(combatantPos, targetPos, tiles, range);
 
   // Armas equipadas del jugador (SRD 5.2)
   const wStats = combatant.playerStats;
@@ -208,6 +217,34 @@ export const CombatantActionsModal = ({ combatant, onClose }: CombatantActionsMo
     ...LevelList(sortedPlayerSpells),
   ];
 
+  /**
+   * Tira el dado de daño/cura de un conjuro ya cargado (`damageRolls`) y lo
+   * aplica al objetivo, registrándolo en el log. Compartido por el conjuro
+   * de un monstruo (`castSpell`) y el de un PJ (`castPlayerSpell`) — el
+   * único lugar donde vive "cómo se resuelve un conjuro con dado de daño",
+   * para que ambos casteos se comporten y se registren igual.
+   */
+  const applySpellRoll = (casterName: string, spellTitle: string, entry: SrdSpellEntry, suffix = '') => {
+    if (!entry.damageRolls) return;
+    const receiver = target ?? combatant;
+    const damageRoll = roll(entry.damageRolls);
+    if (HEALING_SPELL_IDS.has(entry.id)) {
+      updateHP(receiver.id, damageRoll.result, false);
+      useCombatStore.getState().addLogEntry({
+        type: 'heal',
+        message: `${casterName} lanza «${spellTitle}»: ${receiver.name} recupera ${damageRoll.result} PG (${damageRoll.breakdown})`,
+        combatantId: receiver.id,
+      });
+    } else {
+      updateHP(receiver.id, damageRoll.result, true);
+      useCombatStore.getState().addLogEntry({
+        type: 'damage',
+        message: `${casterName} lanza «${spellTitle}» contra ${receiver.name}: ${damageRoll.result} de daño (${damageRoll.breakdown})${suffix}`,
+        combatantId: receiver.id,
+      });
+    }
+  };
+
   const castSpell = (row: { name: string; spell: SrdSpellEntry | undefined }) => {
     if (!monster) return;
     const spell = row.spell;
@@ -221,22 +258,17 @@ export const CombatantActionsModal = ({ combatant, onClose }: CombatantActionsMo
       });
       return;
     }
-    const damageRoll = roll(spell.damageRolls);
-    if (HEALING_SPELL_IDS.has(spell.id)) {
-      updateHP(receiver.id, damageRoll.result, false);
-      useCombatStore.getState().addLogEntry({
-        type: 'heal',
-        message: `${monster.name} lanza «${row.name}»: ${receiver.name} recupera ${damageRoll.result} PG (${damageRoll.breakdown})`,
-        combatantId: receiver.id,
-      });
-    } else {
-      updateHP(receiver.id, damageRoll.result, true);
-      useCombatStore.getState().addLogEntry({
-        type: 'damage',
-        message: `${monster.name} lanza «${row.name}» contra ${receiver.name}: ${damageRoll.result} de daño (${damageRoll.breakdown})${suffix}`,
-        combatantId: receiver.id,
-      });
-    }
+    if (spellIssue(spell.range)) return; // el botón ya está deshabilitado; doble chequeo por las dudas
+    applySpellRoll(monster.name, row.name, spell, suffix);
+  };
+
+  // Lanzar un conjuro de daño del propio repertorio del PJ (trucos y
+  // conjuros con espacio que ya tienen `damageRolls` cargado). Ignora el
+  // escalado por nivel de personaje/espacio — igual que con las armas, si
+  // corresponde más dado el jugador vuelve a apretar el botón.
+  const castPlayerSpell = (entry: SrdSpellEntry) => {
+    if (spellIssue(entry.range)) return;
+    applySpellRoll(combatant.name, entry.title, entry);
   };
 
   // Estadísticas para las salvaciones (jugador desde el party, monstruo del bestiario)
@@ -534,38 +566,43 @@ export const CombatantActionsModal = ({ combatant, onClose }: CombatantActionsMo
               Habilidad {sc?.ability} · CD {sc?.spellSaveDC} · Ataque +{sc?.spellAttackBonus}
             </p>
             <div className="space-y-1">
-              {spellRows.map((row) => (
-                <div key={`${row.level}-${row.name}`} className="flex items-center gap-1">
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    className="flex-1 justify-between text-left"
-                    onClick={() => castSpell(row)}
-                  >
-                    <span>
-                      <span className="mr-1 text-[10px] uppercase text-dnd-gold">{row.level}</span>
-                      {row.name}
-                      {row.spell?.damageRolls && (
-                        <span className="ml-1 text-xs text-dnd-muted">
-                          ({row.spell.damageRolls}
-                          {row.spell.concentration ? ' · conc.' : ''})
-                        </span>
-                      )}
-                    </span>
-                    <Dices size={14} aria-hidden="true" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    disabled={!row.spell}
-                    title={`Ver detalle de ${row.name}`}
-                    aria-label={`Ver detalle de ${row.name}`}
-                    onClick={() => setOpenSpellEntry(row.spell ?? null)}
-                  >
-                    <BookOpen size={14} aria-hidden="true" />
-                  </Button>
-                </div>
-              ))}
+              {spellRows.map((row) => {
+                const issue = row.spell?.damageRolls ? spellIssue(row.spell.range) : null;
+                return (
+                  <div key={`${row.level}-${row.name}`} className="flex items-center gap-1">
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      className="flex-1 justify-between text-left"
+                      disabled={Boolean(issue)}
+                      title={issue ?? undefined}
+                      onClick={() => castSpell(row)}
+                    >
+                      <span>
+                        <span className="mr-1 text-[10px] uppercase text-dnd-gold">{row.level}</span>
+                        {row.name}
+                        {row.spell?.damageRolls && (
+                          <span className="ml-1 text-xs text-dnd-muted">
+                            ({row.spell.damageRolls}
+                            {row.spell.concentration ? ' · conc.' : ''})
+                          </span>
+                        )}
+                      </span>
+                      <Dices size={14} aria-hidden="true" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      disabled={!row.spell}
+                      title={`Ver detalle de ${row.name}`}
+                      aria-label={`Ver detalle de ${row.name}`}
+                      onClick={() => setOpenSpellEntry(row.spell ?? null)}
+                    >
+                      <BookOpen size={14} aria-hidden="true" />
+                    </Button>
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}
@@ -583,6 +620,8 @@ export const CombatantActionsModal = ({ combatant, onClose }: CombatantActionsMo
                   <div className="space-y-1">
                     {group.list.map((spell) => {
                       const entry = srdSpellByTitle(spell.name);
+                      const isDamageSpell = Boolean(entry?.damageRolls) && !HEALING_SPELL_IDS.has(entry?.id ?? '');
+                      const issue = entry && isDamageSpell ? spellIssue(entry.range) : null;
                       return (
                         <div key={spell.id} className="flex items-center gap-1">
                           <p className="min-w-0 flex-1 truncate text-sm">
@@ -597,6 +636,18 @@ export const CombatantActionsModal = ({ combatant, onClose }: CombatantActionsMo
                               </span>
                             )}
                           </p>
+                          {isDamageSpell && entry && (
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              disabled={Boolean(issue)}
+                              title={issue ?? `Lanzar ${spell.name} contra ${target?.name ?? 'el objetivo'}`}
+                              aria-label={`Lanzar ${spell.name}`}
+                              onClick={() => castPlayerSpell(entry)}
+                            >
+                              <Dices size={14} aria-hidden="true" />
+                            </Button>
+                          )}
                           <Button
                             variant="ghost"
                             size="sm"

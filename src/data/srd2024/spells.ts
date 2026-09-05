@@ -1348,7 +1348,7 @@ La criatura rompe el conjuro si hace una salvación exitosa contra **disipar mag
     content: `**Parpadeo (Blink)**\n\nTe paseas entre el **Plano Etéreo**: al final de tu turno, tira **1d6** y si sacas **3 o más**, desapareces hasta el inicio de tu próximo turno (puedes ver y ser visto por criaturas etéreas, pero no por las del Plano Material a menos que tengan visión de ese plano).\n\nRegresas a un espacio desocupado visible desde tu ubicación etérea.`,
   }),
   sp({
-    id: 'spell-call-lightning', level: 3, school: 'Conjuración', time: '1 Acción', range: 'Personal (1112 pies de radio)', comp: 'V, S',
+    id: 'spell-call-lightning', level: 3, school: 'Conjuración', time: '1 Acción', range: 'Personal (120 pies de radio)', comp: 'V, S',
     duration: 'Concentración, hasta 10 minutos', conc: true,
     classes: ['Druida'], damage: '3d10',
     content: `**Invocar relámpago (Call Lightning)**\n\nUna tormenta se acumula sobre ti en un **radio de 120 pies**, y durante la duración puedes usar tu **Acción** para hacer caer un relámpago sobre un punto del radio que puedas ver: las criaturas en un **radio de 5 pies** de él reciben **3d10 de daño de relámpago** (salvación de **DES** para la mitad) y un **retumbar de trueno** (o 3d10 de daño de trueno como alternativa si prefieres sonido).\n\nIncrementa los d10 a 4 en una tormenta real.\n\nA niveles superiores: +1d10 por nivel de espacio superior.`,
