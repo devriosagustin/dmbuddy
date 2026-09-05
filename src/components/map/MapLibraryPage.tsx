@@ -34,6 +34,8 @@ import {
   paintDraftTile,
   moveDraftTile,
 } from '../../utils/tileDraft';
+import { creatureIcon } from '../../utils/combatUtils';
+import { MAP_BACKGROUNDS, getMapBackground, DEFAULT_MAP_BACKGROUND } from '../../config/mapBackgrounds';
 import type { MapTile, TileType } from '../../types';
 
 const TILE_OPTIONS: { value: TileType; label: string }[] = [
@@ -87,16 +89,19 @@ export const MapLibraryPage = () => {
   // abajo, que es el que de verdad importa para esta página.
   const liveMapCols = useCombatStore((s) => s.mapCols);
   const liveMapRows = useCombatStore((s) => s.mapRows);
+  const liveMapBackground = useCombatStore((s) => s.mapBackground);
   const liveTiles = useCombatStore((s) => s.tiles);
   const liveMapCreatures = useCombatStore((s) => s.mapCreatures);
   const setLiveTiles = useCombatStore((s) => s.setTiles);
   const setLiveMapSize = useCombatStore((s) => s.setMapSize);
+  const setLiveMapBackground = useCombatStore((s) => s.setMapBackground);
 
   const savedLayouts = useLayoutStore((s) => s.savedLayouts);
   const folders = useLayoutStore((s) => s.folders);
   const saveLayout = useLayoutStore((s) => s.saveLayout);
   const deleteLayout = useLayoutStore((s) => s.deleteLayout);
   const resizeLayout = useLayoutStore((s) => s.resizeLayout);
+  const setLayoutBackground = useLayoutStore((s) => s.setLayoutBackground);
   const setMapFolder = useLayoutStore((s) => s.setMapFolder);
   const createFolder = useLayoutStore((s) => s.createFolder);
   const renameFolder = useLayoutStore((s) => s.renameFolder);
@@ -113,14 +118,18 @@ export const MapLibraryPage = () => {
   const [connectionsLayoutId, setConnectionsLayoutId] = useState<string | null>(null);
   const [showFolders, setShowFolders] = useState(false);
   const [newMapSizeId, setNewMapSizeId] = useState<string>('standard');
+  const [newMapBackgroundId, setNewMapBackgroundId] = useState<string>(DEFAULT_MAP_BACKGROUND);
 
   const selectedLayout = savedLayouts.find((l) => l.id === selectedId) ?? null;
-  // Tamaño propio del mapa seleccionado (nunca el del mapa en vivo): cada
-  // mapa guardado respeta su propio tamaño, así que cambiar de uno a otro
-  // de distinto tamaño no rompe nada — la cuadrícula, el pintado de tiles y
-  // el diagrama de conexiones siguen siempre a estos dos valores.
+  // Tamaño y color propios del mapa seleccionado (nunca los del mapa en
+  // vivo): cada mapa guardado respeta su propio tamaño y patrón de color,
+  // así que cambiar de uno a otro de distinto tamaño/tema no rompe nada —
+  // la cuadrícula, el pintado de tiles y el diagrama de conexiones siguen
+  // siempre a estos valores.
   const mapCols = selectedLayout?.mapCols ?? MAP_COLS;
   const mapRows = selectedLayout?.mapRows ?? MAP_ROWS;
+  const mapBackground = selectedLayout?.background ?? DEFAULT_MAP_BACKGROUND;
+  const bgPalette = getMapBackground(mapBackground);
 
   // Dimensionado de la vista previa: mismo criterio que el mapa en vivo
   // (CombatMap.tsx) — calcula el mayor tamaño con celdas cuadradas que cabe
@@ -483,7 +492,14 @@ export const MapLibraryPage = () => {
     const name = newMapName.trim();
     if (!name) return;
     const preset = MAP_SIZE_PRESETS.find((p) => p.id === newMapSizeId) ?? MAP_SIZE_PRESETS[1];
-    const layout = saveLayout(name, [], [], newMapFolder || undefined, { cols: preset.cols, rows: preset.rows });
+    const layout = saveLayout(
+      name,
+      [],
+      [],
+      newMapFolder || undefined,
+      { cols: preset.cols, rows: preset.rows },
+      newMapBackgroundId
+    );
     setNewMapName('');
     setNewMapFolder('');
     setSelectedId(layout.id);
@@ -506,13 +522,19 @@ export const MapLibraryPage = () => {
       speed: c.speed,
       npcRole: c.npcRole,
       xpReward: c.xpReward,
+      monsterType: c.monsterType,
+      monsterSize: c.monsterSize,
     }));
-    // El mapa actual guarda su propio tamaño activo, no el que tuviera
-    // seleccionado antes en esta biblioteca.
-    const layout = saveLayout(name, savedTiles, creatures, newMapFolder || undefined, {
-      cols: liveMapCols,
-      rows: liveMapRows,
-    });
+    // El mapa actual guarda su propio tamaño y color activos, no los que
+    // tuviera seleccionados antes en esta biblioteca.
+    const layout = saveLayout(
+      name,
+      savedTiles,
+      creatures,
+      newMapFolder || undefined,
+      { cols: liveMapCols, rows: liveMapRows },
+      liveMapBackground
+    );
     setNewMapName('');
     setNewMapFolder('');
     setSelectedId(layout.id);
@@ -520,10 +542,12 @@ export const MapLibraryPage = () => {
 
   const handleLoadIntoLiveMap = () => {
     if (!selectedLayout) return;
-    // Adopta el tamaño propio de este layout ANTES de reemplazar los tiles
-    // del mapa en vivo: si no, `setTiles` recorta cualquier tile fuera de
-    // los límites (todavía) viejos del mapa en vivo.
+    // Adopta el tamaño y el color propios de este layout ANTES de reemplazar
+    // los tiles del mapa en vivo: si no, `setTiles` recorta cualquier tile
+    // fuera de los límites (todavía) viejos del mapa en vivo, y el fondo
+    // quedaría con el tema del mapa anterior.
     setLiveMapSize(mapCols, mapRows);
+    setLiveMapBackground(mapBackground);
     setLiveTiles(restoreTilesFromLayout(selectedLayout));
     useCombatStore.setState({ mapCreatures: restoreCreaturesFromLayout(selectedLayout) });
     navigate('/map');
@@ -533,10 +557,14 @@ export const MapLibraryPage = () => {
     if (!selectedLayout) return;
     const name = copyName.trim();
     if (!name) return;
-    const layout = saveLayout(name, draftTiles, selectedLayout.creatures, selectedLayout.folderId, {
-      cols: mapCols,
-      rows: mapRows,
-    });
+    const layout = saveLayout(
+      name,
+      draftTiles,
+      selectedLayout.creatures,
+      selectedLayout.folderId,
+      { cols: mapCols, rows: mapRows },
+      mapBackground
+    );
     setSelectedId(layout.id);
   };
 
@@ -547,6 +575,11 @@ export const MapLibraryPage = () => {
     if (!selectedLayout) return;
     const updated = resizeLayout(selectedLayout.id, cols, rows);
     if (updated) setDraftTiles(restoreTilesFromLayout(updated));
+  };
+
+  const handleBackgroundChange = (id: string) => {
+    if (!selectedLayout) return;
+    setLayoutBackground(selectedLayout.id, id);
   };
 
   const handleDeleteSelected = () => {
@@ -655,19 +688,34 @@ export const MapLibraryPage = () => {
               value={newMapName}
               onChange={(e) => setNewMapName(e.target.value)}
             />
-            <select
-              className="input h-8 text-xs"
-              value={newMapSizeId}
-              onChange={(e) => setNewMapSizeId(e.target.value)}
-              aria-label="Tamaño del nuevo mapa"
-              title="Tamaño para «En blanco» — «Desde el mapa actual» copia el tamaño del mapa en vivo"
-            >
-              {MAP_SIZE_PRESETS.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.label}
-                </option>
-              ))}
-            </select>
+            <div className="flex gap-2">
+              <select
+                className="input h-8 min-w-0 flex-1 text-xs"
+                value={newMapSizeId}
+                onChange={(e) => setNewMapSizeId(e.target.value)}
+                aria-label="Tamaño del nuevo mapa"
+                title="Tamaño para «En blanco» — «Desde el mapa actual» copia el tamaño del mapa en vivo"
+              >
+                {MAP_SIZE_PRESETS.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.label}
+                  </option>
+                ))}
+              </select>
+              <select
+                className="input h-8 min-w-0 flex-1 text-xs"
+                value={newMapBackgroundId}
+                onChange={(e) => setNewMapBackgroundId(e.target.value)}
+                aria-label="Color del nuevo mapa"
+                title="Color para «En blanco» — «Desde el mapa actual» copia el color del mapa en vivo"
+              >
+                {MAP_BACKGROUNDS.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {b.label}
+                  </option>
+                ))}
+              </select>
+            </div>
             {folders.length > 0 && (
               <select
                 className="input h-8 text-xs"
@@ -781,6 +829,19 @@ export const MapLibraryPage = () => {
                     ))}
                   </select>
                   <select
+                    className="input h-8 w-28 shrink-0 text-xs"
+                    value={mapBackground}
+                    onChange={(e) => handleBackgroundChange(e.target.value)}
+                    aria-label="Color de este mapa"
+                    title="Cambiar el patrón de color de este mapa guardado"
+                  >
+                    {MAP_BACKGROUNDS.map((b) => (
+                      <option key={b.id} value={b.id}>
+                        {b.label}
+                      </option>
+                    ))}
+                  </select>
+                  <select
                     className="input h-8 w-32 shrink-0 text-xs"
                     value={draftTileType}
                     onChange={(e) => setDraftTileType(e.target.value as TileType)}
@@ -829,16 +890,21 @@ export const MapLibraryPage = () => {
                       <div
                         key={i}
                         title={creature?.name ?? (isDraggablePortal ? 'Arrastrá para reubicar el portal' : undefined)}
-                        className={`flex items-center justify-center border border-dnd-ink/40 ${
-                          baseClass || 'bg-dnd-leather/10'
-                        } ${tile ? 'ring-2 ring-inset ring-amber-300' : ''} ${
-                          isHover && !tile ? 'bg-dnd-gold/40' : ''
-                        } ${isDraggablePortal ? 'cursor-grab active:cursor-grabbing' : ''}`}
+                        style={baseClass ? undefined : { background: (x + y) % 2 === 0 ? bgPalette.a : bgPalette.b }}
+                        className={`flex items-center justify-center border border-dnd-ink/40 ${baseClass} ${
+                          tile ? 'ring-2 ring-inset ring-amber-300' : ''
+                        } ${isHover && !tile ? 'bg-dnd-gold/40' : ''} ${
+                          isDraggablePortal ? 'cursor-grab active:cursor-grabbing' : ''
+                        }`}
                       >
                         {icon ? (
                           <span className="text-[9px] leading-none text-white/90">{icon}</span>
                         ) : creature ? (
-                          <span className="text-[9px] leading-none">{creature.kind === 'monster' ? '👹' : '🧑'}</span>
+                          <span className="text-[9px] leading-none">
+                            {creature.kind === 'player'
+                              ? '🧑'
+                              : creatureIcon(creature.kind, { monsterType: creature.monsterType, npcRole: creature.npcRole })}
+                          </span>
                         ) : null}
                       </div>
                     );

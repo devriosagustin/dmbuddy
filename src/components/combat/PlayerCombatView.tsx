@@ -21,7 +21,13 @@ import {
   hasTile,
   hasLineOfSight,
 } from '../../utils/mapUtils';
-import { mapCreatureToCombatant } from '../../utils/combatUtils';
+import {
+  mapCreatureToCombatant,
+  tokenIcon,
+  tokenSizeScale,
+  tokenShapeClass,
+  tokenColorClasses,
+} from '../../utils/combatUtils';
 import type { Combatant, MapCreature } from '../../types';
 import { PlayerPartyDetail } from './PlayerPartyDetail';
 import { ChatPanel } from './ChatPanel';
@@ -38,17 +44,6 @@ const isHiddenHostile = (c: Combatant): boolean =>
 
 const cellBg = (x: number, y: number, bg: MapBackground): string =>
   (x + y) % 2 === 0 ? bg.a : bg.b;
-
-const tokenClass = (c: Combatant): string => {
-  const isPlayer = c.type === 'player';
-  const isNpc = c.type === 'npc';
-  if (isPlayer) return 'border-emerald-400 bg-emerald-950/90 text-emerald-100';
-  if (isNpc && c.npcRole === 'ally') return 'border-sky-400 bg-sky-950/90 text-sky-100';
-  if (isNpc && c.npcRole === 'neutral') return 'border-stone-400 bg-stone-900/90 text-stone-200';
-  if (isNpc && c.npcRole === 'enemy') return 'border-orange-400 bg-orange-950/90 text-orange-100';
-  if (isNpc) return 'border-violet-400 bg-violet-950/90 text-violet-100';
-  return 'border-red-500 bg-red-950/90 text-red-100';
-};
 
 /**
  * Mapa leído en vivo desde la sesión del DM, con cortina de guerra aplicada
@@ -441,18 +436,18 @@ export const PlayerCombatView = () => {
                   height: `${cellRowPct}%`,
                   left: `${combatant.x * cellColPct}%`,
                   top: `${combatant.y * cellRowPct}%`,
-                  transform: `translate(${offsetX}%, ${offsetY}%)`,
+                  transform: `translate(${offsetX}%, ${offsetY}%) scale(${tokenSizeScale(combatant)})`,
                   transition: 'left 120ms ease, top 120ms ease',
                 }}
               >
                 <button
                   type="button"
                   onClick={() => setSelected(combatant)}
-                  className={`relative flex h-[82%] w-[72%] items-center justify-center rounded-full border-2 text-xs font-bold shadow-lg outline-none transition-all focus:ring-dnd-gold ${tokenClass(combatant)} ${
+                  className={`relative flex h-[82%] w-[72%] items-center justify-center border-2 text-xs font-bold shadow-lg outline-none transition-all focus:ring-dnd-gold ${tokenShapeClass(combatant)} ${tokenColorClasses(combatant)} ${
                     combatant.isDead ? 'opacity-40 grayscale' : ''
                   } ${hostile ? 'cursor-help' : 'cursor-pointer'}`}
                 >
-                  {combatant.name.charAt(0).toUpperCase()}
+                  {tokenIcon(combatant)}
                 </button>
               </div>
             );

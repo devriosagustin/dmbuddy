@@ -53,6 +53,12 @@ export interface Combatant {
   x?: number;
   /** Posición en el mapa de combate (casilla columna/fila, opcional). */
   y?: number;
+  /** Clase del personaje (si es un jugador), para el ícono representativo de su ficha. */
+  playerClass?: string;
+  /** Tipo del monstruo (si lo es), p. ej. "Bestia", "No muerto", para el ícono de su ficha. */
+  monsterType?: string;
+  /** Tamaño del monstruo (si lo es), para escalar el tamaño visual de su ficha. */
+  monsterSize?: Monster['size'];
 }
 
 export interface MonsterTrait {
@@ -332,6 +338,10 @@ export interface MapCreature {
   xpReward?: number;
   statusEffects: StatusEffect[];
   isDead: boolean;
+  /** Tipo del monstruo (si kind es "monster"), snapshot tomado al colocarlo. */
+  monsterType?: string;
+  /** Tamaño del monstruo (si kind es "monster"), snapshot tomado al colocarlo. */
+  monsterSize?: Monster['size'];
 }
 
 /**

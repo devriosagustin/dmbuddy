@@ -116,4 +116,34 @@ describe('Layout Store', () => {
     const { resizeLayout } = useLayoutStore.getState();
     expect(resizeLayout('no-existe', 20, 12)).toBeUndefined();
   });
+
+  it('guarda el color de fondo propio de un mapa nuevo y lo conserva al autoguardar tiles sin pasar color', () => {
+    const { saveLayout, savedLayout } = useLayoutStore.getState();
+    const layout = saveLayout('Bosque verde', [], [], undefined, undefined, 'grass');
+    expect(layout.background).toBe('grass');
+
+    // Autoguardado típico: mismo nombre, tiles nuevos, sin tocar el color.
+    saveLayout('Bosque verde', [{ x: 1, y: 1, type: 'wall' }]);
+    const updated = savedLayout(layout.id)!;
+    expect(updated.background).toBe('grass');
+  });
+
+  it('un mapa creado sin color explícito queda sin background (se asume el default en el resto de la app)', () => {
+    const { saveLayout } = useLayoutStore.getState();
+    const layout = saveLayout('Mapa viejo', []);
+    expect(layout.background).toBeUndefined();
+  });
+
+  it('setLayoutBackground cambia el color de un layout existente', () => {
+    const { saveLayout, setLayoutBackground, savedLayout } = useLayoutStore.getState();
+    const layout = saveLayout('Montaña gris', [], [], undefined, undefined, 'stone');
+
+    setLayoutBackground(layout.id, 'snow');
+    expect(savedLayout(layout.id)!.background).toBe('snow');
+  });
+
+  it('setLayoutBackground no rompe con un id que no existe', () => {
+    const { setLayoutBackground } = useLayoutStore.getState();
+    expect(() => setLayoutBackground('no-existe', 'lava')).not.toThrow();
+  });
 });

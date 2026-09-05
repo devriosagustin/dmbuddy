@@ -19,7 +19,14 @@ import {
 } from '../../utils/mapUtils';
 import { MAP_SIZE_PRESETS, presetForSize } from '../../utils/mapSize';
 import { MAP_BACKGROUNDS, getMapBackground } from '../../config/mapBackgrounds';
-import { hpRatio, hpBarColorClass } from '../../utils/combatUtils';
+import {
+  hpRatio,
+  hpBarColorClass,
+  tokenIcon,
+  tokenSizeScale,
+  tokenShapeClass,
+  tokenColorClasses,
+} from '../../utils/combatUtils';
 import { FogOfWarPanel } from './FogOfWarPanel';
 
 type Mode = 'move' | 'measure' | 'range' | 'aoe';
@@ -739,7 +746,7 @@ export const CombatMap = ({ participants, activeId, nextId, selectedId, tiles, t
                 height: `${cellRowPct}%`,
                 left: `${combatant.x * cellColPct}%`,
                 top: `${combatant.y * cellRowPct}%`,
-                transform: `translate(${offsetX}%, ${offsetY}%)`,
+                transform: `translate(${offsetX}%, ${offsetY}%) scale(${tokenSizeScale(combatant)})`,
                 transition: 'left 120ms ease, top 120ms ease',
               }}
             >
@@ -753,19 +760,9 @@ export const CombatMap = ({ participants, activeId, nextId, selectedId, tiles, t
               <button
                 type="button"
                 onPointerDown={(e) => handleTokenPointerDown(e, combatant)}
-                className={`relative flex h-[82%] w-[72%] items-center justify-center rounded-full border-2 text-xs font-bold shadow-lg outline-none ring-4 transition-all focus:ring-dnd-gold ${
-                  isPlayer
-                    ? 'border-emerald-400 bg-emerald-950/90 text-emerald-100'
-                    : isNpc && combatant.npcRole === 'ally'
-                      ? 'border-sky-400 bg-sky-950/90 text-sky-100'
-                      : isNpc && combatant.npcRole === 'neutral'
-                        ? 'border-stone-400 bg-stone-900/90 text-stone-200'
-                        : isNpc && combatant.npcRole === 'enemy'
-                          ? 'border-orange-400 bg-orange-950/90 text-orange-100'
-                          : isNpc
-                            ? 'border-violet-400 bg-violet-950/90 text-violet-100'
-                            : 'border-red-500 bg-red-950/90 text-red-100'
-                } ${
+                className={`relative flex h-[82%] w-[72%] items-center justify-center border-2 text-xs font-bold shadow-lg outline-none ring-4 transition-all focus:ring-dnd-gold ${tokenShapeClass(
+                  combatant
+                )} ${tokenColorClasses(combatant)} ${
                   isActive ? 'animate-pulse border-dnd-gold ring-dnd-gold shadow-dnd-glow' : ''
                 } ${isRangeSource ? 'ring-2 ring-sky-400 shadow-[0_0_12px_rgba(56,189,248,0.8)]' : ''} ${
                   isSelected ? 'ring-4 ring-emerald-300 shadow-dnd-glow' : ''
@@ -776,7 +773,7 @@ export const CombatMap = ({ participants, activeId, nextId, selectedId, tiles, t
                 }`}
                 title={`${combatant.name} · ${combatant.hp}/${combatant.maxHp} PG · (${combatant.x},${combatant.y})${isNext ? ' · Siguiente en el turno' : ''}`}
               >
-                {combatant.name.charAt(0).toUpperCase()}
+                {tokenIcon(combatant)}
               </button>
               {isSelected && (
                 <div

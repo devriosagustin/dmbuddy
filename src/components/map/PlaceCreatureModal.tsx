@@ -120,6 +120,8 @@ export const PlaceCreatureModal = ({ open, onClose }: PlaceCreatureModalProps) =
           xpReward: crToXp(monster.challengeRating),
           statusEffects: [],
           isDead: false,
+          monsterType: monster.type,
+          monsterSize: monster.size,
         });
       }
     }

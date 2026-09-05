@@ -18,17 +18,19 @@ interface LayoutStore {
   folders: MapFolder[];
   /**
    * Guarda (o actualiza por nombre) un layout de tiles y criaturas. `size`
-   * es opcional: al crear un mapa nuevo fija su tamaño propio (si se omite,
-   * queda sin tamaño guardado y se asume el default en todos lados); al
-   * actualizar uno existente, solo lo pisa si se pasa explícitamente —
-   * autoguardar tiles editados no debe borrar el tamaño ya elegido.
+   * y `background` son opcionales: al crear un mapa nuevo fijan su tamaño y
+   * patrón de color propios (si se omiten, quedan sin definir y se asume el
+   * default en todos lados); al actualizar uno existente, solo se pisan si
+   * se pasan explícitamente — autoguardar tiles editados no debe borrar el
+   * tamaño ni el color ya elegidos.
    */
   saveLayout: (
     name: string,
     tiles: LayoutTile[],
     creatures?: LayoutCreature[],
     folderId?: string,
-    size?: { cols: number; rows: number }
+    size?: { cols: number; rows: number },
+    background?: string
   ) => MapLayout;
   /**
    * Reemplaza los tiles de un layout ya existente, identificado por id (no
@@ -45,6 +47,8 @@ interface LayoutStore {
    * tiles en edición.
    */
   resizeLayout: (id: string, cols: number, rows: number) => MapLayout | undefined;
+  /** Cambia el patrón de color de fondo propio de un layout guardado (id de MAP_BACKGROUNDS). */
+  setLayoutBackground: (id: string, background: string) => void;
   savedLayout: (id: string) => MapLayout | undefined;
   deleteLayout: (id: string) => void;
   /** Asigna (o quita con null) un layout a una carpeta. */
@@ -66,7 +70,7 @@ export const useLayoutStore = create<LayoutStore>()(
     (set, get) => ({
       savedLayouts: [],
       folders: [],
-      saveLayout: (name, tiles, creatures, folderId, size) => {
+      saveLayout: (name, tiles, creatures, folderId, size, background) => {
         const trimmed = name.trim() || 'Layout sin nombre';
         const existing = get().savedLayouts.find((l) => l.name === trimmed);
         let layout: MapLayout;
@@ -78,6 +82,7 @@ export const useLayoutStore = create<LayoutStore>()(
             folderId: folderId ?? existing.folderId,
             mapCols: size?.cols ?? existing.mapCols,
             mapRows: size?.rows ?? existing.mapRows,
+            background: background ?? existing.background,
           };
           set((s) => ({
             savedLayouts: s.savedLayouts.map((l) => (l.id === existing.id ? layout! : l)),
@@ -91,6 +96,7 @@ export const useLayoutStore = create<LayoutStore>()(
             folderId: folderId || undefined,
             mapCols: size?.cols,
             mapRows: size?.rows,
+            background,
           };
           set((s) => ({ savedLayouts: [...s.savedLayouts, layout!] }));
         }
@@ -119,6 +125,11 @@ export const useLayoutStore = create<LayoutStore>()(
           }),
         }));
         return updated;
+      },
+      setLayoutBackground: (id, background) => {
+        set((s) => ({
+          savedLayouts: s.savedLayouts.map((l) => (l.id === id ? { ...l, background } : l)),
+        }));
       },
       savedLayout: (id) => get().savedLayouts.find((l) => l.id === id),
       deleteLayout: (id) => {

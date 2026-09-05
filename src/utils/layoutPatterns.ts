@@ -3,7 +3,7 @@
 // ============================================================
 
 import { activeCols, activeRows, setActiveMapSize } from './mapUtils';
-import type { MapTile, MapCreature } from '../types';
+import type { MapTile, MapCreature, Monster } from '../types';
 
 export interface LayoutCreature {
   name: string;
@@ -18,6 +18,10 @@ export interface LayoutCreature {
   speed: number;
   npcRole?: 'hostage' | 'ally' | 'neutral' | 'enemy';
   xpReward?: number;
+  /** Tipo del monstruo (si kind es "monster"), para el ícono de su ficha. */
+  monsterType?: string;
+  /** Tamaño del monstruo (si kind es "monster"), para escalar su ficha. */
+  monsterSize?: Monster['size'];
 }
 
 /** Tile de mapa guardado en un layout, conservando su tipo (wall/door/trap/…). */
@@ -53,6 +57,12 @@ export interface MapLayout {
    */
   mapCols?: number;
   mapRows?: number;
+  /**
+   * Patrón de color de fondo propio de este mapa (id de MAP_BACKGROUNDS en
+   * config/mapBackgrounds.ts) — p. ej. un bosque en "grass" (verde), una
+   * cueva en "dungeon" (oscuro). Si falta, se asume DEFAULT_MAP_BACKGROUND.
+   */
+  background?: string;
 }
 
 /** Carpeta/conjunto para organizar layouts de mapa por sesión o campaña. */
@@ -104,6 +114,8 @@ export const restoreCreaturesFromLayout = (layout: MapLayout): MapCreature[] =>
       xpReward: c.xpReward,
       statusEffects: [],
       isDead: false,
+      monsterType: c.monsterType,
+      monsterSize: c.monsterSize,
     }));
 
 const cell = (x: number, y: number) => ({ x, y });

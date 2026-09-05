@@ -16,6 +16,7 @@ import { Button } from '../common/Button';
 import type { MapLayout } from '../../utils/layoutPatterns';
 import { restoreTilesFromLayout } from '../../utils/layoutPatterns';
 import { buildMapDiagram, layoutDims } from '../../utils/mapConnections';
+import { getMapBackground } from '../../config/mapBackgrounds';
 import type { MapTile, TileType } from '../../types';
 
 interface MapConnectionsModalProps {
@@ -50,7 +51,6 @@ const TILE_FILL: Record<TileType, string> = {
   investigation: 'rgba(37, 99, 235, 0.7)',
   portal: 'rgba(126, 34, 206, 0.75)',
 };
-const FLOOR_FILL = 'rgba(139, 69, 19, 0.12)';
 const OPEN_DOOR_FILL = 'rgba(4, 120, 87, 0.5)';
 
 /** Corta `text` en varias líneas que entren en `maxWidth`, centradas en (cx, cy). */
@@ -87,9 +87,10 @@ const drawMiniMap = (
   y: number,
   cellSize: number,
   cols: number,
-  rows: number
+  rows: number,
+  floorFill: string
 ) => {
-  ctx.fillStyle = FLOOR_FILL;
+  ctx.fillStyle = floorFill;
   ctx.fillRect(x, y, cellSize * cols, cellSize * rows);
 
   for (const tile of tiles) {
@@ -248,7 +249,19 @@ export const MapConnectionsModal = ({ startLayoutId, layouts, onClose }: MapConn
 
       const layout = layoutById.get(node.id);
       if (layout) {
-        drawMiniMap(ctx, restoreTilesFromLayout(layout), x + MAP_PAD, y + MAP_PAD, box.cellSize, box.cols, box.rows);
+        // El piso de la miniatura usa el color propio del mapa (bosque verde,
+        // cueva oscura, etc.), así el diagrama de conexiones también refleja
+        // de un vistazo qué tipo de lugar es cada uno.
+        drawMiniMap(
+          ctx,
+          restoreTilesFromLayout(layout),
+          x + MAP_PAD,
+          y + MAP_PAD,
+          box.cellSize,
+          box.cols,
+          box.rows,
+          getMapBackground(layout.background).a
+        );
       }
 
       ctx.fillStyle = '#f1e6d0';

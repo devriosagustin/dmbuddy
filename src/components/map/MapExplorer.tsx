@@ -41,6 +41,7 @@ import { useSessionStore } from '../../store/sessionStore';
 import { useFullscreen } from '../../hooks/useFullscreen';
 import { restoreTilesFromLayout, restoreCreaturesFromLayout } from '../../utils/layoutPatterns';
 import { MAP_COLS, MAP_ROWS } from '../../utils/mapUtils';
+import { DEFAULT_MAP_BACKGROUND } from '../../config/mapBackgrounds';
 import { mapCreatureToCombatant, playerToCombatant } from '../../utils/combatUtils';
 import { findConfiguredPortal } from '../../utils/mapPortals';
 import { RollRequestModal } from '../session/RollRequestModal';
@@ -213,14 +214,16 @@ export const MapExplorer = () => {
       });
       return;
     }
-    // El mapa destino puede tener su propio tamaño guardado, distinto del
-    // mapa en vivo actual: hay que adoptarlo ANTES de reemplazar los tiles,
-    // así `setTiles` (que descarta lo que quede fuera de los límites
-    // activos) usa el tamaño correcto y no recorta un mapa más grande al
-    // tamaño chico del que se estaba explorando.
+    // El mapa destino puede tener su propio tamaño y color guardados,
+    // distintos del mapa en vivo actual: hay que adoptarlos ANTES de
+    // reemplazar los tiles, así `setTiles` (que descarta lo que quede fuera
+    // de los límites activos) usa el tamaño correcto y no recorta un mapa
+    // más grande al tamaño chico del que se estaba explorando, y el fondo
+    // no se queda con el tema del mapa anterior.
     const targetCols = layout.mapCols ?? MAP_COLS;
     const targetRows = layout.mapRows ?? MAP_ROWS;
     setMapSize(targetCols, targetRows);
+    setMapBackground(layout.background ?? DEFAULT_MAP_BACKGROUND);
     setTiles(restoreTilesFromLayout(layout));
     useCombatStore.setState({ mapCreatures: restoreCreaturesFromLayout(layout) });
     const entryX = Math.max(0, Math.min(targetCols - 1, portal.targetX ?? Math.floor(targetCols / 2)));

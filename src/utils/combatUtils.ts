@@ -2,7 +2,7 @@
 // Utilidades de combate de DM Copilot Web
 // ============================================================
 
-import type { Combatant, Monster, Npc, Player, StatAbbrev, MapCreature, PlayerStats } from '../types';
+import type { Combatant, Monster, Npc, Player, StatAbbrev, MapCreature, PlayerStats, NpcRole } from '../types';
 import { SRD_CLASSES } from '../data/srd2024';
 import { crToXp } from '../data/srdMonsters';
 import { abilityModifier } from './diceUtils';
@@ -126,6 +126,8 @@ export const monsterToCombatant = (
     xpReward: crToXp(monster.challengeRating),
     isDead: false,
     speed: parseMonsterSpeed(monster.speed),
+    monsterType: monster.type,
+    monsterSize: monster.size,
   };
 };
 
@@ -180,6 +182,7 @@ export const playerToCombatant = (
     playerSaves: classSaves(player.class),
     playerFeats: player.feats,
     playerSkills: player.skills,
+    playerClass: player.class,
     isDead: false,
     speed: 30,
   };
@@ -207,6 +210,8 @@ export const mapCreatureToCombatant = (c: MapCreature): Combatant => ({
   speed: c.speed,
   x: c.x,
   y: c.y,
+  monsterType: c.monsterType,
+  monsterSize: c.monsterSize,
 });
 
 /**
@@ -247,4 +252,115 @@ export const hpStatus = (combatant: Combatant): string => {
   if (ratio > 0.6) return 'Sano';
   if (ratio > 0.3) return 'Herido';
   return 'Al borde de la muerte';
+};
+
+// ============================================================
+// Aspecto de la ficha en el mapa: color por rol, ícono representativo
+// (clase del PJ / tipo del monstruo), forma por tipo de combatiente y
+// escala por tamaño de criatura. Funciones puras (sin acceso a stores) para
+// que tanto CombatMap.tsx (DM) como PlayerCombatView.tsx (jugadores) las
+// compartan y se vean siempre iguales.
+// ============================================================
+
+/** Ícono de clase por nombre (coincide con SRD_CLASSES[].name / Player.class). */
+const CLASS_ICONS: Record<string, string> = {
+  'Bárbaro': '🪓',
+  'Bardo': '🎻',
+  'Clérigo': '✝️',
+  'Druida': '🌿',
+  'Guerrero': '⚔️',
+  'Monje': '🥋',
+  'Paladín': '🛡️',
+  'Guardabosques': '🏹',
+  'Pícaro': '🗡️',
+  'Hechicero': '⚡',
+  'Brujo': '🌙',
+  'Mago': '📖',
+};
+
+// Se evalúan en orden: los subtipos más específicos ("Humanoide (Goblinoide)")
+// van antes que su categoría general ("Humanoide"), y el type es texto libre
+// del SRD (con mayúsculas/paréntesis variables), así que se compara con
+// substring case-insensitive en vez de una igualdad exacta.
+const MONSTER_TYPE_ICONS: [RegExp, string][] = [
+  [/no.?muert/i, '💀'],
+  [/goblin/i, '👺'],
+  [/orco|orc/i, '👹'],
+  [/reptil/i, '🦎'],
+  [/drag/i, '🐉'],
+  [/humanoide/i, '🧑'],
+  [/monstruosidad/i, '👾'],
+  [/aberraci/i, '🐙'],
+  [/celestial/i, '😇'],
+  [/constructo/i, '🗿'],
+  [/elemental/i, '🔥'],
+  [/f[ée]érico|hada|fey/i, '🧚'],
+  [/gigante/i, '🧌'],
+  [/infernal|demonio|diablo|fiend/i, '😈'],
+  [/limo|cieno|ooze|gelatin/i, '🫧'],
+  [/planta/i, '🌿'],
+  [/bestia|fiera|beast/i, '🐺'],
+];
+
+/** Escala visual relativa según el tamaño del monstruo (Mediano = 1). */
+const MONSTER_SIZE_SCALE: Record<string, number> = {
+  Pequeño: 0.8,
+  Mediano: 1,
+  Grande: 1.35,
+  Enorme: 1.75,
+};
+
+/**
+ * Ícono representativo de un monstruo o NPC (sin PJ) — usado tanto por las
+ * fichas de combate como por la vista previa de criaturas guardadas en un
+ * mapa (biblioteca de mapas), donde solo hay datos sueltos, no un Combatant
+ * completo.
+ */
+export const creatureIcon = (
+  kind: 'monster' | 'npc',
+  opts?: { monsterType?: string; npcRole?: NpcRole }
+): string => {
+  if (kind === 'npc') return opts?.npcRole === 'hostage' ? '⛓️' : '🧑';
+  const hit = opts?.monsterType ? MONSTER_TYPE_ICONS.find(([re]) => re.test(opts.monsterType!)) : undefined;
+  return hit ? hit[1] : '👹';
+};
+
+/**
+ * Ícono representativo de la ficha: la clase del personaje para un PJ, el
+ * tipo de criatura (SRD) para un monstruo, o un ícono fijo para NPCs. Si no
+ * hay dato suficiente (clase/tipo desconocidos, personajes homebrew, etc.)
+ * cae a la inicial del nombre, como antes de este cambio.
+ */
+export const tokenIcon = (c: Combatant): string => {
+  if (c.type === 'player') {
+    return (c.playerClass && CLASS_ICONS[c.playerClass]) || c.name.charAt(0).toUpperCase();
+  }
+  return creatureIcon(c.type === 'npc' ? 'npc' : 'monster', { monsterType: c.monsterType, npcRole: c.npcRole });
+};
+
+/** Factor de escala del tamaño visual de la ficha (solo varía en monstruos con tamaño conocido). */
+export const tokenSizeScale = (c: Combatant): number =>
+  c.type === 'monster' && c.monsterSize ? MONSTER_SIZE_SCALE[c.monsterSize] ?? 1 : 1;
+
+/**
+ * Forma de la ficha según el tipo de combatiente: círculo para PJs (clásico
+ * "héroe"), blob orgánico y asimétrico para monstruos, cuadrado suave para
+ * NPCs — así se distingue el tipo incluso sin fijarse en el color.
+ */
+export const tokenShapeClass = (c: Combatant): string => {
+  if (c.type === 'player') return 'rounded-full';
+  if (c.type === 'npc') return 'rounded-xl';
+  return 'rounded-[60%_40%_55%_45%/45%_55%_40%_60%]';
+};
+
+/** Color de borde/fondo/texto de la ficha según su tipo y (para NPCs) su rol. */
+export const tokenColorClasses = (c: Combatant): string => {
+  if (c.type === 'player') return 'border-emerald-400 bg-emerald-950/90 text-emerald-100';
+  if (c.type === 'npc') {
+    if (c.npcRole === 'ally') return 'border-sky-400 bg-sky-950/90 text-sky-100';
+    if (c.npcRole === 'neutral') return 'border-stone-400 bg-stone-900/90 text-stone-200';
+    if (c.npcRole === 'enemy') return 'border-orange-400 bg-orange-950/90 text-orange-100';
+    return 'border-violet-400 bg-violet-950/90 text-violet-100';
+  }
+  return 'border-red-500 bg-red-950/90 text-red-100';
 };
