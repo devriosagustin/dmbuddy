@@ -3,7 +3,7 @@
 // para editar un layout guardado sin tocar el mapa en vivo)
 // ============================================================
 
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import {
   toggleDraftTile,
   removeDraftTileAt,
@@ -13,6 +13,7 @@ import {
   paintDraftTile,
   moveDraftTile,
 } from '../utils/tileDraft';
+import { activeCols, activeRows, setActiveMapSize } from '../utils/mapUtils';
 import type { MapTile } from '../types';
 
 describe('toggleDraftTile', () => {
@@ -196,5 +197,44 @@ describe('moveDraftTile', () => {
   it('ignora un destino fuera de los límites activos del mapa', () => {
     const tiles: MapTile[] = [{ x: 1, y: 1, type: 'wall' }];
     expect(moveDraftTile(tiles, { x: 1, y: 1 }, { x: -1, y: 0 })).toBe(tiles);
+  });
+});
+
+describe('inBounds activo vs. tamaño real del layout (bug de mapas grandes)', () => {
+  // toggleDraftTile/paintDraftTile validan contra las dimensiones "activas"
+  // globales de mapUtils.ts (activeCols/activeRows), no contra un tamaño que
+  // reciban como parámetro. MapLibraryPage.tsx es responsable de mantener
+  // esas dimensiones sincronizadas con el mapa guardado que se esté editando
+  // (ver el useEffect agregado ahí) — si no lo hace, un mapa guardado más
+  // grande que el tamaño activo (p. ej. quedó en el Estándar 28×16 del mapa
+  // en vivo) solo deja pintar/modificar tiles dentro de ese sector chico.
+  afterEach(() => {
+    setActiveMapSize(28, 16); // restaurar el default para no afectar otros tests
+  });
+
+  it('paintDraftTile no hace nada fuera del tamaño activo, aunque la celda sea válida para un mapa más grande', () => {
+    setActiveMapSize(28, 16);
+    const tiles = paintDraftTile([], 40, 20, 'wall', 'add');
+    expect(tiles).toEqual([]); // (40,20) está fuera de 28×16, aunque sea válido en un mapa 44×24
+  });
+
+  it('paintDraftTile funciona en esa misma celda una vez que el tamaño activo coincide con el del mapa real', () => {
+    setActiveMapSize(44, 24);
+    const tiles = paintDraftTile([], 40, 20, 'wall', 'add');
+    expect(tiles).toEqual([{ x: 40, y: 20, type: 'wall' }]);
+  });
+
+  it('toggleDraftTile tiene el mismo problema y el mismo fix', () => {
+    setActiveMapSize(28, 16);
+    expect(toggleDraftTile([], 40, 20, 'wall')).toEqual([]);
+
+    setActiveMapSize(44, 24);
+    expect(toggleDraftTile([], 40, 20, 'wall')).toEqual([{ x: 40, y: 20, type: 'wall' }]);
+  });
+
+  it('sanity: activeCols/activeRows reflejan el último setActiveMapSize', () => {
+    setActiveMapSize(44, 24);
+    expect(activeCols).toBe(44);
+    expect(activeRows).toBe(24);
   });
 });

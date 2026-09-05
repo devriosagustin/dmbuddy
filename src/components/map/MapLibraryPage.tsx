@@ -23,7 +23,7 @@ import {
   restoreTilesFromLayout,
   restoreCreaturesFromLayout,
 } from '../../utils/layoutPatterns';
-import { MAP_COLS, MAP_ROWS } from '../../utils/mapUtils';
+import { MAP_COLS, MAP_ROWS, setActiveMapSize } from '../../utils/mapUtils';
 import { MAP_SIZE_PRESETS, presetForSize } from '../../utils/mapSize';
 import {
   toggleDraftTile,
@@ -133,6 +133,22 @@ export const MapLibraryPage = () => {
   const mapRows = selectedLayout?.mapRows ?? MAP_ROWS;
   const mapBackground = selectedLayout?.background ?? DEFAULT_MAP_BACKGROUND;
   const bgPalette = getMapBackground(mapBackground);
+
+  // `inBounds` (usado por toggleDraftTile/paintDraftTile en tileDraft.ts, y
+  // por ende por el pintado de tiles a mano y el arrastre continuo de esta
+  // página) valida contra las dimensiones "activas" globales de mapUtils.ts,
+  // NO contra `mapCols`/`mapRows` de este mapa guardado. Sin este efecto,
+  // esas dimensiones activas se quedaban con lo último que había dejado el
+  // mapa EN VIVO (normalmente el tamaño Estándar 28×16) y cualquier mapa
+  // guardado más grande (p. ej. Grande 44×24) solo dejaba pintar/modificar
+  // muros dentro de ese sector de 28×16 — el resto del mapa no respondía.
+  // El generador de patrones ya lo resolvía para sí mismo con un swap
+  // temporal (ver randomLayout en layoutPatterns.ts); esto lo resuelve para
+  // toda la edición manual, resincronizando cada vez que cambia el mapa
+  // seleccionado o su tamaño.
+  useEffect(() => {
+    setActiveMapSize(mapCols, mapRows);
+  }, [mapCols, mapRows]);
 
   // Dimensionado de la vista previa: mismo criterio que el mapa en vivo
   // (CombatMap.tsx) — calcula el mayor tamaño con celdas cuadradas que cabe

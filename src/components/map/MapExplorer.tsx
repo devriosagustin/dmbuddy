@@ -40,7 +40,7 @@ import { usePlayerStore } from '../../store/playerStore';
 import { useSessionStore } from '../../store/sessionStore';
 import { useFullscreen } from '../../hooks/useFullscreen';
 import { restoreTilesFromLayout, restoreCreaturesFromLayout } from '../../utils/layoutPatterns';
-import { MAP_COLS, MAP_ROWS } from '../../utils/mapUtils';
+import { setActiveMapSize, MAP_COLS, MAP_ROWS } from '../../utils/mapUtils';
 import { DEFAULT_MAP_BACKGROUND } from '../../config/mapBackgrounds';
 import { mapCreatureToCombatant, playerToCombatant } from '../../utils/combatUtils';
 import { findConfiguredPortal } from '../../utils/mapPortals';
@@ -104,6 +104,18 @@ export const MapExplorer = () => {
   } = useCombatStore();
   const players = usePlayerStore((s) => s.players);
   const remotePlayers = useSessionStore((s) => s.remotePlayers);
+
+  // Resincroniza las dimensiones "activas" (mapUtils.ts, usadas por inBounds
+  // para validar pintado/movimiento de tiles) con el tamaño real del mapa EN
+  // VIVO. `setMapSize` ya lo hace cuando el tamaño cambia, pero si la última
+  // pantalla visitada fue la biblioteca de mapas (/mapas, que apunta esas
+  // mismas dimensiones activas al mapa guardado que se estuviera editando
+  // ahí), volver acá sin cambiar el tamaño dejaría el mapa en vivo con los
+  // límites de ESE otro mapa — mismo síntoma que el bug de /mapas: pintar/
+  // modificar muros deja de funcionar fuera de un sector del mapa.
+  useEffect(() => {
+    setActiveMapSize(mapCols ?? MAP_COLS, mapRows ?? MAP_ROWS);
+  }, [mapCols, mapRows]);
 
   // Registro: anota qué personaje trae cada jugador conectado la primera vez
   // que aparece su ficha activa en la sesión.
