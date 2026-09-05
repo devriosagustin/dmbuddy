@@ -7,7 +7,7 @@
 import type { StateCreator } from 'zustand';
 import type { Combatant, CombatLogEntry, StatusEffect, XpAward, PendingEncounter } from '../types';
 import { sortByInitiative, playerToCombatant } from '../utils/combatUtils';
-import { findSpawnCell, inBounds, gridDistanceFeet, isBlocked } from '../utils/mapUtils';
+import { findSpawnCell, inBounds, gridDistanceFeet, isBlocked, tileContactEntries } from '../utils/mapUtils';
 import { usePlayerStore } from './playerStore';
 import { useSessionStore } from './sessionStore';
 import { makeId, baseName, copyLetter, emitInitiativeRequest, creatureToCombatant } from './combatStore.helpers';
@@ -332,45 +332,11 @@ export const createCoreSlice: StateCreator<CombatStore, [], [], CoreSlice> = (se
       message: `${combatant.name} se mueve a (${clamped.x},${clamped.y}) — ${distance} pies`,
       combatantId: id,
     });
-    // Triggers de tiles en el destino.
-    const destTile = tiles.find((t) => t.x === clamped.x && t.y === clamped.y);
-    if (destTile) {
-      if (destTile.type === 'trap') {
-        get().addLogEntry({
-          type: 'move',
-          message: `💥 ${combatant.name} activa una TRAMPA en (${clamped.x},${clamped.y})`,
-          combatantId: id,
-        });
-      } else if (destTile.type === 'investigation') {
-        get().addLogEntry({
-          type: 'move',
-          message: `🔍 ${combatant.name} investiga en (${clamped.x},${clamped.y}) — ¡Descubre algo!`,
-          combatantId: id,
-        });
-      } else if (destTile.type === 'treasure') {
-        get().addLogEntry({
-          type: 'move',
-          message: `💰 ${combatant.name} encuentra un TESORO en (${clamped.x},${clamped.y})`,
-          combatantId: id,
-        });
-      }
-    }
-    // Trigger de tesoro adyacente (si hay tesoro en casillas vecinas).
-    const adjacent = [
-      { x: clamped.x - 1, y: clamped.y },
-      { x: clamped.x + 1, y: clamped.y },
-      { x: clamped.x, y: clamped.y - 1 },
-      { x: clamped.x, y: clamped.y + 1 },
-    ];
-    for (const adj of adjacent) {
-      const treasure = tiles.find((t) => t.x === adj.x && t.y === adj.y && t.type === 'treasure');
-      if (treasure) {
-        get().addLogEntry({
-          type: 'move',
-          message: `💰 ${combatant.name} detecta un TESORO cercano en (${treasure.x},${treasure.y})`,
-          combatantId: id,
-        });
-      }
+    // Triggers de tiles en el destino (trampa/investigación/tesoro) y de
+    // tesoro en casillas vecinas — misma lógica que en modo exploración
+    // (setPartyToken, combatStore.map.ts), ver tileContactEntries.
+    for (const entry of tileContactEntries(tiles, combatant.name, clamped.x, clamped.y)) {
+      get().addLogEntry({ ...entry, combatantId: id });
     }
   },
 

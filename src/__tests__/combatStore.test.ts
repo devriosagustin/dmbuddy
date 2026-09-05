@@ -556,3 +556,83 @@ describe('Combat Store - portales de mapa', () => {
     expect(useCombatStore.getState().tiles).toHaveLength(0);
   });
 });
+
+describe('Combat Store - contacto de tiles especiales (trampa/tesoro/investigación)', () => {
+  it('moveCombatant registra el contacto al pisar trampa, investigación o tesoro', () => {
+    useCombatStore.setState({
+      tiles: [
+        { x: 8, y: 4, type: 'trap' },
+        { x: 9, y: 4, type: 'investigation' },
+        { x: 10, y: 4, type: 'treasure' },
+      ],
+    });
+    useCombatStore.getState().initializeCombat();
+    useCombatStore.getState().addCombatant(makeCombatant({ name: 'Goblin', initiative: 15 }));
+    const id = useCombatStore.getState().participants[0].id;
+
+    useCombatStore.getState().moveCombatant(id, 8, 4);
+    expect(useCombatStore.getState().combatLog.find((e) => e.message.includes('TRAMPA'))).toBeTruthy();
+
+    useCombatStore.getState().moveCombatant(id, 9, 4);
+    expect(useCombatStore.getState().combatLog.find((e) => e.message.includes('investiga'))).toBeTruthy();
+
+    useCombatStore.getState().moveCombatant(id, 10, 4);
+    expect(useCombatStore.getState().combatLog.find((e) => e.message.includes('encuentra un TESORO'))).toBeTruthy();
+  });
+
+  it('moveCombatant registra un tesoro detectado en una casilla adyacente', () => {
+    useCombatStore.setState({ tiles: [{ x: 6, y: 4, type: 'treasure' }] });
+    useCombatStore.getState().initializeCombat();
+    useCombatStore.getState().addCombatant(makeCombatant({ name: 'Goblin', initiative: 15 }));
+    const id = useCombatStore.getState().participants[0].id;
+
+    useCombatStore.getState().moveCombatant(id, 5, 4);
+    expect(
+      useCombatStore.getState().combatLog.find((e) => e.message.includes('detecta un TESORO cercano'))
+    ).toBeTruthy();
+  });
+
+  it('setPartyToken (exploración, sin encuentro activo) registra el mismo contacto con tiles especiales', () => {
+    usePlayerStore.setState({ players: [] });
+    const player = usePlayerStore.getState().addPlayer(makePlayer());
+    useCombatStore.setState({ tiles: [{ x: 10, y: 4, type: 'treasure' }] });
+    const { setPartyToken } = useCombatStore.getState();
+
+    // Primer llamado: coloca la ficha (no hay contacto que registrar todavía).
+    setPartyToken(player.id, 0, 0);
+    let log = useCombatStore.getState().combatLog;
+    expect(log.find((e) => e.message.includes('colocado en el mapa'))).toBeTruthy();
+    expect(log.some((e) => e.message.includes('TESORO'))).toBe(false);
+
+    // Movimiento normal (sin encuentro activo): antes de este fix no pasaba
+    // por moveCombatant y el contacto con el tesoro nunca se registraba.
+    setPartyToken(player.id, 10, 4);
+    log = useCombatStore.getState().combatLog;
+    expect(log.find((e) => e.message.includes('encuentra un TESORO'))).toBeTruthy();
+  });
+
+  it('setPartyToken no repite "colocado en el mapa" en cada movimiento posterior (evita ruido)', () => {
+    usePlayerStore.setState({ players: [] });
+    const player = usePlayerStore.getState().addPlayer(makePlayer());
+    const { setPartyToken } = useCombatStore.getState();
+
+    setPartyToken(player.id, 0, 0);
+    setPartyToken(player.id, 1, 0);
+    setPartyToken(player.id, 2, 0);
+
+    const log = useCombatStore.getState().combatLog;
+    const placements = log.filter((e) => e.message.includes('colocado en el mapa'));
+    expect(placements).toHaveLength(1);
+  });
+
+  it('setPartyToken no registra nada si se llama con la misma posición (sin cambio real)', () => {
+    usePlayerStore.setState({ players: [] });
+    const player = usePlayerStore.getState().addPlayer(makePlayer());
+    const { setPartyToken } = useCombatStore.getState();
+
+    setPartyToken(player.id, 3, 3);
+    const before = useCombatStore.getState().combatLog.length;
+    setPartyToken(player.id, 3, 3);
+    expect(useCombatStore.getState().combatLog.length).toBe(before);
+  });
+});

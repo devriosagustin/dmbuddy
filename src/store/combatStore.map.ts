@@ -6,7 +6,7 @@
 
 import type { StateCreator } from 'zustand';
 import type { MapTile, TileType, MapCreature } from '../types';
-import { inBounds, setActiveMapSize, MAP_COLS, MAP_ROWS } from '../utils/mapUtils';
+import { inBounds, setActiveMapSize, MAP_COLS, MAP_ROWS, tileContactEntries } from '../utils/mapUtils';
 import { tileKey } from '../types/session';
 import { DEFAULT_MAP_BACKGROUND } from '../config/mapBackgrounds';
 import { usePlayerStore } from './playerStore';
@@ -176,19 +176,32 @@ export const createMapSlice: StateCreator<CombatStore, [], [], MapSlice> = (set,
   },
 
   setPartyToken: (playerId, x, y) => {
+    const existing = get().partyTokens.find((t) => t.playerId === playerId);
+    if (existing && existing.x === x && existing.y === y) return; // sin cambio real, no repetir registro
+    const isNewToken = !existing;
     set((state) => {
-      const exists = state.partyTokens.some((t) => t.playerId === playerId);
-      const partyTokens = exists
-        ? state.partyTokens.map((t) => (t.playerId === playerId ? { ...t, x, y } : t))
-        : [...state.partyTokens, { playerId, x, y }];
+      const partyTokens = isNewToken
+        ? [...state.partyTokens, { playerId, x, y }]
+        : state.partyTokens.map((t) => (t.playerId === playerId ? { ...t, x, y } : t));
       return { partyTokens };
     });
     const player = usePlayerStore.getState().players.find((p) => p.id === playerId);
-    if (player) {
+    if (!player) return;
+    if (isNewToken) {
       get().addLogEntry({
         type: 'custom',
         message: `🪪 ${player.name} colocado en el mapa en (${x},${y})`,
       });
+      return;
+    }
+    // Movimiento normal del party en exploración (sin encuentro activo): no
+    // se registra cada paso (sería un registro enorme al cruzar un mapa
+    // grande) — solo lo que realmente importa, el mismo contacto con tiles
+    // especiales (trampa/investigación/tesoro) que ya se registraba en
+    // combate vía moveCombatant, y que en exploración se había dejado de
+    // registrar al no pasar por esa función.
+    for (const entry of tileContactEntries(get().tiles, player.name, x, y)) {
+      get().addLogEntry(entry);
     }
   },
 

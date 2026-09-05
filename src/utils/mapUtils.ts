@@ -3,7 +3,7 @@
 // comprobación de límites y colocación inicial de fichas.
 // ============================================================
 
-import type { Combatant, MapTile, TileType } from '../types';
+import type { Combatant, CombatLogEntry, MapTile, TileType } from '../types';
 
 /** Número de columnas (casillas horizontales) por defecto del mapa. */
 export const MAP_COLS = 28;
@@ -191,6 +191,48 @@ export const cellsInCone = (
     }
   }
   return out;
+};
+
+/**
+ * Eventos de registro al pisar (o pasar cerca de) un tile especial —
+ * trampa, investigación, tesoro. Función pura, sin acceso a ningún store,
+ * para que el mismo aviso salga siempre igual sin importar cómo se movió
+ * el personaje: `moveCombatant` (durante un encuentro) y `setPartyToken`
+ * (moviendo al party en modo exploración, sin encuentro activo) llaman a
+ * esto en vez de duplicar la lógica — así un tile nuevo que dispare un
+ * aviso se agrega en un solo lugar y funciona en los dos modos.
+ */
+export const tileContactEntries = (
+  tiles: MapTile[],
+  name: string,
+  x: number,
+  y: number
+): Pick<CombatLogEntry, 'type' | 'message'>[] => {
+  const entries: Pick<CombatLogEntry, 'type' | 'message'>[] = [];
+  const destTile = tiles.find((t) => t.x === x && t.y === y);
+  if (destTile?.type === 'trap') {
+    entries.push({ type: 'move', message: `💥 ${name} activa una TRAMPA en (${x},${y})` });
+  } else if (destTile?.type === 'investigation') {
+    entries.push({ type: 'move', message: `🔍 ${name} investiga en (${x},${y}) — ¡Descubre algo!` });
+  } else if (destTile?.type === 'treasure') {
+    entries.push({ type: 'move', message: `💰 ${name} encuentra un TESORO en (${x},${y})` });
+  }
+  const adjacent = [
+    { x: x - 1, y },
+    { x: x + 1, y },
+    { x, y: y - 1 },
+    { x, y: y + 1 },
+  ];
+  for (const adj of adjacent) {
+    const treasure = tiles.find((t) => t.x === adj.x && t.y === adj.y && t.type === 'treasure');
+    if (treasure) {
+      entries.push({
+        type: 'move',
+        message: `💰 ${name} detecta un TESORO cercano en (${treasure.x},${treasure.y})`,
+      });
+    }
+  }
+  return entries;
 };
 
 /** Devuelve si una casilla está ya ocupada por una ficha. */

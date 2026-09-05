@@ -15,6 +15,7 @@ import {
   feetToCells,
   gridDistanceFeet,
   trueDistanceFeet,
+  tileContactEntries,
 } from '../utils/mapUtils';
 
 const mk = (x?: number, y?: number): Combatant =>
@@ -217,5 +218,55 @@ describe('mapUtils puertas', () => {
     expect(hasLineOfSight(5, 5, 12, 5, undefined)).toBe(true);
     expect(hasLineOfSight(5, 5, 12, 5, closedDoors)).toBe(false);
     expect(hasLineOfSight(5, 5, 12, 5, openDoors)).toBe(true);
+  });
+});
+
+describe('tileContactEntries', () => {
+  it('no genera nada si no hay tile especial cerca', () => {
+    expect(tileContactEntries([], 'Aragorn', 5, 5)).toEqual([]);
+  });
+
+  it('detecta trampa, investigación y tesoro al pisarlos', () => {
+    const trap = tileContactEntries([{ x: 5, y: 5, type: 'trap' }], 'Aragorn', 5, 5);
+    expect(trap).toHaveLength(1);
+    expect(trap[0].message).toContain('TRAMPA');
+
+    const investigation = tileContactEntries([{ x: 5, y: 5, type: 'investigation' }], 'Aragorn', 5, 5);
+    expect(investigation).toHaveLength(1);
+    expect(investigation[0].message).toContain('investiga');
+
+    const treasure = tileContactEntries([{ x: 5, y: 5, type: 'treasure' }], 'Aragorn', 5, 5);
+    expect(treasure).toHaveLength(1);
+    expect(treasure[0].message).toContain('encuentra un TESORO');
+  });
+
+  it('ignora tiles que no son especiales (muro, puerta, portal)', () => {
+    expect(tileContactEntries([{ x: 5, y: 5, type: 'wall' }], 'Aragorn', 5, 5)).toEqual([]);
+    expect(tileContactEntries([{ x: 5, y: 5, type: 'door', open: true }], 'Aragorn', 5, 5)).toEqual([]);
+  });
+
+  it('detecta un tesoro en una casilla adyacente (no hace falta pisarlo)', () => {
+    const cases: Array<[number, number]> = [
+      [4, 5],
+      [6, 5],
+      [5, 4],
+      [5, 6],
+    ];
+    for (const [x, y] of cases) {
+      const entries = tileContactEntries([{ x: 5, y: 5, type: 'treasure' }], 'Aragorn', x, y);
+      expect(entries).toHaveLength(1);
+      expect(entries[0].message).toContain('detecta un TESORO cercano');
+    }
+  });
+
+  it('reporta pisar un tesoro Y detectar otro adyacente al mismo tiempo', () => {
+    const tiles: MapTile[] = [
+      { x: 5, y: 5, type: 'treasure' },
+      { x: 6, y: 5, type: 'treasure' },
+    ];
+    const entries = tileContactEntries(tiles, 'Aragorn', 5, 5);
+    expect(entries).toHaveLength(2);
+    expect(entries.some((e) => e.message.includes('encuentra un TESORO'))).toBe(true);
+    expect(entries.some((e) => e.message.includes('detecta un TESORO cercano'))).toBe(true);
   });
 });
