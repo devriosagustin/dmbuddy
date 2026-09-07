@@ -49,6 +49,13 @@ interface LayoutStore {
   /** Quita de un layout guardado la criatura ubicada en (x, y), si hay alguna. */
   removeLayoutCreature: (id: string, x: number, y: number) => void;
   /**
+   * Reubica (arrastrando en la cuadrícula) la criatura de un layout guardado
+   * que esté en (fromX, fromY) hacia (toX, toY). No hace nada si no hay
+   * ninguna criatura en el origen, o si el destino ya tiene otra puesta —
+   * evita superponer dos criaturas en la misma casilla.
+   */
+  moveLayoutCreature: (id: string, fromX: number, fromY: number, toX: number, toY: number) => void;
+  /**
    * Cambia el tamaño propio de un layout guardado (columnas/filas), sacando
    * de la cuadrícula nueva cualquier tile o criatura que haya quedado fuera
    * de sus límites. Devuelve el layout actualizado (o undefined si no
@@ -128,6 +135,21 @@ export const useLayoutStore = create<LayoutStore>()(
           savedLayouts: s.savedLayouts.map((l) =>
             l.id === id ? { ...l, creatures: (l.creatures ?? []).filter((c) => !(c.x === x && c.y === y)) } : l
           ),
+        }));
+      },
+      moveLayoutCreature: (id, fromX, fromY, toX, toY) => {
+        if (fromX === toX && fromY === toY) return;
+        set((s) => ({
+          savedLayouts: s.savedLayouts.map((l) => {
+            if (l.id !== id) return l;
+            const creatures = l.creatures ?? [];
+            if (!creatures.some((c) => c.x === fromX && c.y === fromY)) return l;
+            if (creatures.some((c) => c.x === toX && c.y === toY)) return l;
+            return {
+              ...l,
+              creatures: creatures.map((c) => (c.x === fromX && c.y === fromY ? { ...c, x: toX, y: toY } : c)),
+            };
+          }),
         }));
       },
       resizeLayout: (id, cols, rows) => {

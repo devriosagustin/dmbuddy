@@ -113,6 +113,7 @@ export const MapLibraryPage = () => {
   const exportLayouts = useLayoutStore((s) => s.exportLayouts);
   const importLayouts = useLayoutStore((s) => s.importLayouts);
   const updateLayoutTiles = useLayoutStore((s) => s.updateLayoutTiles);
+  const moveLayoutCreature = useLayoutStore((s) => s.moveLayoutCreature);
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [draftTiles, setDraftTiles] = useState<MapTile[]>([]);
@@ -251,6 +252,16 @@ export const MapLibraryPage = () => {
   const portalDragRef = useRef<{ from: { x: number; y: number }; startX: number; startY: number; moved: boolean } | null>(
     null
   );
+  // Arrastrar una criatura (NPC/monstruo) ya puesta en el mapa la reubica en
+  // la casilla nueva — necesario para poder acomodar el encuentro antes de
+  // guardar el layout, en vez de tener que borrarla y volver a añadirla con
+  // el modal (que la coloca en la primera casilla libre, sin control fino).
+  // Tiene prioridad sobre el pintado de tiles: si la casilla donde se hace
+  // pointerdown tiene una criatura, se arrastra esa criatura en vez de
+  // pintar/despintar el tile de esa celda.
+  const creatureDragRef = useRef<{ from: { x: number; y: number }; startX: number; startY: number; moved: boolean } | null>(
+    null
+  );
   const [hoverCell, setHoverCell] = useState<{ x: number; y: number } | null>(null);
 
   const cellFromPointer = (e: React.PointerEvent, rect: DOMRect): { x: number; y: number } | null => {
@@ -307,6 +318,16 @@ export const MapLibraryPage = () => {
         portalDragRef.current = { from: cell, startX: e.clientX, startY: e.clientY, moved: false };
         return;
       }
+    }
+    if (selectedLayout.creatures?.some((c) => c.x === cell.x && c.y === cell.y)) {
+      // La casilla tiene una criatura puesta: se prioriza arrastrarla por
+      // sobre pintar/despintar el tile de esa celda con la herramienta
+      // activa (igual criterio que el portal ya colocado, arriba).
+      e.currentTarget.setPointerCapture(e.pointerId);
+      creatureDragRef.current = { from: cell, startX: e.clientX, startY: e.clientY, moved: false };
+      return;
+    }
+    if (draftTileType === 'portal') {
       persistDraft(toggleDraftTile(draftTiles, cell.x, cell.y, 'portal'));
       setPortalCell(cell);
       return;
@@ -330,6 +351,14 @@ export const MapLibraryPage = () => {
       }
       return;
     }
+    const creatureDrag = creatureDragRef.current;
+    if (creatureDrag) {
+      if (!creatureDrag.moved) {
+        const distance = Math.hypot(e.clientX - creatureDrag.startX, e.clientY - creatureDrag.startY);
+        if (distance > 6) creatureDragRef.current = { ...creatureDrag, moved: true };
+      }
+      return;
+    }
     if (cell) continuePaintStroke(cell);
   };
 
@@ -344,6 +373,22 @@ export const MapLibraryPage = () => {
       } else {
         relocatePortal(portalDrag.from, cell);
       }
+      return;
+    }
+    const creatureDrag = creatureDragRef.current;
+    if (creatureDrag) {
+      creatureDragRef.current = null;
+      const cell = cellFromPointer(e, e.currentTarget.getBoundingClientRect());
+      if (
+        selectedLayout &&
+        creatureDrag.moved &&
+        cell &&
+        (cell.x !== creatureDrag.from.x || cell.y !== creatureDrag.from.y)
+      ) {
+        moveLayoutCreature(selectedLayout.id, creatureDrag.from.x, creatureDrag.from.y, cell.x, cell.y);
+      }
+      // Sin arrastre real (solo un click): no hace nada — dejar la criatura
+      // en su lugar es más seguro que despintar el tile de abajo sin querer.
       return;
     }
     endPaintStroke();
@@ -918,12 +963,14 @@ export const MapLibraryPage = () => {
                     return (
                       <div
                         key={i}
-                        title={creature?.name ?? (isDraggablePortal ? 'Arrastrá para reubicar el portal' : undefined)}
+                        title={
+                          creature ? `${creature.name} (arrastrá para reubicar)` : isDraggablePortal ? 'Arrastrá para reubicar el portal' : undefined
+                        }
                         style={baseClass ? undefined : { background: (x + y) % 2 === 0 ? bgPalette.a : bgPalette.b }}
                         className={`flex items-center justify-center border border-dnd-ink/40 ${baseClass} ${
                           tile ? 'ring-2 ring-inset ring-amber-300' : ''
                         } ${isHover && !tile ? 'bg-dnd-gold/40' : ''} ${
-                          isDraggablePortal ? 'cursor-grab active:cursor-grabbing' : ''
+                          isDraggablePortal || creature ? 'cursor-grab active:cursor-grabbing' : ''
                         }`}
                       >
                         {icon ? (

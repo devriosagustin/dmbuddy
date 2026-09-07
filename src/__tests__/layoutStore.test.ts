@@ -224,4 +224,46 @@ describe('Layout Store', () => {
 
     expect(() => removeLayoutCreature('no-existe', 1, 1)).not.toThrow();
   });
+
+  it('moveLayoutCreature reubica la criatura de una casilla a otra', () => {
+    const { saveLayout, moveLayoutCreature, savedLayout } = useLayoutStore.getState();
+    const layout = saveLayout('Salón', [], [
+      { name: 'Orco', kind: 'monster', x: 2, y: 2, hp: 15, maxHp: 15, tempHp: 0, armorClass: 12, speed: 30 },
+    ]);
+
+    moveLayoutCreature(layout.id, 2, 2, 7, 9);
+
+    const updated = savedLayout(layout.id)!;
+    expect(updated.creatures).toHaveLength(1);
+    expect(updated.creatures![0]).toMatchObject({ name: 'Orco', x: 7, y: 9 });
+  });
+
+  it('moveLayoutCreature no hace nada si el destino ya tiene otra criatura', () => {
+    const { saveLayout, moveLayoutCreature, savedLayout } = useLayoutStore.getState();
+    const layout = saveLayout('Patio', [], [
+      { name: 'Goblin', kind: 'monster', x: 1, y: 1, hp: 7, maxHp: 7, tempHp: 0, armorClass: 15, speed: 30 },
+      { name: 'Lobo', kind: 'monster', x: 4, y: 4, hp: 11, maxHp: 11, tempHp: 0, armorClass: 13, speed: 40 },
+    ]);
+
+    moveLayoutCreature(layout.id, 1, 1, 4, 4);
+
+    const updated = savedLayout(layout.id)!;
+    expect(updated.creatures!.find((c) => c.name === 'Goblin')).toMatchObject({ x: 1, y: 1 });
+    expect(updated.creatures!.find((c) => c.name === 'Lobo')).toMatchObject({ x: 4, y: 4 });
+  });
+
+  it('moveLayoutCreature no rompe con un id que no existe, un origen vacío o si origen y destino son iguales', () => {
+    const { saveLayout, moveLayoutCreature, savedLayout } = useLayoutStore.getState();
+    const layout = saveLayout('Almacén', [], [
+      { name: 'Rata gigante', kind: 'monster', x: 3, y: 3, hp: 7, maxHp: 7, tempHp: 0, armorClass: 10, speed: 30 },
+    ]);
+
+    expect(() => moveLayoutCreature('no-existe', 0, 0, 1, 1)).not.toThrow();
+    expect(() => moveLayoutCreature(layout.id, 9, 9, 1, 1)).not.toThrow();
+    expect(() => moveLayoutCreature(layout.id, 3, 3, 3, 3)).not.toThrow();
+
+    expect(savedLayout(layout.id)!.creatures).toEqual([
+      { name: 'Rata gigante', kind: 'monster', x: 3, y: 3, hp: 7, maxHp: 7, tempHp: 0, armorClass: 10, speed: 30 },
+    ]);
+  });
 });
