@@ -49,6 +49,14 @@ export interface SessionSettings {
 export interface SessionMeta {
   dmId: string;
   createdAt: number;
+  /**
+   * Última vez que el DM publicó actividad en la sesión (combate/ajustes).
+   * Usado para decidir si una sesión quedó abandonada y su código puede
+   * reutilizarse — ver SESSION_TTL_MS e isSessionExpired en firebaseSync.ts.
+   * Ausente en sesiones creadas antes de este campo: isSessionExpired cae
+   * a `createdAt` en ese caso.
+   */
+  lastActivityAt?: number;
   /** Contraseña opcional (validación de conveniencia; la seguridad real van por Security Rules). */
   password?: string;
 }

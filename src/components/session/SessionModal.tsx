@@ -59,6 +59,7 @@ export const SessionModal = ({ open, onClose }: SessionModalProps) => {
   const createSession = useSessionStore((s) => s.createSession);
   const joinSession = useSessionStore((s) => s.joinSession);
   const leaveSession = useSessionStore((s) => s.leaveSession);
+  const endSession = useSessionStore((s) => s.endSession);
   const remotePlayers = useSessionStore((s) => s.remotePlayers);
 
   const localPlayers = usePlayerStore((s) => s.players);
@@ -90,8 +91,21 @@ export const SessionModal = ({ open, onClose }: SessionModalProps) => {
     }
   };
 
-  const handleLeave = () => {
-    leaveSession();
+  const [ending, setEnding] = useState(false);
+
+  // El DM libera el código al instante (borra la sesión de Firebase) en vez
+  // de solo desconectarse localmente — así no hay que esperar a que expire
+  // por inactividad (ver SESSION_TTL_MS en firebaseSync.ts) para poder
+  // reusarlo. Un jugador que sale solo se desconecta: la sesión sigue viva
+  // para el resto de la mesa.
+  const handleLeave = async () => {
+    if (role === 'dm') {
+      setEnding(true);
+      await endSession();
+      setEnding(false);
+    } else {
+      leaveSession();
+    }
     onClose();
   };
 
@@ -276,10 +290,12 @@ export const SessionModal = ({ open, onClose }: SessionModalProps) => {
 
           <div className="flex items-center justify-between gap-2">
             <p className="text-xs text-dnd-muted">
-              {role === 'dm' ? 'Cierra la sesión cuando la partida termine.' : 'Al salir, tu ficha deja de publicarse.'}
+              {role === 'dm'
+                ? 'Libera el código al instante para poder reutilizarlo.'
+                : 'Al salir, tu ficha deja de publicarse.'}
             </p>
-            <Button variant="danger" size="sm" onClick={handleLeave} icon={<LogOut size={15} />}>
-              Salir de la sesión
+            <Button variant="danger" size="sm" onClick={handleLeave} disabled={ending} icon={<LogOut size={15} />}>
+              {role === 'dm' ? (ending ? 'Finalizando…' : 'Finalizar sesión') : 'Salir de la sesión'}
             </Button>
           </div>
         </div>

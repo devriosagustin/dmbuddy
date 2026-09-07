@@ -21,16 +21,51 @@ export const normalizeCode = (code: string): string =>
 /** Ref raíz de una sesión. */
 const sessionRef = (code: string) => ref(db, `sessions/${code}`);
 
-// ---------- Meta -----------------------------------------------------------
+// ---------- Meta / ciclo de vida de la sesión -------------------------------
+
+/**
+ * Tiempo de inactividad tras el cual una sesión se considera abandonada y su
+ * código vuelve a estar disponible: nadie borra nada proactivamente (no hay
+ * backend/Cloud Functions en esta app), pero createSession/joinSession en
+ * sessionStore.ts revisan esto y limpian la sesión vieja apenas alguien
+ * intenta crear o unirse con ese código otra vez. 24hs: sobrevive una sesión
+ * larga con pausas (cena, etc.) y, si el mismo código se reutiliza semana a
+ * semana para la misma campaña, se resetea solo entre partidas sin que el DM
+ * tenga que hacer nada. La sesión de Firebase es solo el canal de
+ * sincronización EN VIVO de una partida (combate/chat/fichas publicadas) —
+ * nada de la campaña (party, notas, mapas, NPCs) vive acá, así que borrar una
+ * sesión vencida no pierde nada importante.
+ */
+export const SESSION_TTL_MS = 24 * 60 * 60 * 1000;
+
+/** true si la sesión no tuvo actividad (o no se creó) hace más de SESSION_TTL_MS. */
+export const isSessionExpired = (meta: SessionMeta, now: number = Date.now()): boolean =>
+  now - (meta.lastActivityAt ?? meta.createdAt) > SESSION_TTL_MS;
 
 export const createSessionMeta = async (code: string, dmId: string): Promise<void> => {
-  const meta: SessionMeta = { dmId, createdAt: Date.now() };
+  const now = Date.now();
+  const meta: SessionMeta = { dmId, createdAt: now, lastActivityAt: now };
   await set(child(sessionRef(code), 'meta'), meta);
 };
 
 export const readSessionMeta = async (code: string): Promise<SessionMeta | null> => {
   const snap = await get(child(sessionRef(code), 'meta'));
   return snap.val() as SessionMeta | null;
+};
+
+/** Marca actividad reciente en la sesión (llamado desde publishCombat, el
+ * único heartbeat real de una sesión en curso). */
+const touchSessionActivity = async (code: string): Promise<void> => {
+  await set(child(sessionRef(code), 'meta/lastActivityAt'), Date.now());
+};
+
+/**
+ * Borra toda la sesión (meta/settings/combat/players/responses) para que su
+ * código vuelva a estar libre. Usado por endSession (DM, botón "Finalizar
+ * sesión") y por createSession/joinSession cuando detectan un código vencido.
+ */
+export const deleteSession = async (code: string): Promise<void> => {
+  await set(sessionRef(code), null);
 };
 
 // ---------- Ajustes (DM) ----------------------------------------------------
@@ -53,6 +88,9 @@ export interface CombatPayload {
 export const publishCombat = async (code: string, snapshot: SyncCombatSnapshot, settings: SessionSettings): Promise<void> => {
   await set(child(sessionRef(code), 'combat'), sanitize(snapshot));
   await set(child(sessionRef(code), 'settings'), settings);
+  void touchSessionActivity(code).catch(() => {
+    /* best-effort: no bloquea ni rompe la publicación de combate si falla */
+  });
 };
 
 /**

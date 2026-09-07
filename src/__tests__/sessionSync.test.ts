@@ -5,7 +5,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { tileKey } from '../types/session';
-import { buildCombatSnapshot, isEnemyRevealed, isTileRevealed } from '../services/firebaseSync';
+import { SESSION_TTL_MS, buildCombatSnapshot, isEnemyRevealed, isSessionExpired, isTileRevealed } from '../services/firebaseSync';
 import type { Combatant, MapTile } from '../types';
 import type { SyncCombatSnapshot } from '../types/session';
 
@@ -173,5 +173,36 @@ describe('cortina de guerra (revelación)', () => {
       chat: [],
     });
     expect(out.partyCombatants).toEqual([]);
+  });
+});
+
+describe('isSessionExpired (vencimiento de sesión / reutilización de código)', () => {
+  const HOUR = 60 * 60 * 1000;
+
+  it('no vencida: actividad reciente dentro del TTL', () => {
+    const now = 1_000_000_000_000;
+    const meta = { dmId: 'dm-1', createdAt: now - 25 * HOUR, lastActivityAt: now - 1 * HOUR };
+    expect(isSessionExpired(meta, now)).toBe(false);
+  });
+
+  it('vencida: última actividad hace más de SESSION_TTL_MS', () => {
+    const now = 1_000_000_000_000;
+    const meta = { dmId: 'dm-1', createdAt: now - 30 * HOUR, lastActivityAt: now - 25 * HOUR };
+    expect(isSessionExpired(meta, now)).toBe(true);
+  });
+
+  it('justo en el borde del TTL no cuenta como vencida (estrictamente mayor)', () => {
+    const now = 1_000_000_000_000;
+    const meta = { dmId: 'dm-1', createdAt: now - SESSION_TTL_MS, lastActivityAt: now - SESSION_TTL_MS };
+    expect(isSessionExpired(meta, now)).toBe(false);
+  });
+
+  it('sin lastActivityAt (sesiones viejas, creadas antes de este campo) cae a createdAt', () => {
+    const now = 1_000_000_000_000;
+    const recienCreada = { dmId: 'dm-1', createdAt: now - 1 * HOUR };
+    expect(isSessionExpired(recienCreada, now)).toBe(false);
+
+    const vieja = { dmId: 'dm-1', createdAt: now - 48 * HOUR };
+    expect(isSessionExpired(vieja, now)).toBe(true);
   });
 });

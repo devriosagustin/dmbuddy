@@ -9,6 +9,8 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import {
   createSessionMeta,
+  deleteSession,
+  isSessionExpired,
   normalizeCode,
   readSessionMeta,
   watchCombat,
@@ -39,6 +41,12 @@ interface SessionStore {
   createSession: (code: string) => Promise<boolean>;
   joinSession: (code: string) => Promise<boolean>;
   leaveSession: () => void;
+  /**
+   * Solo DM: borra la sesión de Firebase (libera el código al instante, sin
+   * esperar a que expire por inactividad) y además desconecta localmente,
+   * igual que leaveSession. Llamada por el botón "Finalizar sesión".
+   */
+  endSession: () => Promise<void>;
   /** Elige qué personaje local trae este jugador a la sesión. */
   setActivePlayer: (playerId: string | null) => void;
   /** Aplica un snapshot remoto recibido (jugador). */
@@ -83,8 +91,13 @@ export const useSessionStore = create<SessionStore>()(
         try {
           const existing = await readSessionMeta(normalized);
           if (existing) {
-            set({ role: null, code: null, status: 'error', error: 'Ese código ya está en uso. Prueba otro.' });
-            return false;
+            if (!isSessionExpired(existing)) {
+              set({ role: null, code: null, status: 'error', error: 'Ese código ya está en uso. Prueba otro.' });
+              return false;
+            }
+            // Nadie tocó esta sesión en más de SESSION_TTL_MS: se considera
+            // abandonada y su código queda libre para reutilizarse.
+            await deleteSession(normalized);
           }
           await createSessionMeta(normalized, dmId);
 
@@ -111,7 +124,10 @@ export const useSessionStore = create<SessionStore>()(
         set({ role: 'player', code: normalized, status: 'connecting', error: null });
         try {
           const meta = await readSessionMeta(normalized);
-          if (!meta) {
+          if (!meta || isSessionExpired(meta)) {
+            // Un código vencido se trata como si no existiera — de paso se
+            // borra, así queda libre para quien quiera reutilizarlo.
+            if (meta) await deleteSession(normalized);
             set({ role: null, code: null, status: 'error', error: 'No existe una sesión con ese código.' });
             return false;
           }
@@ -140,6 +156,20 @@ export const useSessionStore = create<SessionStore>()(
           remotePlayers: [],
           lastXpCombatId: null,
         });
+      },
+
+      endSession: async () => {
+        const { role, code } = get();
+        if (role === 'dm' && code) {
+          try {
+            await deleteSession(code);
+          } catch {
+            // Best-effort: si falla el borrado remoto (sin conexión, etc.),
+            // igual desconectamos localmente — el código quedará libre solo
+            // cuando expire por inactividad en vez de al instante.
+          }
+        }
+        get().leaveSession();
       },
 
       setRemoteCombat: (payload) => {
