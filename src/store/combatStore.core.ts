@@ -86,14 +86,17 @@ export const createCoreSlice: StateCreator<CombatStore, [], [], CoreSlice> = (se
     if (combatant.playerId && get().participants.some((p) => p.playerId === combatant.playerId)) {
       return false;
     }
-    // Etiquetar copias del mismo monstruo (Zombie -> Zombie a, b, c...)
-    const isMonster = combatant.type === 'monster';
-    const base = isMonster ? baseName(combatant.name) : null;
+    // Etiquetar copias del mismo monstruo o NPC (Zombie -> Zombie a, b, c...;
+    // Guardia -> Guardia a, b... si hay dos NPC distintos con el mismo
+    // nombre). Los jugadores del party no se etiquetan: cada uno ya es único
+    // (ver el chequeo de playerId más arriba) y su nombre no debería cambiar.
+    const isLetterable = combatant.type === 'monster' || combatant.type === 'npc';
+    const base = isLetterable ? baseName(combatant.name) : null;
     const sameBefore = base
       ? get().participants.filter((p) => baseName(p.name) === base).length
       : 0;
     const name =
-      isMonster && sameBefore >= 1 ? `${base} ${copyLetter(sameBefore)}` : combatant.name;
+      isLetterable && sameBefore >= 1 ? `${base} ${copyLetter(sameBefore)}` : combatant.name;
     const spawn = findSpawnCell(
       get().participants,
       combatant.type === 'player' || (combatant.type === 'npc' && combatant.npcRole === 'ally'),
@@ -112,7 +115,7 @@ export const createCoreSlice: StateCreator<CombatStore, [], [], CoreSlice> = (se
       const withNew = [...state.participants, newCombatant];
       // Re-etiquetar retroactivamente copias previas sin sufijo (p. ej. un
       // "Zombie" suelto pasa a "Zombie a" al añadir un segundo "Zombie b").
-      if (isMonster && base) {
+      if (isLetterable && base) {
         const same = withNew.filter((p) => baseName(p.name) === base);
         if (same.length > 1) {
           const relabel = new Map(same.map((p, idx) => [p.id, `${base} ${copyLetter(idx)}`]));
