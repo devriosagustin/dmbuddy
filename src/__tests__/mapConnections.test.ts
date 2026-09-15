@@ -10,20 +10,56 @@ const COLS = 10;
 const ROWS = 8;
 
 describe('portalDirection', () => {
-  it('un portal contra el borde derecho apunta al Este', () => {
+  it('un portal contra el borde derecho, centrado verticalmente, apunta al Este', () => {
     expect(portalDirection(COLS - 1, 4, COLS, ROWS)).toBe('E');
   });
 
-  it('un portal contra el borde izquierdo apunta al Oeste', () => {
+  it('un portal contra el borde izquierdo, centrado verticalmente, apunta al Oeste', () => {
     expect(portalDirection(0, 4, COLS, ROWS)).toBe('W');
   });
 
-  it('un portal contra el borde superior apunta al Norte', () => {
+  it('un portal contra el borde superior, centrado horizontalmente, apunta al Norte', () => {
     expect(portalDirection(5, 0, COLS, ROWS)).toBe('N');
   });
 
-  it('un portal contra el borde inferior apunta al Sur', () => {
+  it('un portal contra el borde inferior, centrado horizontalmente, apunta al Sur', () => {
     expect(portalDirection(5, ROWS - 1, COLS, ROWS)).toBe('S');
+  });
+
+  it('un portal en la esquina superior izquierda apunta al Noroeste', () => {
+    expect(portalDirection(0, 0, COLS, ROWS)).toBe('NW');
+  });
+
+  it('un portal en la esquina superior derecha apunta al Noreste', () => {
+    expect(portalDirection(COLS - 1, 0, COLS, ROWS)).toBe('NE');
+  });
+
+  it('un portal en la esquina inferior izquierda apunta al Suroeste', () => {
+    expect(portalDirection(0, ROWS - 1, COLS, ROWS)).toBe('SW');
+  });
+
+  it('un portal en la esquina inferior derecha apunta al Sureste', () => {
+    expect(portalDirection(COLS - 1, ROWS - 1, COLS, ROWS)).toBe('SE');
+  });
+
+  it('un portal pegado al borde derecho pero también claramente hacia el tercio superior es diagonal (Noreste), no puro Este', () => {
+    // Con el sistema anterior (4 direcciones, eje dominante) esto daba 'E'
+    // porque |nx| > |ny|; con las 8 secciones, caer en el tercio superior
+    // Y en el tercio derecho a la vez ya alcanza para clasificarlo como
+    // esquina, aunque un eje esté más pegado al borde que el otro.
+    expect(portalDirection(COLS - 1, 1, COLS, ROWS)).toBe('NE');
+  });
+
+  it('un portal en el tercio central de ambos ejes (sin sección de borde propia) desempata por el eje más desviado, a favor del horizontal en un empate exacto', () => {
+    // Grilla 9×9 para tener un centro exacto (índice 4 de 0 a 8 en ambos ejes).
+    expect(portalDirection(4, 4, 9, 9)).toBe('E');
+  });
+
+  it('un mapa de una sola columna o una sola fila no rompe la clasificación (ese eje queda siempre en el tercio central)', () => {
+    expect(portalDirection(0, 0, 1, ROWS)).toBe('N');
+    expect(portalDirection(0, ROWS - 1, 1, ROWS)).toBe('S');
+    expect(portalDirection(0, 0, COLS, 1)).toBe('W');
+    expect(portalDirection(COLS - 1, 0, COLS, 1)).toBe('E');
   });
 });
 
@@ -65,8 +101,12 @@ describe('buildMapDiagram', () => {
         mapCols: COLS,
         mapRows: ROWS,
         tiles: [
-          { x: COLS - 1, y: 2, type: 'portal', targetLayoutId: 'b' },
-          { x: COLS - 1, y: 5, type: 'portal', targetLayoutId: 'c' },
+          // y=3 e y=4 caen dentro del tercio central vertical (con ROWS=8,
+          // el centro va de y≈2.3 a y≈4.7), así que ambos portales dan
+          // dirección Este pura (no diagonal) y sí colisionan en la misma
+          // celda, que es lo que este test quiere ejercitar.
+          { x: COLS - 1, y: 3, type: 'portal', targetLayoutId: 'b' },
+          { x: COLS - 1, y: 4, type: 'portal', targetLayoutId: 'c' },
         ],
       },
       { id: 'b', name: 'Mapa B', mapCols: COLS, mapRows: ROWS, tiles: [] },
@@ -144,9 +184,12 @@ describe('buildMapDiagram', () => {
   });
 
   it('un mapa sin mapCols/mapRows guardado (layout viejo) usa el tamaño por defecto en vez de romper', () => {
+    // y=7 cae en el tercio central vertical del default 28×16 (tercio
+    // central ≈ filas 5.3 a 10.7), así que la dirección da Este/Oeste
+    // puros — este test es sobre el fallback de tamaño, no sobre esquinas.
     const layouts: MapLayout[] = [
-      { id: 'a', name: 'Mapa A', tiles: [{ x: 27, y: 4, type: 'portal', targetLayoutId: 'b' }] },
-      { id: 'b', name: 'Mapa B', tiles: [{ x: 0, y: 4, type: 'portal', targetLayoutId: 'a' }] },
+      { id: 'a', name: 'Mapa A', tiles: [{ x: 27, y: 7, type: 'portal', targetLayoutId: 'b' }] },
+      { id: 'b', name: 'Mapa B', tiles: [{ x: 0, y: 7, type: 'portal', targetLayoutId: 'a' }] },
     ];
     const diagram = buildMapDiagram('a', layouts);
     const byId = Object.fromEntries(diagram.nodes.map((n) => [n.id, n]));
@@ -177,5 +220,77 @@ describe('buildMapDiagram', () => {
     const diagram = buildMapDiagram('chico', layouts);
     const byId = Object.fromEntries(diagram.nodes.map((n) => [n.id, n]));
     expect(byId.grande).toMatchObject({ col: 1, row: 0 });
+  });
+
+  it('un portal en una esquina ubica al mapa vecino en diagonal (col y row se mueven juntas)', () => {
+    const layouts: MapLayout[] = [
+      { id: 'a', name: 'Mapa A', mapCols: COLS, mapRows: ROWS, tiles: [{ x: COLS - 1, y: 0, type: 'portal', targetLayoutId: 'b' }] },
+      { id: 'b', name: 'Mapa B', mapCols: COLS, mapRows: ROWS, tiles: [{ x: 0, y: ROWS - 1, type: 'portal', targetLayoutId: 'a' }] },
+    ];
+    const diagram = buildMapDiagram('a', layouts);
+    const byId = Object.fromEntries(diagram.nodes.map((n) => [n.id, n]));
+    // Portal de ida en la esquina superior derecha de "a" → Noreste.
+    expect(byId.b).toMatchObject({ col: 1, row: -1 });
+  });
+
+  it('una cadena de 4 mapas por las 4 esquinas forma un cuadrado en el diagrama, no una línea', () => {
+    const layouts: MapLayout[] = [
+      {
+        id: 'a',
+        name: 'Mapa A',
+        mapCols: COLS,
+        mapRows: ROWS,
+        tiles: [{ x: COLS - 1, y: 0, type: 'portal', targetLayoutId: 'b' }], // NE
+      },
+      {
+        id: 'b',
+        name: 'Mapa B',
+        mapCols: COLS,
+        mapRows: ROWS,
+        tiles: [{ x: COLS - 1, y: ROWS - 1, type: 'portal', targetLayoutId: 'c' }], // SE
+      },
+      {
+        id: 'c',
+        name: 'Mapa C',
+        mapCols: COLS,
+        mapRows: ROWS,
+        tiles: [{ x: 0, y: ROWS - 1, type: 'portal', targetLayoutId: 'd' }], // SW
+      },
+      {
+        id: 'd',
+        name: 'Mapa D',
+        mapCols: COLS,
+        mapRows: ROWS,
+        tiles: [{ x: 0, y: 0, type: 'portal', targetLayoutId: 'a' }], // NW
+      },
+    ];
+    const diagram = buildMapDiagram('a', layouts);
+    const byId = Object.fromEntries(diagram.nodes.map((n) => [n.id, n]));
+    expect(byId.a).toMatchObject({ col: 0, row: 0 });
+    expect(byId.b).toMatchObject({ col: 1, row: -1 });
+    expect(byId.c).toMatchObject({ col: 2, row: 0 });
+    expect(byId.d).toMatchObject({ col: 1, row: 1 });
+  });
+
+  it('si dos portales en esquina apuntan a la misma celda diagonal, corre el segundo mapa más lejos en esa misma diagonal', () => {
+    const layouts: MapLayout[] = [
+      {
+        id: 'a',
+        name: 'Mapa A',
+        mapCols: COLS,
+        mapRows: ROWS,
+        tiles: [
+          { x: COLS - 1, y: 0, type: 'portal', targetLayoutId: 'b' }, // NE
+          { x: COLS - 1, y: 1, type: 'portal', targetLayoutId: 'c' }, // también NE (ver test de portalDirection)
+        ],
+      },
+      { id: 'b', name: 'Mapa B', mapCols: COLS, mapRows: ROWS, tiles: [] },
+      { id: 'c', name: 'Mapa C', mapCols: COLS, mapRows: ROWS, tiles: [] },
+    ];
+    const diagram = buildMapDiagram('a', layouts);
+    const byId = Object.fromEntries(diagram.nodes.map((n) => [n.id, n]));
+    expect(byId.a).toMatchObject({ col: 0, row: 0 });
+    expect(byId.b).toMatchObject({ col: 1, row: -1 });
+    expect(byId.c).toMatchObject({ col: 2, row: -2 });
   });
 });

@@ -5,14 +5,12 @@
 // ============================================================
 
 import { useState } from 'react';
-import { ArrowLeft, Dices, Save, Shuffle } from 'lucide-react';
-import { Modal } from '../common/Modal';
+import { ArrowLeft, Dices, Save } from 'lucide-react';
 import { Button } from '../common/Button';
 import type { Npc, NpcRole } from '../../types';
 import { useNpcStore } from '../../store/npcStore';
 import { NPC_NAME_TABLES } from '../../data/randomTables';
 import { rollNpcName } from '../../utils/randomTables';
-import { RandomTablesPage } from '../tools/RandomTablesPage';
 
 interface NpcFormProps {
   npc: Npc | null; // null = crear nuevo
@@ -27,9 +25,7 @@ const ROLE_OPTIONS: { value: NpcRole; label: string; hint: string; icon: string 
 ];
 
 /**
- * Página para crear o editar un NPC en la sección NPC. Incluye acceso al
- * generador aleatorio (ganchos, complicaciones, botín) en un panel propio,
- * para no necesitar una pestaña separada en la barra lateral.
+ * Página para crear o editar un NPC en la sección NPC.
  */
 export const NpcForm = ({ npc, onBack }: NpcFormProps) => {
   const { addNpc, updateNpc } = useNpcStore();
@@ -51,7 +47,6 @@ export const NpcForm = ({ npc, onBack }: NpcFormProps) => {
   // acá abajo — no se guarda con el NPC (el registro de NPC no tiene campo
   // de especie).
   const [nameSpecies, setNameSpecies] = useState('');
-  const [showGenerator, setShowGenerator] = useState(false);
 
   const setField = <K extends keyof Npc>(key: K, value: Npc[K]) =>
     setForm((f) => ({ ...f, [key]: value }));
@@ -96,9 +91,6 @@ export const NpcForm = ({ npc, onBack }: NpcFormProps) => {
           </div>
         </div>
         <div className="page-actions">
-          <Button variant="secondary" size="sm" icon={<Shuffle size={15} />} onClick={() => setShowGenerator(true)}>
-            Generador aleatorio
-          </Button>
           <Button variant="primary" size="sm" onClick={handleSave} icon={<Save size={15} />}>
             {isNew ? 'Crear NPC' : 'Guardar cambios'}
           </Button>
@@ -244,11 +236,6 @@ export const NpcForm = ({ npc, onBack }: NpcFormProps) => {
           </Button>
         </div>
       </div>
-
-      {/* Generador aleatorio: ganchos, complicaciones y botín, sin salir de esta página */}
-      <Modal open={showGenerator} onClose={() => setShowGenerator(false)} maxWidth="2xl">
-        <RandomTablesPage />
-      </Modal>
     </div>
   );
 };
