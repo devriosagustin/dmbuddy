@@ -57,6 +57,47 @@ describe('Combat Store', () => {
     expect(state.participants[0].id).toBeTruthy();
   });
 
+  it('debe etiquetar con letras copias del mismo monstruo (como ya hacía)', () => {
+    useCombatStore.getState().initializeCombat();
+    useCombatStore.getState().addCombatant(makeCombatant({ name: 'Zombie', initiative: 10 }));
+    useCombatStore.getState().addCombatant(makeCombatant({ name: 'Zombie', initiative: 9 }));
+    useCombatStore.getState().addCombatant(makeCombatant({ name: 'Zombie', initiative: 8 }));
+    const names = useCombatStore.getState().participants.map((p) => p.name).sort();
+    expect(names).toEqual(['Zombie A', 'Zombie B', 'Zombie C']);
+  });
+
+  it('debe etiquetar con letras dos NPC distintos que comparten nombre (misma funcionalidad que los monstruos)', () => {
+    useCombatStore.getState().initializeCombat();
+    useCombatStore.getState().addCombatant(
+      makeCombatant({ name: 'Guardia', initiative: 12, type: 'npc' })
+    );
+    useCombatStore.getState().addCombatant(
+      makeCombatant({ name: 'Guardia', initiative: 11, type: 'npc' })
+    );
+    const names = useCombatStore.getState().participants.map((p) => p.name).sort();
+    expect(names).toEqual(['Guardia A', 'Guardia B']);
+  });
+
+  it('un solo NPC sin nombre repetido entra sin sufijo de letra', () => {
+    useCombatStore.getState().initializeCombat();
+    useCombatStore.getState().addCombatant(
+      makeCombatant({ name: 'Pelagia', initiative: 12, type: 'npc' })
+    );
+    expect(useCombatStore.getState().participants[0].name).toBe('Pelagia');
+  });
+
+  it('no etiqueta con letras a los jugadores del party aunque compartan nombre', () => {
+    useCombatStore.getState().initializeCombat();
+    useCombatStore.getState().addCombatant(
+      { ...makeCombatant({ name: 'Aragorn', initiative: 12, type: 'player' }), playerId: 'p-1' }
+    );
+    useCombatStore.getState().addCombatant(
+      { ...makeCombatant({ name: 'Aragorn', initiative: 11, type: 'player' }), playerId: 'p-2' }
+    );
+    const names = useCombatStore.getState().participants.map((p) => p.name);
+    expect(names).toEqual(['Aragorn', 'Aragorn']);
+  });
+
   it('debe pasar al siguiente turno y a la siguiente ronda', () => {
     initializeWithTwo(); // turn -1, ronda 1
     useCombatStore.getState().nextTurn(); // -1 -> 0

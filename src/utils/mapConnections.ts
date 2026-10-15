@@ -2,23 +2,27 @@
 // Diagrama de conexiones entre mapas guardados (portales). Dado un mapa
 // de partida, calcula la posición relativa (en una cuadrícula de mapas,
 // no de celdas) de todos los mapas conectados a él por portales, siguiendo
-// el borde donde está cada portal: uno pegado al borde derecho ubica al
-// mapa vecino a la derecha, uno pegado abajo lo ubica abajo, etc.
+// la sección del mapa donde está cada portal: la cuadrícula de CADA mapa
+// se divide en 3×3 y se usan las 8 secciones exteriores (esquinas y
+// centros de borde) para ubicar al vecino — un portal pegado al borde
+// derecho (centro) ubica al mapa vecino a la Este, uno en la esquina
+// superior derecha lo ubica al Noreste, etc. Esto le da al diagrama
+// resolución diagonal además de la ortogonal N/S/E/W.
 //
 // La dirección de cada conexión se calcula combinando el portal de ida Y
 // el de vuelta (si ambos existen, que es el caso normal porque los
 // portales son bidireccionales) para que el resultado NO dependa de cuál
 // de los dos mapas se usó como punto de partida: cada portal se coloca
 // donde tiene sentido dentro de SU propio mapa, así que el de ida y el de
-// vuelta no necesariamente quedan en bordes "opuestos" entre sí — sin este
-// desempate, generar el diagrama desde un mapa u otro podía dar formas
-// distintas para el mismo grupo de mapas.
+// vuelta no necesariamente quedan en secciones "opuestas" entre sí — sin
+// este desempate, generar el diagrama desde un mapa u otro podía dar
+// formas distintas para el mismo grupo de mapas.
 //
 // Cada mapa guardado puede tener su propio tamaño (mapCols/mapRows en
 // MapLayout); todo el cálculo de dirección normaliza la posición de un
 // portal contra el tamaño de SU PROPIO mapa (layoutDims), nunca contra un
 // tamaño compartido — así el diagrama no se rompe al mezclar mapas chicos
-// y grandes.
+// y grandes, ni con mapas de una sola fila/columna.
 // ============================================================
 
 import type { MapLayout } from './layoutPatterns';
@@ -31,36 +35,78 @@ export const layoutDims = (layout: MapLayout | undefined): { cols: number; rows:
   rows: layout?.mapRows ?? MAP_ROWS,
 });
 
-export type CardinalDir = 'N' | 'S' | 'E' | 'W';
+export type CardinalDir = 'N' | 'S' | 'E' | 'W' | 'NE' | 'NW' | 'SE' | 'SW';
 
 const DIR_OFFSET: Record<CardinalDir, { dc: number; dr: number }> = {
   N: { dc: 0, dr: -1 },
   S: { dc: 0, dr: 1 },
   E: { dc: 1, dr: 0 },
   W: { dc: -1, dr: 0 },
+  NE: { dc: 1, dr: -1 },
+  NW: { dc: -1, dr: -1 },
+  SE: { dc: 1, dr: 1 },
+  SW: { dc: -1, dr: 1 },
 };
 
-const OPPOSITE_DIR: Record<CardinalDir, CardinalDir> = { N: 'S', S: 'N', E: 'W', W: 'E' };
+const OPPOSITE_DIR: Record<CardinalDir, CardinalDir> = {
+  N: 'S',
+  S: 'N',
+  E: 'W',
+  W: 'E',
+  NE: 'SW',
+  SW: 'NE',
+  NW: 'SE',
+  SE: 'NW',
+};
 
 /**
- * Dirección del mapa vecino según en qué borde de la cuadrícula está el
- * portal: el eje con mayor desviación del centro manda (un portal contra el
- * borde derecho apunta al Este, uno contra el borde inferior apunta al Sur).
- * Ante un empate exacto entre ambos ejes, prioriza el horizontal.
+ * Ancho del tercio central de cada eje (de -0.5 a 0.5, dividido en 3 partes
+ * iguales: el tercio del medio va de -THIRD a +THIRD).
+ */
+const THIRD = 1 / 6;
+
+/** Posición normalizada de un eje: -0.5 (borde "de arriba/izquierda") a 0.5 (borde "de abajo/derecha"), 0 = centro. */
+const normalizedAxis = (value: number, size: number): number => (size > 1 ? value / (size - 1) - 0.5 : 0);
+
+/** -1 = tercio "de arriba/izquierda" del eje, 1 = tercio "de abajo/derecha", 0 = tercio central. */
+const axisBand = (n: number): -1 | 0 | 1 => (n <= -THIRD ? -1 : n >= THIRD ? 1 : 0);
+
+/**
+ * Dirección del mapa vecino según en cuál de las 8 secciones exteriores de
+ * una cuadrícula 3×3 cae el portal (esquina superior izquierda, centro
+ * superior, esquina superior derecha, centro izquierda, centro derecha,
+ * esquina inferior izquierda, centro inferior, esquina inferior derecha):
+ * cada eje (x e y) se divide en 3 tercios iguales, y combinar el tercio de
+ * cada eje da la sección — dos tercios "de esquina" (uno por eje) dan una
+ * dirección diagonal, un tercio central en un eje junto con uno "de borde"
+ * en el otro da una dirección ortogonal.
+ *
+ * Un portal que cae en el tercio central de AMBOS ejes (el noveno cuadro,
+ * sin sección de borde propia) no tiene una de las 8 direcciones asignada
+ * directamente: para seguir dando un resultado determinístico se usa el
+ * mismo criterio que antes de tener secciones (el eje con mayor desviación
+ * del centro manda; empate a favor del horizontal).
  */
 export const portalDirection = (x: number, y: number, cols: number, rows: number): CardinalDir => {
-  const nx = cols > 1 ? x / (cols - 1) - 0.5 : 0;
-  const ny = rows > 1 ? y / (rows - 1) - 0.5 : 0;
-  if (Math.abs(nx) >= Math.abs(ny)) {
-    return nx >= 0 ? 'E' : 'W';
+  const nx = normalizedAxis(x, cols);
+  const ny = normalizedAxis(y, rows);
+  const bx = axisBand(nx);
+  const by = axisBand(ny);
+
+  if (bx === 0 && by === 0) {
+    if (Math.abs(nx) >= Math.abs(ny)) return nx >= 0 ? 'E' : 'W';
+    return ny >= 0 ? 'S' : 'N';
   }
-  return ny >= 0 ? 'S' : 'N';
+  if (bx === 0) return by < 0 ? 'N' : 'S';
+  if (by === 0) return bx < 0 ? 'W' : 'E';
+  if (bx < 0) return by < 0 ? 'NW' : 'SW';
+  return by < 0 ? 'NE' : 'SE';
 };
 
-/** Qué tan pegado a un borde está un portal (0 = centro del mapa, 0.5 = borde exacto). */
+/** Qué tan pegado a un borde o esquina está un portal (0 = centro del mapa, ~0.5 = borde/esquina exacta). */
 const edgeConfidence = (x: number, y: number, cols: number, rows: number): number => {
-  const nx = cols > 1 ? x / (cols - 1) - 0.5 : 0;
-  const ny = rows > 1 ? y / (rows - 1) - 0.5 : 0;
+  const nx = normalizedAxis(x, cols);
+  const ny = normalizedAxis(y, rows);
   return Math.max(Math.abs(nx), Math.abs(ny));
 };
 
