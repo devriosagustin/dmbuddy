@@ -107,8 +107,17 @@ export const useSessionStore = create<SessionStore>()(
           activeDetach = detachPlayers;
           set({ status: 'connected', error: null });
           return true;
-        } catch {
-          set({ role: null, code: null, status: 'error', error: 'No se pudo crear la sesión. Revisa tu conexión.' });
+        } catch (err) {
+          const raw = err instanceof Error ? err.message : String(err);
+          const denied = /permission[_ ]denied/i.test(raw);
+          set({
+            role: null,
+            code: null,
+            status: 'error',
+            error: denied
+              ? 'Firebase rechazó la operación (permission denied): revisa las Security Rules de la base de datos.'
+              : 'No se pudo crear la sesión. Revisa tu conexión.',
+          });
           return false;
         }
       },
